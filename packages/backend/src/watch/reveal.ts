@@ -12,6 +12,7 @@ import {
   map,
   delay,
   catchError,
+  EMPTY,
 } from "rxjs";
 import { SecretKey } from "@0xflick/crypto-utils";
 import { IFundingDao, IFundingDocDao } from "../dao/funding.js";
@@ -100,8 +101,8 @@ export function watchForGenesis(
         `Starting to watch genesis ${funded.id} for address ${funded.address} `,
       );
     }),
-    tap((funding) => logger.debug(`Enqueuing reveal funding ${funding.id}`)),
-    switchMap((funded) => {
+    tap((funding) => logger.trace(`Enqueuing reveal funding ${funding.id}`)),
+    mergeMap((funded) => {
       return from(
         Promise.all([
           fundingDao.getFunding(funded.id),
@@ -127,11 +128,15 @@ export function watchForGenesis(
               mempoolBitcoinClient,
             }),
           ).pipe(
-            retry({
-              delay(error, retryCount) {
-                return timer(customBackoff(retryCount + funded.timesChecked));
-              },
+            catchError((error) => {
+              logger.error(error, "Error checking funding for", funded.address);
+              return EMPTY;
             }),
+            // retry({
+            //   delay(error, retryCount) {
+            //     return timer(customBackoff(retryCount + funded.timesChecked));
+            //   },
+            // }),
             map((mempoolResponse) => {
               if (!mempoolResponse) {
                 throw new Error("No mempool response");
@@ -172,15 +177,22 @@ export function watchForGenesis(
             tap((txid) => {
               logger.info(`Reveal transaction ${txid} sent`);
             }),
-            retry({
-              delay(error, retryCount) {
-                logger.error(
-                  error,
-                  `Error sending reveal transaction for ${funded.id}`,
-                );
-                return timer(customBackoff(retryCount + funded.timesChecked));
-              },
+            catchError((error) => {
+              logger.error(
+                error,
+                `Error sending reveal transaction for ${funded.id}`,
+              );
+              return EMPTY;
             }),
+            // retry({
+            //   delay(error, retryCount) {
+            //     logger.error(
+            //       error,
+            //       `Error sending reveal transaction for ${funded.id}`,
+            //     );
+            //     return timer(customBackoff(retryCount + funded.timesChecked));
+            //   },
+            // }),
           );
         }),
         tap(async (revealTxid) => {

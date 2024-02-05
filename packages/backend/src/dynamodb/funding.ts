@@ -496,21 +496,25 @@ export class FundingDao<
       }),
     );
     // Update state if and only if contentIds.length === revealTxids.length
-    await this.client.send(
-      new UpdateCommand({
-        TableName: FundingDao.TABLE_NAME,
-        Key: {
-          pk: id,
-          sk: "funding",
-        },
-        ConditionExpression:
-          "attribute_exists(pk) AND size(revealTxids) >= size(contentIds)",
-        UpdateExpression: "SET fundingStatus = :fundingStatus",
-        ExpressionAttributeValues: {
-          ":fundingStatus": "revealed",
-        },
-      }),
-    );
+    try {
+      await this.client.send(
+        new UpdateCommand({
+          TableName: FundingDao.TABLE_NAME,
+          Key: {
+            pk: id,
+            sk: "funding",
+          },
+          ConditionExpression:
+            "attribute_exists(pk) AND size(revealTxids) >= size(contentIds)",
+          UpdateExpression: "SET fundingStatus = :fundingStatus",
+          ExpressionAttributeValues: {
+            ":fundingStatus": "revealed",
+          },
+        }),
+      );
+    } catch (error) {
+      // ignore
+    }
   }
 
   public async createCollection(item: TCollectionModel<CollectionMeta>) {

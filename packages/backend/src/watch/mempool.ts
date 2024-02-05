@@ -1,7 +1,7 @@
 import Queue from "p-queue";
 import { MempoolClient } from "../bitcoin/mempool.js";
 
-const processingQueue = new Queue({ concurrency: 5 });
+const processingQueue = new Queue({ concurrency: 24 });
 
 export class NoVoutFound extends Error {
   constructor({ address }: { address: string }) {

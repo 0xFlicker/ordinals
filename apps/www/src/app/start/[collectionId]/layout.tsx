@@ -51,14 +51,15 @@ export default function RootLayout({
           property="fc:frame:input:text"
           content="Enter a BTC taproot address"
         />
-        <meta property="fc:frame:button:1" content="mint 1" />
+        <meta property="fc:frame:button:1" content="CLOSED" />
+        {/* <meta property="fc:frame:button:1" content="mint 1" />
         <meta property="fc:frame:button:2" content="mint 3" />
         <meta property="fc:frame:button:3" content="mint 5" />
         <meta property="fc:frame:button:4" content="mint 10" />
         <meta
           property="fc:frame:post_url"
           content={`${NEXT_PUBLIC_WWW_URL}/api/frame/${collectionId}/axolotl/address`}
-        />
+        /> */}
       </head>
       <body className={inter.className}>{children}</body>
     </html>

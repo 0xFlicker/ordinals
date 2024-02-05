@@ -412,7 +412,7 @@ export async function generateGenesisTransaction({
 
   if (tip && tippingAddress && !isNaN(tip) && tip >= 500) {
     outputs.push({
-      value: tip,
+      value: tip * inscriptions.length,
       scriptPubKey: Address.decode(tippingAddress).script,
     });
   }

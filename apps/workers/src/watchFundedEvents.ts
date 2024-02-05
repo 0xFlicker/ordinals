@@ -19,7 +19,7 @@ export async function start(network: "mainnet" | "testnet" = "testnet") {
       fundingDao,
       fundingDocDao,
       mempoolBitcoinClient: createMempoolBitcoinClient({ network }),
-      pollFundingsInterval: 20000,
+      pollFundingsInterval: 60000 * 5,
     });
   }
 }

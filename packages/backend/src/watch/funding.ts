@@ -111,7 +111,7 @@ export function watchForFundings(
       return false;
     }),
     tap((funding) => {
-      logger.trace(
+      logger.info(
         `Starting to watch funding ${funding.id} for address ${funding.address} `,
       );
     }),
@@ -211,9 +211,10 @@ export function watchForFundings(
               return EMPTY;
             }),
           );
-        }, 12),
+        }),
       ),
     ),
+    tap(() => logger.info(`Finished polling for new fundings`)),
   );
 
   // When $fundings is complete and we have a vout value, we can update the funding with the new txid and vout

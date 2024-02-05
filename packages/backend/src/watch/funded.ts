@@ -12,6 +12,7 @@ import {
   timer,
   delay,
   map,
+  EMPTY,
 } from "rxjs";
 import { SecretKey } from "@0xflick/crypto-utils";
 import { IFundingDao, IFundingDocDao } from "../dao/funding.js";
@@ -87,7 +88,7 @@ export function watchForFunded(
         `Starting to watch funded ${funded.id} for address ${funded.address} `,
       );
     }),
-    switchMap((funded) =>
+    mergeMap((funded) =>
       from([funded]).pipe(
         tap((funding) =>
           logger.trace(`Enqueuing genesis funding ${funding.id}`),
@@ -107,39 +108,39 @@ export function watchForFunded(
             catchError((error) => {
               logger.error(error, "Error checking funding for", funded.address);
               if (error instanceof NoVoutFound) {
-                logger.info(
-                  `No payment found for ${funded.address} so submitting payment on behalf of ${funded.id}}`,
-                );
+                logger.info(`No payment found for ${funded.address}`);
                 // const now = new Date();
-                return from(
-                  Promise.resolve().then(async () => {
-                    // try {
-                    //   fundingDao.updateFundingLastChecked({
-                    //     id: funded.id,
-                    //     lastChecked: now,
-                    //   });
-                    // } catch (error) {
-                    //   logger.error(
-                    //     error,
-                    //     "Error updating funding last checked",
-                    //   );
-                    //   throw error;
-                    // }
-                    // logger.trace(`Updated last checked for ${funded.id}`);
-                    throw error;
-                  }),
-                );
+                // return from(
+                //   Promise.resolve().then(async () => {
+                //     // try {
+                //     //   fundingDao.updateFundingLastChecked({
+                //     //     id: funded.id,
+                //     //     lastChecked: now,
+                //     //   });
+                //     // } catch (error) {
+                //     //   logger.error(
+                //     //     error,
+                //     //     "Error updating funding last checked",
+                //     //   );
+                //     //   throw error;
+                //     // }
+                //     // logger.trace(`Updated last checked for ${funded.id}`);
+                //     // throw error;
+                //     return EMPTY;
+                //   }),
+                // );
               }
               logger.error(error, "Error checking funding for", funded.address);
-              throw error;
+              // throw error;
+              return EMPTY;
             }),
-            retry({
-              resetOnSuccess: true,
-              count: funded.timesChecked,
-              delay(error, retryCount) {
-                return timer(customBackoff(retryCount));
-              },
-            }),
+            // retry({
+            //   resetOnSuccess: true,
+            //   count: funded.timesChecked,
+            //   delay(error, retryCount) {
+            //     return timer(customBackoff(retryCount));
+            //   },
+            // }),
             mergeMap(async (funded) => {
               if (!funded) {
                 logger.error("No funding found!");
@@ -251,7 +252,7 @@ export function watchForFunded(
               }
             }),
           );
-        }),
+        }, 12),
       ),
     ),
     delay(5000),

@@ -56,8 +56,12 @@ export async function* paginate<Response>(
       limit: size,
     });
     cursor = result.cursor;
+    // console.log("found", result.items.length, "items");
     for (const item of result.items) {
       yield item;
+    }
+    if (cursor) {
+      console.log("fetching next page", cursor);
     }
   } while (cursor);
 }

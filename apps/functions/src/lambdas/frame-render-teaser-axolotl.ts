@@ -130,7 +130,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       ogMetaCtx.fillText("Bitcoin Ordinal Mint", 580, 180);
       ogMetaCtx.fillText("Reveals in 420 blocks", 580, 250);
       ogMetaCtx.font = "30px Arial";
-      ogMetaCtx.fillText("~0.00045 BTC per token", 580, 330);
+      ogMetaCtx.fillText("ALL CLAIMED", 580, 330);
 
       // Save canvas to S3
       console.log("Fetching image from canvas");

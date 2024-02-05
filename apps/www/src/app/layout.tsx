@@ -21,10 +21,10 @@ export default async function RootLayout({
   const roboto = await fs.readFile(
     process.cwd() + "/public/fonts/Roboto-Regular.ttf"
   );
-  const seed = utils.hexlify(utils.randomBytes(32));
-  const previewImageSvg = await createSvgAxolotl({ roboto, seed });
-  await fs.writeFile(path.join(process.cwd(), "axolotl.svg"), previewImageSvg);
-  const dataSvg = `data:image/svg+xml,${encodeURIComponent(previewImageSvg)}`;
+  // const seed = utils.hexlify(utils.randomBytes(32));
+  // const previewImageSvg = await createSvgAxolotl({ roboto, seed });
+  // await fs.writeFile(path.join(process.cwd(), "axolotl.svg"), previewImageSvg);
+  // const dataSvg = `data:image/svg+xml,${encodeURIComponent(previewImageSvg)}`;
   return (
     <html lang="en">
       <head>
@@ -34,14 +34,20 @@ export default async function RootLayout({
           property="og:description"
           content="a new way to inscribe on bitcoin"
         />
-        <meta property="og:image" content={dataSvg} />
+        <meta
+          property="og:image"
+          content="https://www.bitflick.xyz/images/axolotl.png"
+        />
         <meta property="twitter:title" content="Axolotl Valley" />
         <meta
           property="twitter:description"
           content="mint an axolotl on bitcoin"
         />
         <meta content="verification" name="LR1011" />
-        <meta property="twitter:image" content={dataSvg} />
+        <meta
+          property="twitter:image"
+          content="https://www.bitflick.xyz/images/axolotl.png"
+        />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:creator" content="@0xflick" />
         {/* <meta property="fc:frame" content="vNext" />

@@ -1,10 +1,10 @@
 import { FC } from "react";
 
-import { Start } from "../Start/Start";
 import { AgreementModal } from "../AgreementModal";
 import { ActiveClaim } from "../ActiveClaim";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
 import { useRouter } from "next/navigation";
+import Typography from "@mui/material/Typography";
 
 export const Content: FC<{
   collectionId: string;
@@ -15,21 +15,20 @@ export const Content: FC<{
   const router = useRouter();
 
   if (step === "start") {
-    return (
-      <Start
-        collectionId={collectionId}
-        onInscribe={() => {
-          router.push(
-            `${
-              initialBitcoinNetwork === BitcoinNetworkType.Testnet
-                ? "/testnet"
-                : ""
-            }/agreement/${collectionId}`,
-            {}
-          );
-        }}
-      />
-    );
+    return <Typography>CLOSED</Typography>;
+    // <Start
+    //   collectionId={collectionId}
+    //   onInscribe={() => {
+    //     router.push(
+    //       `${
+    //         initialBitcoinNetwork === BitcoinNetworkType.Testnet
+    //           ? "/testnet"
+    //           : ""
+    //       }/agreement/${collectionId}`,
+    //       {}
+    //     );
+    //   }}
+    // />
   }
 
   if (step === "agreement") {
