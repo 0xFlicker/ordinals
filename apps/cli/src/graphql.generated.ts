@@ -46,12 +46,12 @@ export type AxolotlAvailableOpenEditionFunding = {
   id: Scalars['ID']['output'];
   network?: Maybe<BitcoinNetwork>;
   status: FundingStatus;
-  tokenId: Scalars['Int']['output'];
+  tokenIds: Array<Scalars['Int']['output']>;
 };
 
 export type AxolotlAvailableOpenEditionRequest = {
   collectionId: Scalars['ID']['input'];
-  destinationAddress: Scalars['String']['input'];
+  destinationAddress?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type AxolotlClaimRequest = {
@@ -62,14 +62,23 @@ export type AxolotlClaimRequest = {
   network: BitcoinNetwork;
 };
 
+export type AxolotlFeeEstimate = {
+  __typename?: 'AxolotlFeeEstimate';
+  feePerByte: Scalars['Int']['output'];
+  tipPerTokenBtc: Scalars['String']['output'];
+  tipPerTokenSats: Scalars['Int']['output'];
+  totalFeeBtc: Scalars['String']['output'];
+  totalFeeSats: Scalars['Int']['output'];
+  totalInscriptionBtc: Scalars['String']['output'];
+  totalInscriptionSats: Scalars['Int']['output'];
+};
+
 export type AxolotlFunding = {
   __typename?: 'AxolotlFunding';
-  chameleon: Scalars['Boolean']['output'];
-  createdAt: Scalars['String']['output'];
   destinationAddress: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   inscriptionFunding?: Maybe<InscriptionFunding>;
-  tokenId: Scalars['Int']['output'];
+  tokenIds: Array<Scalars['Int']['output']>;
 };
 
 export type AxolotlFundingPage = {
@@ -87,6 +96,18 @@ export type AxolotlOpenEditionRequest = {
   feeLevel?: InputMaybe<FeeLevel>;
   feePerByte?: InputMaybe<Scalars['Int']['input']>;
   network: BitcoinNetwork;
+};
+
+export type AxolotlOpenEditionResponse = {
+  __typename?: 'AxolotlOpenEditionResponse';
+  data?: Maybe<AxolotlFunding>;
+  problems?: Maybe<Array<AxolotlProblem>>;
+};
+
+export type AxolotlProblem = {
+  __typename?: 'AxolotlProblem';
+  code: Scalars['String']['output'];
+  message: Scalars['String']['output'];
 };
 
 export enum BitcoinNetwork {
@@ -112,6 +133,7 @@ export type Collection = {
   maxSupply: Scalars['Int']['output'];
   metadata: Array<KeyValue>;
   name: Scalars['String']['output'];
+  pendingCount: Scalars['Int']['output'];
   totalCount: Scalars['Int']['output'];
   updateMetadata: Collection;
 };
@@ -135,12 +157,11 @@ export enum FeeLevel {
 }
 
 export enum FundingStatus {
+  Expired = 'EXPIRED',
   Funded = 'FUNDED',
   Funding = 'FUNDING',
   Genesis = 'GENESIS',
-  Reveal = 'REVEAL',
-  Unclaimed = 'UNCLAIMED',
-  Unverified = 'UNVERIFIED'
+  Revealed = 'REVEALED'
 }
 
 export type InscriptionData = {
@@ -158,21 +179,49 @@ export type InscriptionDataInput = {
 
 export type InscriptionFunding = {
   __typename?: 'InscriptionFunding';
+  destinationAddress: Scalars['String']['output'];
   fundingAddress: Scalars['String']['output'];
   fundingAmountBtc: Scalars['String']['output'];
   fundingAmountSats: Scalars['Int']['output'];
+  fundingGenesisTxId?: Maybe<Scalars['String']['output']>;
+  fundingGenesisTxUrl?: Maybe<Scalars['String']['output']>;
+  fundingRevealTxIds?: Maybe<Array<Scalars['String']['output']>>;
+  fundingRevealTxUrls?: Maybe<Array<Scalars['String']['output']>>;
+  fundingTxId?: Maybe<Scalars['String']['output']>;
+  fundingTxUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   inscriptionContent: InscriptionData;
   inscriptionTransaction: InscriptionTransaction;
   network: BitcoinNetwork;
   qrSrc: Scalars['String']['output'];
   qrValue: Scalars['String']['output'];
-  s3Object: S3Object;
+  status: FundingStatus;
 };
 
 
 export type InscriptionFundingInscriptionContentArgs = {
   tapKey: Scalars['String']['input'];
+};
+
+export type InscriptionFundingProblem = {
+  __typename?: 'InscriptionFundingProblem';
+  code?: Maybe<Scalars['String']['output']>;
+  message?: Maybe<Scalars['String']['output']>;
+};
+
+export type InscriptionFundingQuery = {
+  collectionId?: InputMaybe<Scalars['ID']['input']>;
+  fundingStatus?: InputMaybe<FundingStatus>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  next?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type InscriptionFundingsResult = {
+  __typename?: 'InscriptionFundingsResult';
+  count?: Maybe<Scalars['Int']['output']>;
+  fundings?: Maybe<Array<InscriptionFunding>>;
+  next?: Maybe<Scalars['String']['output']>;
+  problems?: Maybe<Array<InscriptionFundingProblem>>;
 };
 
 export type InscriptionRequest = {
@@ -185,6 +234,7 @@ export type InscriptionRequest = {
 
 export type InscriptionTransaction = {
   __typename?: 'InscriptionTransaction';
+  count: Scalars['Int']['output'];
   initCBlock: Scalars['String']['output'];
   initLeaf: Scalars['String']['output'];
   initScript: Array<BitcoinScriptItem>;
@@ -192,7 +242,6 @@ export type InscriptionTransaction = {
   inscriptions: Array<InscriptionTransactionContent>;
   overhead: Scalars['Int']['output'];
   padding: Scalars['Int']['output'];
-  privateKey: Scalars['String']['output'];
 };
 
 export type InscriptionTransactionContent = {
@@ -218,25 +267,18 @@ export type KeyValueInput = {
 
 export type Mutation = {
   __typename?: 'Mutation';
-  axolotlFundingClaimRequest: Array<AxolotlFunding>;
-  axolotlFundingOpenEditionRequest: Array<AxolotlFunding>;
+  axolotlFundingOpenEditionRequest: AxolotlOpenEditionResponse;
   collection: Collection;
   createCollection: Collection;
   createRole: Role;
   deleteCollection: Scalars['Boolean']['output'];
   nonceBitcoin: Nonce;
   nonceEthereum: Nonce;
-  requestFundingAddress: InscriptionFunding;
   role: Role;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
   siwb: Web3LoginUser;
   siwe: Web3LoginUser;
-};
-
-
-export type MutationAxolotlFundingClaimRequestArgs = {
-  request: AxolotlClaimRequest;
 };
 
 
@@ -274,11 +316,6 @@ export type MutationNonceBitcoinArgs = {
 export type MutationNonceEthereumArgs = {
   address: Scalars['ID']['input'];
   chainId: Scalars['Int']['input'];
-};
-
-
-export type MutationRequestFundingAddressArgs = {
-  request: InscriptionRequest;
 };
 
 
@@ -347,11 +384,13 @@ export enum PermissionResource {
 export type Query = {
   __typename?: 'Query';
   appInfo: AppInfo;
-  axolotlAvailableClaimedFundingClaims: Array<AxolotlAvailableClaimedFunding>;
   axolotlAvailableOpenEditionFundingClaims: Array<AxolotlAvailableOpenEditionFunding>;
+  axolotlEstimateFee: AxolotlFeeEstimate;
   collection: Collection;
   collections: Array<Collection>;
+  currentBitcoinFees: Scalars['Int']['output'];
   inscriptionFunding?: Maybe<InscriptionFunding>;
+  inscriptionFundings: InscriptionFundingsResult;
   inscriptionTransaction?: Maybe<InscriptionTransaction>;
   role?: Maybe<Role>;
   roles: Array<Role>;
@@ -360,13 +399,16 @@ export type Query = {
 };
 
 
-export type QueryAxolotlAvailableClaimedFundingClaimsArgs = {
-  request: AxolotlAvailableClaimedRequest;
+export type QueryAxolotlAvailableOpenEditionFundingClaimsArgs = {
+  request: AxolotlAvailableOpenEditionRequest;
 };
 
 
-export type QueryAxolotlAvailableOpenEditionFundingClaimsArgs = {
-  request: AxolotlAvailableOpenEditionRequest;
+export type QueryAxolotlEstimateFeeArgs = {
+  count?: InputMaybe<Scalars['Int']['input']>;
+  feeLevel?: InputMaybe<FeeLevel>;
+  feePerByte?: InputMaybe<Scalars['Int']['input']>;
+  network: BitcoinNetwork;
 };
 
 
@@ -375,8 +417,20 @@ export type QueryCollectionArgs = {
 };
 
 
+export type QueryCurrentBitcoinFeesArgs = {
+  feePerByte?: InputMaybe<Scalars['Int']['input']>;
+  network: BitcoinNetwork;
+  speed?: InputMaybe<FeeLevel>;
+};
+
+
 export type QueryInscriptionFundingArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryInscriptionFundingsArgs = {
+  query: InscriptionFundingQuery;
 };
 
 
@@ -427,12 +481,6 @@ export type RoleUnbindFromUserArgs = {
   userAddress: Scalars['String']['input'];
 };
 
-export type S3Object = {
-  __typename?: 'S3Object';
-  bucket: Scalars['String']['output'];
-  key: Scalars['String']['output'];
-};
-
 export type Web3LoginUser = {
   __typename?: 'Web3LoginUser';
   address: Scalars['ID']['output'];
@@ -478,11 +526,11 @@ export type UpdateMetadataMutationVariables = Exact<{
 export type UpdateMetadataMutation = { __typename?: 'Mutation', collection: { __typename?: 'Collection', updateMetadata: { __typename?: 'Collection', metadata: Array<{ __typename?: 'KeyValue', key: string, value: string }> } } };
 
 export type AxolotlFundingRequestMutationVariables = Exact<{
-  request: AxolotlClaimRequest;
+  request: AxolotlOpenEditionRequest;
 }>;
 
 
-export type AxolotlFundingRequestMutation = { __typename?: 'Mutation', axolotlFundingClaimRequest: Array<{ __typename?: 'AxolotlFunding', inscriptionFunding?: { __typename?: 'InscriptionFunding', id: string, fundingAddress: string, fundingAmountSats: number, fundingAmountBtc: string } | null }> };
+export type AxolotlFundingRequestMutation = { __typename?: 'Mutation', axolotlFundingOpenEditionRequest: { __typename?: 'AxolotlOpenEditionResponse', data?: { __typename?: 'AxolotlFunding', inscriptionFunding?: { __typename?: 'InscriptionFunding', id: string, fundingAddress: string, fundingAmountSats: number, fundingAmountBtc: string } | null } | null } };
 
 export type BitcoinNonceMutationVariables = Exact<{
   address: Scalars['ID']['input'];
@@ -506,6 +554,20 @@ export type SiweMutationVariables = Exact<{
 
 
 export type SiweMutation = { __typename?: 'Mutation', siwe: { __typename?: 'Web3LoginUser', token: string } };
+
+export type RevealedQueryVariables = Exact<{
+  collectionId: Scalars['ID']['input'];
+}>;
+
+
+export type RevealedQuery = { __typename?: 'Query', inscriptionFundings: { __typename?: 'InscriptionFundingsResult', next?: string | null, count?: number | null, fundings?: Array<{ __typename?: 'InscriptionFunding', fundingRevealTxIds?: Array<string> | null }> | null, problems?: Array<{ __typename?: 'InscriptionFundingProblem', code?: string | null, message?: string | null }> | null } };
+
+export type ListFundingsQueryVariables = Exact<{
+  query: InscriptionFundingQuery;
+}>;
+
+
+export type ListFundingsQuery = { __typename?: 'Query', inscriptionFundings: { __typename?: 'InscriptionFundingsResult', next?: string | null, count?: number | null, fundings?: Array<{ __typename?: 'InscriptionFunding', id: string, fundingAmountSats: number, fundingAddress: string, destinationAddress: string, network: BitcoinNetwork, status: FundingStatus, fundingTxId?: string | null, fundingGenesisTxId?: string | null, fundingRevealTxIds?: Array<string> | null }> | null, problems?: Array<{ __typename?: 'InscriptionFundingProblem', code?: string | null, message?: string | null }> | null } };
 
 
 export const BindRoleToUSerDocument = gql`
@@ -559,13 +621,15 @@ export const UpdateMetadataDocument = gql`
 }
     `;
 export const AxolotlFundingRequestDocument = gql`
-    mutation AxolotlFundingRequest($request: AxolotlClaimRequest!) {
-  axolotlFundingClaimRequest(request: $request) {
-    inscriptionFunding {
-      id
-      fundingAddress
-      fundingAmountSats
-      fundingAmountBtc
+    mutation AxolotlFundingRequest($request: AxolotlOpenEditionRequest!) {
+  axolotlFundingOpenEditionRequest(request: $request) {
+    data {
+      inscriptionFunding {
+        id
+        fundingAddress
+        fundingAmountSats
+        fundingAmountBtc
+      }
     }
   }
 }
@@ -604,6 +668,46 @@ export const SiweDocument = gql`
   }
 }
     `;
+export const RevealedDocument = gql`
+    query Revealed($collectionId: ID!) {
+  inscriptionFundings(
+    query: {collectionId: $collectionId, fundingStatus: REVEALED}
+  ) {
+    fundings {
+      fundingRevealTxIds
+    }
+    problems {
+      code
+      message
+    }
+    next
+    count
+  }
+}
+    `;
+export const ListFundingsDocument = gql`
+    query ListFundings($query: InscriptionFundingQuery!) {
+  inscriptionFundings(query: $query) {
+    fundings {
+      id
+      fundingAmountSats
+      fundingAddress
+      destinationAddress
+      network
+      status
+      fundingTxId
+      fundingGenesisTxId
+      fundingRevealTxIds
+    }
+    problems {
+      code
+      message
+    }
+    next
+    count
+  }
+}
+    `;
 
 export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, string>) => Promise<T>, operationName: string, operationType?: string) => Promise<T>;
 
@@ -635,6 +739,12 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     SIWE(variables: SiweMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<SiweMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<SiweMutation>(SiweDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'SIWE', 'mutation');
+    },
+    Revealed(variables: RevealedQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<RevealedQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<RevealedQuery>(RevealedDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'Revealed', 'query');
+    },
+    ListFundings(variables: ListFundingsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<ListFundingsQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<ListFundingsQuery>(ListFundingsDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ListFundings', 'query');
     }
   };
 }

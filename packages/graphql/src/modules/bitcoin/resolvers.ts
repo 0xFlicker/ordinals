@@ -1,4 +1,3 @@
-import { estimateFeesWithMempool } from "./fees.js";
 import { BitcoinModule } from "./generated-types/module-types.js";
 import { MempoolModel } from "./models.js";
 import { toBitcoinNetworkName } from "./transforms.js";
@@ -7,17 +6,21 @@ export const resolvers: BitcoinModule.Resolvers = {
   Query: {
     currentBitcoinFees: async (
       _,
-      { network, speed, feePerByte },
+      { network },
       { createMempoolBitcoinClient },
     ) => {
       const client = createMempoolBitcoinClient({
         network: toBitcoinNetworkName(network),
       });
-      return estimateFeesWithMempool({
-        mempoolBitcoinClient: new MempoolModel(client),
-        feeLevel: speed,
-        feePerByte,
-      });
+      const mempoolBitcoinClient = new MempoolModel(client);
+      const feeEstimate = await mempoolBitcoinClient.recommendedFees();
+
+      return {
+        minimum: feeEstimate.minimumFee,
+        fastest: feeEstimate.fastestFee,
+        halfHour: feeEstimate.halfHourFee,
+        hour: feeEstimate.hourFee,
+      };
     },
   },
 };

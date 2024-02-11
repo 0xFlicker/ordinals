@@ -40,7 +40,6 @@ export function createMempoolBitcoinClient({
     throw new Error(`Unsupported protocol: ${protocol}`);
   }
 
-  console.log(`Creating mempool client for ${network} at ${u}`);
   return createMempoolClient({
     network,
     hostname: url.host,

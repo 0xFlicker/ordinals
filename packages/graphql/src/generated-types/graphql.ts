@@ -155,6 +155,14 @@ export type CollectionInput = {
   name: Scalars['String']['input'];
 };
 
+export type FeeEstimate = {
+  __typename?: 'FeeEstimate';
+  fastest: Scalars['Int']['output'];
+  halfHour: Scalars['Int']['output'];
+  hour: Scalars['Int']['output'];
+  minimum: Scalars['Int']['output'];
+};
+
 export type FeeLevel =
   | 'GLACIAL'
   | 'HIGH'
@@ -162,6 +170,7 @@ export type FeeLevel =
   | 'MEDIUM';
 
 export type FundingStatus =
+  | 'EXPIRED'
   | 'FUNDED'
   | 'FUNDING'
   | 'GENESIS'
@@ -182,6 +191,7 @@ export type InscriptionDataInput = {
 
 export type InscriptionFunding = {
   __typename?: 'InscriptionFunding';
+  destinationAddress: Scalars['String']['output'];
   fundingAddress: Scalars['String']['output'];
   fundingAmountBtc: Scalars['String']['output'];
   fundingAmountSats: Scalars['Int']['output'];
@@ -388,7 +398,7 @@ export type Query = {
   axolotlEstimateFee: AxolotlFeeEstimate;
   collection: Collection;
   collections: Array<Collection>;
-  currentBitcoinFees: Scalars['Int']['output'];
+  currentBitcoinFees: FeeEstimate;
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
   inscriptionTransaction?: Maybe<InscriptionTransaction>;
@@ -418,9 +428,7 @@ export type QueryCollectionArgs = {
 
 
 export type QueryCurrentBitcoinFeesArgs = {
-  feePerByte?: InputMaybe<Scalars['Int']['input']>;
   network: BitcoinNetwork;
-  speed?: InputMaybe<FeeLevel>;
 };
 
 
@@ -586,6 +594,7 @@ export type ResolversTypes = {
   Boolean: ResolverTypeWrapper<Scalars['Boolean']['output']>;
   Collection: ResolverTypeWrapper<CollectionModel>;
   CollectionInput: CollectionInput;
+  FeeEstimate: ResolverTypeWrapper<FeeEstimate>;
   FeeLevel: FeeLevel;
   FundingStatus: FundingStatus;
   ID: ResolverTypeWrapper<Scalars['ID']['output']>;
@@ -632,6 +641,7 @@ export type ResolversParentTypes = {
   Boolean: Scalars['Boolean']['output'];
   Collection: CollectionModel;
   CollectionInput: CollectionInput;
+  FeeEstimate: FeeEstimate;
   ID: Scalars['ID']['output'];
   InscriptionData: InscriptionData;
   InscriptionDataInput: InscriptionDataInput;
@@ -739,6 +749,14 @@ export type CollectionResolvers<ContextType = Context, ParentType extends Resolv
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type FeeEstimateResolvers<ContextType = Context, ParentType extends ResolversParentTypes['FeeEstimate'] = ResolversParentTypes['FeeEstimate']> = {
+  fastest?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  halfHour?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  hour?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  minimum?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type InscriptionDataResolvers<ContextType = Context, ParentType extends ResolversParentTypes['InscriptionData'] = ResolversParentTypes['InscriptionData']> = {
   base64Content?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   contentType?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -747,6 +765,7 @@ export type InscriptionDataResolvers<ContextType = Context, ParentType extends R
 };
 
 export type InscriptionFundingResolvers<ContextType = Context, ParentType extends ResolversParentTypes['InscriptionFunding'] = ResolversParentTypes['InscriptionFunding']> = {
+  destinationAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   fundingAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   fundingAmountBtc?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   fundingAmountSats?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -849,7 +868,7 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   axolotlEstimateFee?: Resolver<ResolversTypes['AxolotlFeeEstimate'], ParentType, ContextType, RequireFields<QueryAxolotlEstimateFeeArgs, 'network'>>;
   collection?: Resolver<ResolversTypes['Collection'], ParentType, ContextType, RequireFields<QueryCollectionArgs, 'id'>>;
   collections?: Resolver<Array<ResolversTypes['Collection']>, ParentType, ContextType>;
-  currentBitcoinFees?: Resolver<ResolversTypes['Int'], ParentType, ContextType, RequireFields<QueryCurrentBitcoinFeesArgs, 'network'>>;
+  currentBitcoinFees?: Resolver<ResolversTypes['FeeEstimate'], ParentType, ContextType, RequireFields<QueryCurrentBitcoinFeesArgs, 'network'>>;
   inscriptionFunding?: Resolver<Maybe<ResolversTypes['InscriptionFunding']>, ParentType, ContextType, RequireFields<QueryInscriptionFundingArgs, 'id'>>;
   inscriptionFundings?: Resolver<ResolversTypes['InscriptionFundingsResult'], ParentType, ContextType, RequireFields<QueryInscriptionFundingsArgs, 'query'>>;
   inscriptionTransaction?: Resolver<Maybe<ResolversTypes['InscriptionTransaction']>, ParentType, ContextType, RequireFields<QueryInscriptionTransactionArgs, 'id'>>;
@@ -899,6 +918,7 @@ export type Resolvers<ContextType = Context> = {
   AxolotlProblem?: AxolotlProblemResolvers<ContextType>;
   BitcoinScriptItem?: BitcoinScriptItemResolvers<ContextType>;
   Collection?: CollectionResolvers<ContextType>;
+  FeeEstimate?: FeeEstimateResolvers<ContextType>;
   InscriptionData?: InscriptionDataResolvers<ContextType>;
   InscriptionFunding?: InscriptionFundingResolvers<ContextType>;
   InscriptionFundingProblem?: InscriptionFundingProblemResolvers<ContextType>;

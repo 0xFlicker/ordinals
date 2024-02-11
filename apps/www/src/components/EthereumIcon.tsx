@@ -1,6 +1,6 @@
 import NextImage from "next/image";
 import { FC } from "react";
-import ethereumSvg from "../../public/ethereum-eth-logo.svg";
+import ethereumSvg from "../../public/images/ethereum-eth-logo.svg";
 
 export const EthereumIcon: FC<{ size?: number; hidden?: boolean }> = ({
   size = 24,

@@ -14,8 +14,8 @@ export const Start: FC<{
   onInscribe: () => void;
   collectionId: string;
 }> = ({ onInscribe, collectionId }) => {
-  const { totalCount, revealedCount, maxSupply, success } =
-    useStatus(collectionId);
+  // const { totalCount, revealedCount, maxSupply, success } =
+  //   useStatus(collectionId);
   return (
     <Card>
       <CardActionArea onClick={onInscribe}>
@@ -31,7 +31,7 @@ export const Start: FC<{
             <Typography variant="body1" component="p" flexGrow="1">
               inscribe an axolotl
             </Typography>
-            {success && typeof revealedCount === "number" && (
+            {/* {success && typeof revealedCount === "number" && (
               <>
                 <Typography variant="body1">{revealedCount}</Typography>
                 {typeof maxSupply === "number" && (
@@ -52,7 +52,7 @@ export const Start: FC<{
                 <Typography variant="body1" ml={1}>
                   {`(${totalCount - revealedCount} pending claims)`}
                 </Typography>
-              )}
+              )} */}
           </Box>
         </CardContent>
       </CardActionArea>

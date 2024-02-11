@@ -16,6 +16,31 @@ import { copyFileSync } from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+function compileMetadata() {
+  const outfile = path.join(
+    cdk.FileSystem.mkdtemp("axolotl-metadata"),
+    "index.mjs",
+  );
+  buildSync({
+    entryPoints: [
+      path.join(
+        __dirname,
+        "../../apps/functions/src/lambdas/frame-render-axolotl-metadata.ts",
+      ),
+    ],
+    outfile,
+    bundle: true,
+    platform: "node",
+    target: "node20",
+    format: "esm",
+    external: ["aws-sdk", "canvas"],
+    inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
+    sourcemap: true,
+  });
+  const finalDir = path.dirname(outfile);
+  return finalDir;
+}
+
 function prepareDockerBuild(filename: string) {
   const outfile = path.join(cdk.FileSystem.mkdtemp("esbuild"), "index.mjs");
   buildSync({
@@ -84,6 +109,44 @@ export class Frame extends Construct {
     assetBucket.grantRead(teaserHandler);
     seedBucket.grantReadWrite(teaserHandler);
 
+    const axolotlMetadataDir = compileMetadata();
+    const axolotlMetadataHandler = new lambda.Function(
+      this,
+      "AxolotlMetadataHandler",
+      {
+        code: lambda.Code.fromAsset(axolotlMetadataDir),
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        memorySize: 128,
+        timeout: cdk.Duration.seconds(3),
+        environment: {
+          ASSET_BUCKET: assetBucket.bucketName,
+          SEED_BUCKET: seedBucket.bucketName,
+        },
+      },
+    );
+    assetBucket.grantRead(axolotlMetadataHandler);
+    seedBucket.grantReadWrite(axolotlMetadataHandler);
+
+    const axolotlPreviewDockerDir = prepareDockerBuild("frame-render-axolotl");
+    const axolotlPreviewHandler = new lambda.DockerImageFunction(
+      this,
+      "AxolotlPreviewHandler",
+      {
+        code: lambda.DockerImageCode.fromImageAsset(axolotlPreviewDockerDir, {
+          cmd: ["index.handler"],
+        }),
+        memorySize: 512,
+        timeout: cdk.Duration.seconds(10),
+        environment: {
+          ASSET_BUCKET: assetBucket.bucketName,
+          SEED_BUCKET: seedBucket.bucketName,
+        },
+      },
+    );
+    assetBucket.grantRead(axolotlPreviewHandler);
+    seedBucket.grantReadWrite(axolotlPreviewHandler);
+
     const qrDockerDir = prepareDockerBuild("frame-render-qrcode");
     const qrCodeHandler = new lambda.DockerImageFunction(
       this,
@@ -135,6 +198,22 @@ export class Frame extends Construct {
     });
     this.api = httpApi;
     httpApi.addRoutes({
+      path: "/preview/axolotl/{seed}",
+      methods: [apigw2.HttpMethod.GET, apigw2.HttpMethod.OPTIONS],
+      integration: new HttpLambdaIntegration(
+        "axolotl-preview",
+        axolotlPreviewHandler,
+      ),
+    });
+    httpApi.addRoutes({
+      path: "/metadata/axolotl/{seed}",
+      methods: [apigw2.HttpMethod.GET, apigw2.HttpMethod.OPTIONS],
+      integration: new HttpLambdaIntegration(
+        "axolotl-metadata",
+        axolotlMetadataHandler,
+      ),
+    });
+    httpApi.addRoutes({
       path: "/frame-og/axolotl/{seed}",
       methods: [apigw2.HttpMethod.GET, apigw2.HttpMethod.OPTIONS],
       integration: new HttpLambdaIntegration(
@@ -181,6 +260,28 @@ export class Frame extends Construct {
       },
       additionalBehaviors: {
         "frame-og/*": {
+          origin: new origins.HttpOrigin(imageApiUrl, {
+            originSslProtocols: [cloudfront.OriginSslPolicy.TLS_V1_2],
+            protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+          }),
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+          cachePolicy,
+          viewerProtocolPolicy:
+            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        },
+        "preview/*": {
+          origin: new origins.HttpOrigin(imageApiUrl, {
+            originSslProtocols: [cloudfront.OriginSslPolicy.TLS_V1_2],
+            protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+          }),
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+          cachePolicy,
+          viewerProtocolPolicy:
+            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        },
+        "metadata/*": {
           origin: new origins.HttpOrigin(imageApiUrl, {
             originSslProtocols: [cloudfront.OriginSslPolicy.TLS_V1_2],
             protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,

@@ -1,4 +1,4 @@
-import { getSdk } from "@/apiGraphql/claim.generated";
+import { getSdk } from "@/apiGraphql/api";
 import { validateFrameMessage } from "@/frame/validate";
 import { FrameRequest, getFrameHtmlResponse } from "@coinbase/onchainkit";
 import { GraphQLClient } from "graphql-request";

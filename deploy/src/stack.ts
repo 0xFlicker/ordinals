@@ -48,7 +48,7 @@ export class BackendStack extends cdk.Stack {
 
     new Www(this, "Www", {
       // Adding cert manually because cloudflare
-      noCert: true,
+      // noCert: true,
       domain: "www.bitflick.xyz",
       graphqlApi,
     });

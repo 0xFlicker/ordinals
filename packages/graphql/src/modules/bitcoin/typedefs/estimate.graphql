@@ -1,7 +1,10 @@
+type FeeEstimate {
+  minimum: Int!
+  fastest: Int!
+  halfHour: Int!
+  hour: Int!
+}
+
 type Query {
-  currentBitcoinFees(
-    network: BitcoinNetwork!
-    speed: FeeLevel
-    feePerByte: Int
-  ): Int!
+  currentBitcoinFees(network: BitcoinNetwork!): FeeEstimate!
 }

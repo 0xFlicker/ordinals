@@ -3,6 +3,7 @@ enum FundingStatus {
   FUNDED
   GENESIS
   REVEALED
+  EXPIRED
 }
 
 type InscriptionFunding {
@@ -11,6 +12,7 @@ type InscriptionFunding {
   fundingAmountBtc: String!
   fundingAmountSats: Int!
   fundingAddress: String!
+  destinationAddress: String!
   network: BitcoinNetwork!
   qrValue: String!
   qrSrc: String!

@@ -1,6 +1,6 @@
 import NextImage from "next/image";
 import { FC } from "react";
-import bitcoinSvg from "../../public/bitcoin-btc-logo.svg";
+import bitcoinSvg from "../../public/images/bitcoin-btc-logo.svg";
 
 export const BitcoinIcon: FC<{ size?: number }> = ({ size = 24 }) => {
   return (

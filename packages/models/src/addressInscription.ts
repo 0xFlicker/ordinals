@@ -7,7 +7,12 @@ export function toAddressInscriptionId(id: string): ID_AddressInscription {
   return id as ID_AddressInscription;
 }
 
-export type TFundingStatus = "funding" | "funded" | "genesis" | "revealed";
+export type TFundingStatus =
+  | "funding"
+  | "funded"
+  | "genesis"
+  | "revealed"
+  | "expired";
 
 export interface IAddressInscriptionModel<T = Record<string, any>> {
   address: string;

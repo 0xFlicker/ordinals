@@ -155,113 +155,113 @@ export async function testOne({
       collectionId,
       network: bitcoinNetwork(network),
       feeLevel: FeeLevel.Medium,
-      claimingAddress,
+      destinationAddress: bitcoinAddress,
     },
     token,
     url,
   });
 
-  const fundingMap = new Map<
-    string,
-    {
-      funding: { address: string; amount: string; txid: string };
-      funded?: Parameters<Parameters<typeof watchForFundings>[1]>[0];
-      genesis?: Parameters<Parameters<typeof watchForFunded>[1]>[0];
-      reveal?: Parameters<Parameters<typeof watchForGenesis>[1]>[0];
-    }
-  >();
+  // const fundingMap = new Map<
+  //   string,
+  //   {
+  //     funding: { address: string; amount: string; txid: string };
+  //     funded?: Parameters<Parameters<typeof watchForFundings>[1]>[0];
+  //     genesis?: Parameters<Parameters<typeof watchForFunded>[1]>[0];
+  //     reveal?: Parameters<Parameters<typeof watchForGenesis>[1]>[0];
+  //   }
+  // >();
 
-  const { txid } = await sendBitcoin({
-    fee_rate: 1,
-    network,
-    outputs: fundings.map(
-      ({ inscriptionFunding: { fundingAddress, fundingAmountBtc } }) => [
-        fundingAddress,
-        fundingAmountBtc,
-      ],
-    ),
-    rpcpassword,
-    rpcuser,
-    rpcwallet,
-    bitcoinDataDir,
-  });
-  const mempoolClient = createMempoolBitcoinClient({
-    network,
-  });
+  // const { txid } = await sendBitcoin({
+  //   fee_rate: 1,
+  //   network,
+  //   outputs: fundings.map(
+  //     ({ inscriptionFunding: { fundingAddress, fundingAmountBtc } }) => [
+  //       fundingAddress,
+  //       fundingAmountBtc,
+  //     ],
+  //   ),
+  //   rpcpassword,
+  //   rpcuser,
+  //   rpcwallet,
+  //   bitcoinDataDir,
+  // });
+  // const mempoolClient = createMempoolBitcoinClient({
+  //   network,
+  // });
 
-  const fundingTx = await retryWithBackOff(
-    () => mempoolClient.transactions.getTx({ txid }),
-    10,
-    100,
-  );
-  for (const {
-    inscriptionFunding: { fundingAddress, fundingAmountBtc },
-  } of fundings) {
-    fundingMap.set(fundingAddress, {
-      funding: {
-        address: fundingAddress,
-        amount: fundingAmountBtc,
-        txid,
-      },
-    });
-  }
+  // const fundingTx = await retryWithBackOff(
+  //   () => mempoolClient.transactions.getTx({ txid }),
+  //   10,
+  //   100,
+  // );
+  // for (const {
+  //   inscriptionFunding: { fundingAddress, fundingAmountBtc },
+  // } of fundings) {
+  //   fundingMap.set(fundingAddress, {
+  //     funding: {
+  //       address: fundingAddress,
+  //       amount: fundingAmountBtc,
+  //       txid,
+  //     },
+  //   });
+  // }
 
-  const cancelFundingWatch = new Promise<() => void>((resolve, reject) => {
-    const cancel = watchForFundingEvents(collectionId, (funded) => {
-      const { address } = funded;
-      // for each noticed funding, take note of the txid so that we can watch for the funded events, then resolve the promise
-      if (!fundingMap.has(address)) {
-        return reject(new Error(`Address ${address} not found in funding map`));
-      }
-      const funding = fundingMap.get(address)!;
-      funding.funded = funded;
-      // check all fundings to see if they are all funded
-      for (const funding of fundingMap.values()) {
-        if (!funding.funded) return;
-      }
-      resolve(cancel);
-    });
-  });
-  const cancelFundedWatch = new Promise<() => void>((resolve, reject) => {
-    const cancel = watchForFundedEvents(collectionId, (genesis) => {
-      const { address } = genesis;
-      // now for each genesis event, update the funding map
-      if (!fundingMap.has(address)) {
-        return reject(new Error(`Address ${address} not found in funding map`));
-      }
-      const funding = fundingMap.get(address)!;
-      funding.genesis = genesis;
-      // check all fundings to see if they are all funded
-      for (const funding of fundingMap.values()) {
-        if (!funding.genesis) return;
-      }
-      resolve(cancel);
-    });
-  });
-  const cancelGenesisWatch = new Promise<() => void>((resolve, reject) => {
-    const cancel = watchForGenesisEvents(collectionId, (reveal) => {
-      const { address } = reveal;
-      if (!fundingMap.has(address)) {
-        return reject(new Error(`Address ${address} not found in funding map`));
-      }
-      const funding = fundingMap.get(address)!;
-      funding.reveal = reveal;
-      // check all fundings to see if they are all funded
-      for (const funding of fundingMap.values()) {
-        if (!funding.reveal) return;
-      }
-      resolve(cancel);
-    });
-  });
-  console.log(`Funding tx: ${fundingTx.txid}`);
+  // const cancelFundingWatch = new Promise<() => void>((resolve, reject) => {
+  //   const cancel = watchForFundingEvents(collectionId, (funded) => {
+  //     const { address } = funded;
+  //     // for each noticed funding, take note of the txid so that we can watch for the funded events, then resolve the promise
+  //     if (!fundingMap.has(address)) {
+  //       return reject(new Error(`Address ${address} not found in funding map`));
+  //     }
+  //     const funding = fundingMap.get(address)!;
+  //     funding.funded = funded;
+  //     // check all fundings to see if they are all funded
+  //     for (const funding of fundingMap.values()) {
+  //       if (!funding.funded) return;
+  //     }
+  //     resolve(cancel);
+  //   });
+  // });
+  // const cancelFundedWatch = new Promise<() => void>((resolve, reject) => {
+  //   const cancel = watchForFundedEvents(collectionId, (genesis) => {
+  //     const { address } = genesis;
+  //     // now for each genesis event, update the funding map
+  //     if (!fundingMap.has(address)) {
+  //       return reject(new Error(`Address ${address} not found in funding map`));
+  //     }
+  //     const funding = fundingMap.get(address)!;
+  //     funding.genesis = genesis;
+  //     // check all fundings to see if they are all funded
+  //     for (const funding of fundingMap.values()) {
+  //       if (!funding.genesis) return;
+  //     }
+  //     resolve(cancel);
+  //   });
+  // });
+  // const cancelGenesisWatch = new Promise<() => void>((resolve, reject) => {
+  //   const cancel = watchForGenesisEvents(collectionId, (reveal) => {
+  //     const { address } = reveal;
+  //     if (!fundingMap.has(address)) {
+  //       return reject(new Error(`Address ${address} not found in funding map`));
+  //     }
+  //     const funding = fundingMap.get(address)!;
+  //     funding.reveal = reveal;
+  //     // check all fundings to see if they are all funded
+  //     for (const funding of fundingMap.values()) {
+  //       if (!funding.reveal) return;
+  //     }
+  //     resolve(cancel);
+  //   });
+  // });
+  // console.log(`Funding tx: ${fundingTx.txid}`);
 
-  const cancels = await Promise.all([
-    cancelFundedWatch,
-    cancelFundingWatch,
-    cancelGenesisWatch,
-  ]);
-  for (const cancel of cancels) {
-    console.log("cancelling watch");
-    cancel();
-  }
+  // const cancels = await Promise.all([
+  //   cancelFundedWatch,
+  //   cancelFundingWatch,
+  //   cancelGenesisWatch,
+  // ]);
+  // for (const cancel of cancels) {
+  //   console.log("cancelling watch");
+  //   cancel();
+  // }
 }

@@ -129,7 +129,7 @@ export function watchForGenesis(
             }),
           ).pipe(
             catchError((error) => {
-              logger.error(error, "Error checking funding for", funded.address);
+              // logger.error(error, "Error checking funding for", funded.address);
               return EMPTY;
             }),
             // retry({
@@ -178,10 +178,10 @@ export function watchForGenesis(
               logger.info(`Reveal transaction ${txid} sent`);
             }),
             catchError((error) => {
-              logger.error(
-                error,
-                `Error sending reveal transaction for ${funded.id}`,
-              );
+              // logger.error(
+              //   error,
+              //   `Error sending reveal transaction for ${funded.id}`,
+              // );
               return EMPTY;
             }),
             // retry({

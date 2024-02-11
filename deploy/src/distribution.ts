@@ -2,6 +2,7 @@ import path from "path";
 import { Construct } from "constructs";
 import * as cdk from "aws-cdk-lib";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as route53 from "aws-cdk-lib/aws-route53";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as apigw2 from "aws-cdk-lib/aws-apigatewayv2";
@@ -36,6 +37,12 @@ export class Www extends Construct {
       cdk.Fn.split("//", graphqlApi.apiEndpoint),
     );
 
+    const fontBucket = s3.Bucket.fromBucketName(
+      this,
+      "FontBucket",
+      "bitflick-fonts-abc123",
+    );
+
     const apiCacheDisabled = new cloudfront.CachePolicy(
       this,
       "apiCacheDisabled",
@@ -50,30 +57,19 @@ export class Www extends Construct {
       },
     );
 
-    //     const rewriteBucketPathLambda = new cloudfront.experimental.EdgeFunction(
-    //       this,
-    //       "FrameOgRendered",
-    //       {
-    //         runtime: lambda.Runtime.NODEJS_20_X,
-    //         handler: "index.handler",
-    //         code: lambda.Code.fromInline(`
-    // exports.handler = async (event) => {
-    //   const request = event.request;
-    //   request.uri = request.uri.replace(/^\\/frame-og-rendered/, '');
-    //   return request;
-    // };
-    // `),
-    //       },
-    //     );
     const certificate = acm.Certificate.fromCertificateArn(
       this,
       "WwwSiteCertificate",
       "arn:aws:acm:us-east-1:590183800463:certificate/2ed82da5-ae12-442b-a0fc-cb5c95456119",
     );
+    const hostedZone = new route53.HostedZone(this, "HostedZone", {
+      zoneName: domainName.replace("www.", ""),
+    });
     const site = new Nextjs(this, "Web", {
       ...(!noCert
         ? {
             domainProps: {
+              hostedZone,
               domainName,
               certificate,
             },
@@ -101,9 +97,13 @@ export class Www extends Construct {
       nextjsPath: "../apps/www",
       environment: {
         ...environment,
+        DEPLOYMENT: "aws",
         NEXT_PUBLIC_GRAPHQL_ENDPOINT: `https://${domainName}/api/graphql`,
+        FONT_BUCKET: fontBucket.bucketName,
+        NEXT_PUBLIC_BASE_URL: `https://${domainName}`,
       },
     });
+    fontBucket.grantRead(site.serverFunction.lambdaFunction);
 
     new cdk.CfnOutput(this, "WebUrl", {
       value: site.url,

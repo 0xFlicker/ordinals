@@ -146,6 +146,7 @@ enum FundingStatus {
   FUNDED
   GENESIS
   REVEALED
+  EXPIRED
 }
 
 type InscriptionFunding {
@@ -154,6 +155,7 @@ type InscriptionFunding {
   fundingAmountBtc: String!
   fundingAmountSats: Int!
   fundingAddress: String!
+  destinationAddress: String!
   network: BitcoinNetwork!
   qrValue: String!
   qrSrc: String!
@@ -243,12 +245,15 @@ enum BlockchainNetwork {
   ETHEREUM
 }
 
+type FeeEstimate {
+  minimum: Int!
+  fastest: Int!
+  halfHour: Int!
+  hour: Int!
+}
+
 type Query {
-  currentBitcoinFees(
-    network: BitcoinNetwork!
-    speed: FeeLevel
-    feePerByte: Int
-  ): Int!
+  currentBitcoinFees(network: BitcoinNetwork!): FeeEstimate!
 }
 
 type BitcoinScriptItem {

@@ -422,6 +422,23 @@ export class FundingDao<
     );
   }
 
+  public async expire({ id }: { id: string }) {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: FundingDao.TABLE_NAME,
+        Key: {
+          pk: id,
+          sk: "funding",
+        },
+        ConditionExpression: "attribute_exists(pk)",
+        UpdateExpression: "SET fundingStatus = :fundingStatus",
+        ExpressionAttributeValues: {
+          ":fundingStatus": "expired",
+        },
+      }),
+    );
+  }
+
   public async genesisFunded({
     genesisTxid,
     id,

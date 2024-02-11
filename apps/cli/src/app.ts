@@ -16,6 +16,7 @@ import { collectionCreate } from "./commands/collection/create.js";
 import { testOne } from "./commands/test/one.js";
 import { bootstrap } from "./commands/bootstrap/index.js";
 import { generateReceiverAddress } from "./commands/taproot.js";
+import { findMalformedFunding } from "./commands/rescue/cmd.js";
 const program = new Command();
 
 program
@@ -322,5 +323,23 @@ testCommand
       });
     },
   );
+
+const recoverCommand = program.command("recover");
+recoverCommand
+  .command("find-unspendable-fundings <collectionId>")
+  .option("-u, --url <url>", "api url", "http://localhost:4000")
+  .option("--cache <file>", "cache file (optional, avoids hitting graphql)")
+  .option("--write-file <file>", "write file (optional, writes to file)")
+  .action(async (collectionId, { url, cache, writeFile }) => {
+    const cachedResponse = cache
+      ? JSON.parse(await fs.promises.readFile(cache, "utf8"))
+      : undefined;
+    await findMalformedFunding({
+      collectionId,
+      url,
+      cachedResponse,
+      writeFilePath: writeFile,
+    });
+  });
 
 program.parse(process.argv);

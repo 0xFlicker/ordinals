@@ -111,7 +111,7 @@ export function watchForFundings(
       return false;
     }),
     tap((funding) => {
-      logger.info(
+      logger.trace(
         `Starting to watch funding ${funding.id} for address ${funding.address} `,
       );
     }),
@@ -130,6 +130,7 @@ export function watchForFundings(
             enqueueCheckTxo({
               address: funding.address,
               mempoolBitcoinClient,
+              findValue: funding.fundingAmountSat,
             }),
           ).pipe(
             map((mempoolResponse) => {

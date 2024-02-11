@@ -3,14 +3,14 @@ import type * as Types from "../../../generated-types/graphql.js";
 import type * as gm from "@0xflick/graphql-modules";
 export namespace InscriptionFundingModule {
   interface DefinedFields {
-    InscriptionFunding: 'id' | 'fundingAmountBtc' | 'fundingAmountSats' | 'fundingAddress' | 'network' | 'qrValue' | 'qrSrc' | 'inscriptionTransaction' | 'status' | 'fundingTxId' | 'fundingTxUrl' | 'fundingGenesisTxId' | 'fundingGenesisTxUrl' | 'fundingRevealTxIds' | 'fundingRevealTxUrls' | 'inscriptionContent';
+    InscriptionFunding: 'id' | 'fundingAmountBtc' | 'fundingAmountSats' | 'fundingAddress' | 'destinationAddress' | 'network' | 'qrValue' | 'qrSrc' | 'inscriptionTransaction' | 'status' | 'fundingTxId' | 'fundingTxUrl' | 'fundingGenesisTxId' | 'fundingGenesisTxUrl' | 'fundingRevealTxIds' | 'fundingRevealTxUrls' | 'inscriptionContent';
     InscriptionFundingProblem: 'code' | 'message';
     InscriptionFundingsResult: 'fundings' | 'problems' | 'next' | 'count';
     Query: 'inscriptionFunding' | 'inscriptionFundings';
   };
   
   interface DefinedEnumValues {
-    FundingStatus: 'FUNDING' | 'FUNDED' | 'GENESIS' | 'REVEALED';
+    FundingStatus: 'FUNDING' | 'FUNDED' | 'GENESIS' | 'REVEALED' | 'EXPIRED';
   };
   
   interface DefinedInputFields {
@@ -49,6 +49,7 @@ export namespace InscriptionFundingModule {
       fundingAmountBtc?: gm.Middleware[];
       fundingAmountSats?: gm.Middleware[];
       fundingAddress?: gm.Middleware[];
+      destinationAddress?: gm.Middleware[];
       network?: gm.Middleware[];
       qrValue?: gm.Middleware[];
       qrSrc?: gm.Middleware[];

@@ -14,7 +14,6 @@ export const MultiChainProvider: FC<
     autoLogin?: boolean;
     bitcoinNetwork: BitcoinNetwork["type"];
     bitcoinPurpose: AddressPurpose;
-
     ethereumAutoConnect?: boolean;
   }>
 > = ({

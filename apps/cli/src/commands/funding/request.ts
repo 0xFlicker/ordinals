@@ -1,5 +1,9 @@
 import { GraphQLClient } from "graphql-request";
-import { getSdk, AxolotlClaimRequest } from "../../graphql.generated.js";
+import {
+  getSdk,
+  AxolotlClaimRequest,
+  AxolotlOpenEditionRequest,
+} from "../../graphql.generated.js";
 import { RequestConfig } from "graphql-request/build/esm/types.js";
 
 function createClient(
@@ -14,7 +18,7 @@ export async function fundingRequest({
   url,
   token,
 }: {
-  request: AxolotlClaimRequest;
+  request: AxolotlOpenEditionRequest;
   url: string;
   token: string | null;
 }) {
@@ -27,16 +31,25 @@ export async function fundingRequest({
     },
   );
   const sdk = getSdk(client);
-  const { axolotlFundingClaimRequest } = await sdk.AxolotlFundingRequest({
+  const { axolotlFundingOpenEditionRequest } = await sdk.AxolotlFundingRequest({
     request,
   });
-
-  for (const { inscriptionFunding } of axolotlFundingClaimRequest) {
-    console.log(`Funding address: ${inscriptionFunding.fundingAddress}`);
-    console.log(`Funding amount BTC: ${inscriptionFunding.fundingAmountBtc}`);
-    console.log(`Funding amount sats: ${inscriptionFunding.fundingAmountSats}`);
-    console.log(`Funding address ID: ${inscriptionFunding.id}`);
+  if (!axolotlFundingOpenEditionRequest.data) {
+    throw new Error("No funding request data");
   }
 
-  return axolotlFundingClaimRequest;
+  console.log(
+    `Funding address: ${axolotlFundingOpenEditionRequest.data.inscriptionFunding.fundingAddress}`,
+  );
+  console.log(
+    `Funding amount BTC: ${axolotlFundingOpenEditionRequest.data.inscriptionFunding.fundingAmountBtc}`,
+  );
+  console.log(
+    `Funding amount sats: ${axolotlFundingOpenEditionRequest.data.inscriptionFunding.fundingAmountSats}`,
+  );
+  console.log(
+    `Funding address ID: ${axolotlFundingOpenEditionRequest.data.inscriptionFunding.id}`,
+  );
+
+  return axolotlFundingOpenEditionRequest.data;
 }

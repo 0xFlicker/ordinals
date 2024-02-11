@@ -381,6 +381,7 @@ export class AxolotlModel implements IAxolotlMeta {
       bucket: inscriptionBucket,
       document: doc,
       fundingAddress,
+      destinationAddress,
       s3Client,
     });
     await Promise.all([

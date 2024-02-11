@@ -1,0 +1,21 @@
+query ListFundings($query: InscriptionFundingQuery!) {
+  inscriptionFundings(query: $query) {
+    fundings {
+      id
+      fundingAmountSats
+      fundingAddress
+      destinationAddress
+      network
+      status
+      fundingTxId
+      fundingGenesisTxId
+      fundingRevealTxIds
+    }
+    problems {
+      code
+      message
+    }
+    next
+    count
+  }
+}

@@ -8,8 +8,7 @@ const config: CodegenConfig = {
       documents: "src/**/*.graphql",
       plugins: ["typescript"],
     },
-    "src/apiGraphql/": {
-      preset: "near-operation-file",
+    "src/apiGraphql/api.ts": {
       documents: "src/apiGraphql/**/*.graphql",
       presetConfig: {
         baseTypesPath: "../graphql/types.ts",
@@ -18,7 +17,11 @@ const config: CodegenConfig = {
         useTypeImports: true,
         emitLegacyCommonJSImports: false,
       },
-      plugins: ["typescript-operations", "typescript-graphql-request"],
+      plugins: [
+        "typescript",
+        "typescript-operations",
+        "typescript-graphql-request",
+      ],
     },
     "src/features/": {
       preset: "near-operation-file",

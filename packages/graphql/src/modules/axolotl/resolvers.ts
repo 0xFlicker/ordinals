@@ -162,6 +162,7 @@ async function createTranscriptionFunding({
     bucket: inscriptionBucket,
     document: doc,
     fundingAddress,
+    destinationAddress: address,
     s3Client,
   });
   await Promise.all([
@@ -444,6 +445,7 @@ export const resolvers: AxolotlModule.Resolvers = {
         funding: new InscriptionFundingModel({
           bucket: context.inscriptionBucket,
           fundingAddress: funding.address,
+          destinationAddress: destinationAddress as `0x${string}`,
           id: funding.id,
           s3Client: context.s3Client,
         }),

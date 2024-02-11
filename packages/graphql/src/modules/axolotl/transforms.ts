@@ -27,6 +27,8 @@ export function toGraphqlFundingStatus(status: TFundingStatus): FundingStatus {
       return "GENESIS";
     case "revealed":
       return "REVEALED";
+    case "expired":
+      return "EXPIRED";
     default:
       throw new Error(`Unsupported funding status: ${status}`);
   }
@@ -44,6 +46,8 @@ export function fromGraphqlFundingStatus(
       return "genesis";
     case "REVEALED":
       return "revealed";
+    case "EXPIRED":
+      return "expired";
     default:
       throw new Error(`Unsupported funding status: ${status}`);
   }

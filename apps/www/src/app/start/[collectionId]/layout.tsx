@@ -47,10 +47,10 @@ export default function RootLayout({
           property="fc:frame:image"
           content={`${NEXT_PUBLIC_FRAME_URL}/frame-og/axolotl/${seed}`}
         />
-        <meta
+        {/* <meta
           property="fc:frame:input:text"
           content="Enter a BTC taproot address"
-        />
+        /> */}
         <meta property="fc:frame:button:1" content="CLOSED" />
         {/* <meta property="fc:frame:button:1" content="mint 1" />
         <meta property="fc:frame:button:2" content="mint 3" />

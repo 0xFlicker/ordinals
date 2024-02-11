@@ -51,6 +51,7 @@ export async function getFundingModel({
     document,
     bucket: inscriptionBucket,
     fundingAddress: funding.address,
+    destinationAddress: funding.destinationAddress,
     s3Client,
   });
 }

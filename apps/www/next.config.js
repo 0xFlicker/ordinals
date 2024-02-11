@@ -1,3 +1,5 @@
+
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "www";
 const graphqlEndpoint =
   process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT ?? "http://localhost:4000";
@@ -20,6 +22,9 @@ const webConnectProjectId = process.env.NEXT_PUBLIC_WEB_CONNECT_PROJECT_ID ?? ""
 const nextConfig = {
   transpilePackages: ["@0xflick/ordinals-rbac-models"],
   env: {
+    DEPLOYMENT: process.env.DEPLOYMENT ?? "local",
+    FONT_BUCKET: process.env.FONT_BUCKET ?? "fonts",
+    NEXT_PUBLIC_BASE_URL: baseUrl,
     NEXT_PUBLIC_APP_NAME: appName,
     NEXT_PUBLIC_GRAPHQL_ENDPOINT: graphqlEndpoint,
     NEXT_PUBLIC_ALCHEMY_KEY: alchemyKey,
@@ -30,6 +35,8 @@ const nextConfig = {
     NEXT_PUBLIC_SEPOLIA_ENS_UNIVERSAL_RESOLVER_ADDRESS:
       sepoliaEnsUniversalResolverAddress,
     NEXT_PUBLIC_WEB_CONNECT_PROJECT_ID: webConnectProjectId,
+    AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ?? "",
+    AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? "",
   },
   webpack: (config) => {
     return {

@@ -146,6 +146,14 @@ export type CollectionInput = {
   name: Scalars['String']['input'];
 };
 
+export type FeeEstimate = {
+  __typename?: 'FeeEstimate';
+  fastest: Scalars['Int']['output'];
+  halfHour: Scalars['Int']['output'];
+  hour: Scalars['Int']['output'];
+  minimum: Scalars['Int']['output'];
+};
+
 export enum FeeLevel {
   Glacial = 'GLACIAL',
   High = 'HIGH',
@@ -154,6 +162,7 @@ export enum FeeLevel {
 }
 
 export enum FundingStatus {
+  Expired = 'EXPIRED',
   Funded = 'FUNDED',
   Funding = 'FUNDING',
   Genesis = 'GENESIS',
@@ -175,6 +184,7 @@ export type InscriptionDataInput = {
 
 export type InscriptionFunding = {
   __typename?: 'InscriptionFunding';
+  destinationAddress: Scalars['String']['output'];
   fundingAddress: Scalars['String']['output'];
   fundingAmountBtc: Scalars['String']['output'];
   fundingAmountSats: Scalars['Int']['output'];
@@ -383,7 +393,7 @@ export type Query = {
   axolotlEstimateFee: AxolotlFeeEstimate;
   collection: Collection;
   collections: Array<Collection>;
-  currentBitcoinFees: Scalars['Int']['output'];
+  currentBitcoinFees: FeeEstimate;
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
   inscriptionTransaction?: Maybe<InscriptionTransaction>;
@@ -413,9 +423,7 @@ export type QueryCollectionArgs = {
 
 
 export type QueryCurrentBitcoinFeesArgs = {
-  feePerByte?: InputMaybe<Scalars['Int']['input']>;
   network: BitcoinNetwork;
-  speed?: InputMaybe<FeeLevel>;
 };
 
 

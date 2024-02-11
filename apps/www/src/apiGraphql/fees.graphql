@@ -1,0 +1,8 @@
+query feeEstimate($network: BitcoinNetwork!) {
+  currentBitcoinFees(network: $network) {
+    minimum
+    fastest
+    halfHour
+    hour
+  }
+}

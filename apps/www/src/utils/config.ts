@@ -1,6 +1,15 @@
 import { Chain, mainnet, goerli, sepolia } from "@wagmi/chains";
 export const supportedAppChains = [mainnet, goerli, sepolia] as const;
 
+export const baseUrl = {
+  get() {
+    if (!process.env.NEXT_PUBLIC_BASE_URL) {
+      throw new Error("NEXT_PUBLIC_BASE_URL is not set");
+    }
+    return process.env.NEXT_PUBLIC_BASE_URL;
+  },
+};
+
 export const webConnectProjectId = {
   get() {
     if (!process.env.NEXT_PUBLIC_WEB_CONNECT_PROJECT_ID) {
@@ -121,5 +130,14 @@ export const defaultChain = {
       ({ id }) => id === Number(chainId)
     );
     return wagmiChain || mainnet;
+  },
+};
+
+export const graphqlEndpoint = {
+  get() {
+    if (!process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT) {
+      throw new Error("NEXT_PUBLIC_GRAPHQL_ENDPOINT is not set");
+    }
+    return process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT;
   },
 };

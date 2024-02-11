@@ -11,6 +11,7 @@ import { toDataURL, QRCodeToDataURLOptions } from "qrcode";
 export class InscriptionFundingModel {
   public id: string;
   private readonly fundingAddress: string;
+  private readonly destinationAddress: string;
   private document?: TInscriptionDoc;
   private readonly bucket: string;
   private s3Client: S3Client;
@@ -19,18 +20,21 @@ export class InscriptionFundingModel {
     id,
     document,
     fundingAddress,
+    destinationAddress,
     bucket,
     s3Client,
   }: {
     id: string;
     document?: TInscriptionDoc;
     fundingAddress: string;
+    destinationAddress: string;
     bucket: string;
     s3Client: S3Client;
   }) {
     this.id = id;
     this.document = document;
     this.fundingAddress = fundingAddress;
+    this.destinationAddress = destinationAddress;
     this.bucket = bucket;
     this.s3Client = s3Client;
   }

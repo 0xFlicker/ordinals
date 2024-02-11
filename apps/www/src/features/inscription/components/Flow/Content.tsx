@@ -5,6 +5,7 @@ import { ActiveClaim } from "../ActiveClaim";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
 import { useRouter } from "next/navigation";
 import Typography from "@mui/material/Typography";
+import { Start } from "../Start/Start";
 
 export const Content: FC<{
   collectionId: string;
@@ -15,20 +16,22 @@ export const Content: FC<{
   const router = useRouter();
 
   if (step === "start") {
-    return <Typography>CLOSED</Typography>;
-    // <Start
-    //   collectionId={collectionId}
-    //   onInscribe={() => {
-    //     router.push(
-    //       `${
-    //         initialBitcoinNetwork === BitcoinNetworkType.Testnet
-    //           ? "/testnet"
-    //           : ""
-    //       }/agreement/${collectionId}`,
-    //       {}
-    //     );
-    //   }}
-    // />
+    // return <Typography>CLOSED</Typography>;
+    return (
+      <Start
+        collectionId={collectionId}
+        onInscribe={() => {
+          router.push(
+            `${
+              initialBitcoinNetwork === BitcoinNetworkType.Testnet
+                ? "/testnet"
+                : ""
+            }/agreement/${collectionId}`,
+            {}
+          );
+        }}
+      />
+    );
   }
 
   if (step === "agreement") {

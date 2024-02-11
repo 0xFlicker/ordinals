@@ -1,10 +1,12 @@
-mutation AxolotlFundingRequest($request: AxolotlClaimRequest!) {
-  axolotlFundingClaimRequest(request: $request) {
-    inscriptionFunding {
-      id
-      fundingAddress
-      fundingAmountSats
-      fundingAmountBtc
+mutation AxolotlFundingRequest($request: AxolotlOpenEditionRequest!) {
+  axolotlFundingOpenEditionRequest(request: $request) {
+    data {
+      inscriptionFunding {
+        id
+        fundingAddress
+        fundingAmountSats
+        fundingAmountBtc
+      }
     }
   }
 }

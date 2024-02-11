@@ -52,19 +52,6 @@ async function s3Exists({
   }
 }
 
-async function s3WriteObject(key: string, imageData: Buffer): Promise<void> {
-  console.log(`Writing to s3://${seedImageBucket}/${key}`);
-
-  await s3.putObject({
-    Bucket: seedImageBucket,
-    Key: key,
-    Body: imageData,
-    ContentDisposition: "inline",
-    ContentType: "image/png",
-    Expires: new Date(Date.now() + 1000 * 60 * 60 * 6),
-  });
-}
-
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   console.log("Received image request");
   try {
@@ -73,7 +60,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     const seedStr = pathParameters.seed;
     console.log(`Seed: ${seedStr}`);
 
-    const s3Key = `axolotl/${seedStr}.png`;
+    const s3Key = `axolotl_frame_start/${seedStr}.png`;
     const exists = await s3Exists({ key: s3Key, bucket: seedImageBucket });
 
     if (!exists) {

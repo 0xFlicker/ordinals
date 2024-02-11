@@ -91,7 +91,7 @@ export function watchForFunded(
     mergeMap((funded) =>
       from([funded]).pipe(
         tap((funding) =>
-          logger.trace(`Enqueuing genesis funding ${funding.id}`),
+          logger.info(`Enqueuing genesis funding ${funding.id}`),
         ),
         mergeMap((funded) => {
           return from(
@@ -106,7 +106,7 @@ export function watchForFunded(
               };
             }),
             catchError((error) => {
-              logger.error(error, "Error checking funding for", funded.address);
+              // logger.error(error, "Error checking funding for", funded.address);
               if (error instanceof NoVoutFound) {
                 logger.info(`No payment found for ${funded.address}`);
                 // const now = new Date();
@@ -130,7 +130,7 @@ export function watchForFunded(
                 //   }),
                 // );
               }
-              logger.error(error, "Error checking funding for", funded.address);
+              // logger.error(error, "Error checking funding for", funded.address);
               // throw error;
               return EMPTY;
             }),
