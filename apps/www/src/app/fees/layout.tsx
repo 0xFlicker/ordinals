@@ -18,6 +18,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const imgUrl = baseUrl.get() + "/api/meta/axolotl/fees/static";
+  const currentTimeMod30Seconds = Math.floor(Date.now() / 30000);
   return (
     <html lang="en">
       <head>
@@ -42,7 +43,7 @@ export default async function RootLayout({
         <meta property="fc:frame:button:1" content="BITCOIN FEE REPORT" />
         <meta
           property="fc:frame:post_url"
-          content={`${baseUrl.get()}/api/frame/fees`}
+          content={`${baseUrl.get()}/api/frame/fees?a=${currentTimeMod30Seconds}`}
         />
       </head>
       <body className={inter.className}>{children}</body>

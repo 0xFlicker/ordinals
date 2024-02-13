@@ -136,7 +136,6 @@ export async function GET() {
     {
       width: 800,
       height: 420,
-
       fonts: [
         {
           name: "Roboto",
