@@ -13,7 +13,7 @@
     "hardhat": "^2.17.0",
     "hardhat-deploy": "^0.11.34",
     "hardhat-gas-reporter": "^1.0.9",
-    "solady": "^0.0.110",
+    "solady": "^0.0.168",
     "typechain": "^8.3.1"
   },
   "devDependencies": {

@@ -18987,10 +18987,10 @@ socket.io-parser@~4.2.4:
     "@socket.io/component-emitter" "~3.1.0"
     debug "~4.3.1"
 
-solady@^0.0.110:
-  version "0.0.110"
-  resolved "https://registry.yarnpkg.com/solady/-/solady-0.0.110.tgz#6525da376e5a2ab148f6686c14eb0829b8fa335d"
-  integrity sha512-ZX9kDfj3CgufsqbrPkgjtgtcBMzxzdfdkpulqhVpCVeMLODFaiuddZQN8735vI20W7jJ3Gcmq6PZRGIusU3t9Q==
+solady@^0.0.168:
+  version "0.0.168"
+  resolved "https://registry.yarnpkg.com/solady/-/solady-0.0.168.tgz#b466f907455632241f459a623f285a30990ef645"
+  integrity sha512-7tgy21selT6Tg+8aAxkLUyjjCx9iQ3m3KE+5D4x/tIXr4wAfoVe6EK0lmmZjyIv8MRqQSx/vB6NfIC1LME3oZA==
 
 solc@0.7.3:
   version "0.7.3"
