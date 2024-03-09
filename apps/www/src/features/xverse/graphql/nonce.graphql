@@ -1,0 +1,13 @@
+mutation BitcoinNonce($address: ID!) {
+  nonceBitcoin(address: $address) {
+    nonce
+    messageToSign
+    pubKey
+  }
+}
+
+mutation SIWB($address: ID!, $jwe: String!) {
+  siwb(address: $address, jwe: $jwe) {
+    token
+  }
+}

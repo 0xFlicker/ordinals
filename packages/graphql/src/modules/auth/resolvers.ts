@@ -3,17 +3,16 @@ import {
   decryptJweToken,
   namespacedClaim,
 } from "@0xflick/ordinals-rbac";
+import { Verifier } from "bip322-js";
 import { Web3LoginUserModel, Web3UserModel } from "../user/models.js";
 import { authorizedUser } from "./controller.js";
 import { AuthModule } from "./generated-types/module-types.js";
-import { verifyMessageSignatureRsv } from "@stacks/encryption";
-import { Address } from "@0xflick/tapscript";
 import { addressToBitcoinNetwork } from "../user/resolvers.js";
 import {
   authMessageBitcoin,
   authMessageEthereum,
 } from "@0xflick/ordinals-models";
-import { keccak256, toUtf8Bytes, verifyMessage } from "ethers";
+import { verifyMessage } from "ethers";
 
 export const resolvers: AuthModule.Resolvers = {
   Query: {
@@ -26,7 +25,8 @@ export const resolvers: AuthModule.Resolvers = {
     self: async (_, __, context) => {
       const { getToken } = context;
       const user = await authorizedUser(context);
-      return new Web3UserModel(user.address, getToken());
+      const token = getToken("siwe") || getToken("siwb");
+      return new Web3UserModel(user.address, token);
     },
   },
   Mutation: {
@@ -93,7 +93,7 @@ export const resolvers: AuthModule.Resolvers = {
           [namespacedClaim("chainId", authMessageJwtClaimIssuer)]: chainId,
         },
       });
-      setToken(token);
+      setToken(token, "siwe");
       return new Web3LoginUserModel({
         address,
         token,
@@ -108,6 +108,7 @@ export const resolvers: AuthModule.Resolvers = {
       const signature = Buffer.from(plaintext).toString("utf8");
       const nonce = protectedHeader.kid!;
       const userNonceRequest = await userDao.get(address, nonce);
+
       if (!userNonceRequest) {
         throw new Error("Invalid nonce");
       }
@@ -132,11 +133,11 @@ export const resolvers: AuthModule.Resolvers = {
         nonce,
         network: addressToBitcoinNetwork(address),
       });
-      const verified = verifyMessageSignatureRsv({
+      const verified = Verifier.verifySignature(
+        address,
+        messageToSign,
         signature,
-        message: messageToSign,
-        publicKey: Address.decode(address).data.toString("hex"),
-      });
+      );
       if (!verified) {
         throw new Error("Invalid signature");
       }
@@ -148,7 +149,7 @@ export const resolvers: AuthModule.Resolvers = {
         nonce,
         issuer: authMessageJwtClaimIssuer,
       });
-      setToken(token);
+      setToken(token, "siwb");
       return new Web3LoginUserModel({
         address,
         token,
@@ -156,12 +157,12 @@ export const resolvers: AuthModule.Resolvers = {
     },
     signOutBitcoin: async (_, __, { clearToken }) => {
       // TODO: different tokens for bitcoin and ethereum
-      clearToken();
+      clearToken("siwb");
       return true;
     },
     signOutEthereum: async (_, __, { clearToken }) => {
       // TODO: different tokens for bitcoin and ethereum
-      clearToken();
+      clearToken("siwe");
       return true;
     },
   },

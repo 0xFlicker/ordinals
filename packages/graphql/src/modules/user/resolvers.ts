@@ -56,6 +56,16 @@ export const resolvers: UserModule.Resolvers = {
     },
   },
   Mutation: {
+    nonceFrame: async (
+      _,
+      { fid },
+      {
+        userDao,
+        authMessageDomain,
+        authMessageExpirationTimeSeconds,
+        authMessageJwtClaimIssuer,
+      },
+    ) => {},
     nonceEthereum: async (
       _,
       { address, chainId },

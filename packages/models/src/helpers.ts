@@ -7,9 +7,13 @@ import { deserializeSessionCookie } from "./cookie.js";
 
 export function getAuthorizationToken(
   headers: Record<string, string | undefined>,
+  cookieName: string,
 ): string | undefined {
   // First check cookie
-  const session = deserializeSessionCookie(headers.cookie);
+  const session = deserializeSessionCookie({
+    cookies: headers.cookie,
+    cookieName,
+  });
   if (session) {
     return session;
   }

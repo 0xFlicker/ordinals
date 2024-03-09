@@ -164,7 +164,7 @@ function useXverseContext(opts: {
           ...(address ? { address } : {}),
         } as SignMessagePayload;
         dispatch(actionCreators.signatureRequestInit());
-        const response = await new Promise((resolve, reject) =>
+        const response = await new Promise<string>((resolve, reject) =>
           signMessage({
             payload: signMessagePayload,
             onFinish(response) {

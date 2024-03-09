@@ -8,6 +8,8 @@ import {
   deserializeSessionCookie,
   expireSessionCookie,
   serializeSessionCookie,
+  sessionExpirationFromNamespace,
+  sessionFromNamespace,
 } from "@0xflick/ordinals-backend";
 
 export async function start() {
@@ -25,8 +27,11 @@ export async function start() {
     context: ({ req, res }) => {
       return {
         ...createContext(),
-        getToken: () => {
-          const cookieToken = deserializeSessionCookie(req.headers.cookie);
+        getToken: (namespace?: string) => {
+          const cookieToken = deserializeSessionCookie({
+            cookies: req.headers.cookie,
+            cookieName: sessionFromNamespace(namespace),
+          });
           if (cookieToken) {
             return cookieToken;
           }
@@ -39,11 +44,27 @@ export async function start() {
           }
           return null;
         },
-        setToken: (token: string) => {
-          res.setHeader("set-cookie", serializeSessionCookie(token, "/"));
+        setToken: (token: string, namespace?: string) => {
+          res.setHeader(
+            "set-cookie",
+            serializeSessionCookie({
+              cookieName: sessionFromNamespace(namespace),
+              expires: new Date(
+                Date.now() + 1000 * sessionExpirationFromNamespace(namespace),
+              ),
+              path: "/",
+              value: token,
+            }),
+          );
         },
-        clearToken: () => {
-          res.setHeader("set-cookie", expireSessionCookie("/"));
+        clearToken: (namespace?: string) => {
+          res.setHeader(
+            "set-cookie",
+            expireSessionCookie({
+              cookieName: sessionFromNamespace(namespace),
+              path: "/",
+            }),
+          );
         },
       };
     },

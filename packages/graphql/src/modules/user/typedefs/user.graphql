@@ -10,9 +10,18 @@ type Nonce {
   pubKey: String!
 }
 
+type AssociatedAddresses {
+  evmSignedAddress: [ID!]!
+  taprootAddress: [ID!]!
+  frameFid: ID
+  frameVerifiedAddresses: [ID!]
+}
+
 type Web3User {
-  address: ID!
-  type: BlockchainNetwork!
+  id: ID!
+
+  associatedAddresses: AssociatedAddresses!
+
   roles: [Role!]!
   allowedActions: [Permission!]!
 
@@ -28,6 +37,7 @@ type Web3LoginUser {
 type Mutation {
   nonceEthereum(address: ID!, chainId: Int!): Nonce!
   nonceBitcoin(address: ID!): Nonce!
+  nonceFrame(trustedBytes: String!): Nonce!
 }
 
 type Query {

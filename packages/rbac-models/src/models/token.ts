@@ -54,10 +54,12 @@ export async function createJweRequest({
   signature,
   nonce,
   pubKeyStr,
+  protectedHeader,
 }: {
   signature: string;
   nonce: string;
   pubKeyStr?: string;
+  protectedHeader?: Record<string, unknown>;
 }) {
   const ge = new CompactEncrypt(new TextEncoder().encode(signature));
   const pubKey = pubKeyStr
@@ -71,6 +73,7 @@ export async function createJweRequest({
       alg: "ECDH-ES+A128KW",
       enc: "A128GCM",
       crv: "P-521",
+      ...protectedHeader,
     })
     .encrypt(pubKey);
   return jwe;

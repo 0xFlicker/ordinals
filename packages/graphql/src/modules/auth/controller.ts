@@ -55,12 +55,11 @@ export async function defaultAuthorizer(
   return user;
 }
 
-export async function authorizedUser({
-  getToken,
-  userRolesDao,
-  authMessageJwtClaimIssuer,
-}: Context) {
-  const token = getToken();
+export async function authorizedUser(
+  { getToken, userRolesDao, authMessageJwtClaimIssuer }: Context,
+  namespace?: string,
+) {
+  const token = getToken(namespace);
   if (!token) {
     throw new AuthError("Not authenticated", "NOT_AUTHENTICATED");
   }

@@ -31,6 +31,14 @@ export type AppInfo = {
   pubKey: Scalars['String']['output'];
 };
 
+export type AssociatedAddresses = {
+  __typename?: 'AssociatedAddresses';
+  evmSignedAddress: Array<Scalars['ID']['output']>;
+  frameFid?: Maybe<Scalars['ID']['output']>;
+  frameVerifiedAddresses?: Maybe<Array<Scalars['ID']['output']>>;
+  taprootAddress: Array<Scalars['ID']['output']>;
+};
+
 export type AxolotlAvailableClaimedFunding = {
   __typename?: 'AxolotlAvailableClaimedFunding';
   claimingAddress: Scalars['String']['output'];
@@ -286,6 +294,7 @@ export type Mutation = {
   deleteCollection: Scalars['Boolean']['output'];
   nonceBitcoin: Nonce;
   nonceEthereum: Nonce;
+  nonceFrame: Nonce;
   role: Role;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
@@ -328,6 +337,11 @@ export type MutationNonceBitcoinArgs = {
 export type MutationNonceEthereumArgs = {
   address: Scalars['ID']['input'];
   chainId: Scalars['Int']['input'];
+};
+
+
+export type MutationNonceFrameArgs = {
+  trustedBytes: Scalars['String']['input'];
 };
 
 
@@ -498,11 +512,11 @@ export type Web3LoginUser = {
 
 export type Web3User = {
   __typename?: 'Web3User';
-  address: Scalars['ID']['output'];
   allowedActions: Array<Permission>;
+  associatedAddresses: AssociatedAddresses;
+  id: Scalars['ID']['output'];
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;
-  type: BlockchainNetwork;
 };
 
 
@@ -577,6 +591,7 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 /** Mapping between all available schema types and the resolvers types */
 export type ResolversTypes = {
   AppInfo: ResolverTypeWrapper<AppInfo>;
+  AssociatedAddresses: ResolverTypeWrapper<AssociatedAddresses>;
   AxolotlAvailableClaimedFunding: ResolverTypeWrapper<Omit<AxolotlAvailableClaimedFunding, 'funding'> & { funding?: Maybe<ResolversTypes['InscriptionFunding']> }>;
   AxolotlAvailableClaimedRequest: AxolotlAvailableClaimedRequest;
   AxolotlAvailableOpenEditionFunding: ResolverTypeWrapper<Omit<AxolotlAvailableOpenEditionFunding, 'funding'> & { funding?: Maybe<ResolversTypes['InscriptionFunding']> }>;
@@ -626,6 +641,7 @@ export type ResolversTypes = {
 /** Mapping between all available schema types and the resolvers parents */
 export type ResolversParentTypes = {
   AppInfo: AppInfo;
+  AssociatedAddresses: AssociatedAddresses;
   AxolotlAvailableClaimedFunding: Omit<AxolotlAvailableClaimedFunding, 'funding'> & { funding?: Maybe<ResolversParentTypes['InscriptionFunding']> };
   AxolotlAvailableClaimedRequest: AxolotlAvailableClaimedRequest;
   AxolotlAvailableOpenEditionFunding: Omit<AxolotlAvailableOpenEditionFunding, 'funding'> & { funding?: Maybe<ResolversParentTypes['InscriptionFunding']> };
@@ -669,6 +685,14 @@ export type ResolversParentTypes = {
 export type AppInfoResolvers<ContextType = Context, ParentType extends ResolversParentTypes['AppInfo'] = ResolversParentTypes['AppInfo']> = {
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pubKey?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type AssociatedAddressesResolvers<ContextType = Context, ParentType extends ResolversParentTypes['AssociatedAddresses'] = ResolversParentTypes['AssociatedAddresses']> = {
+  evmSignedAddress?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+  frameFid?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  frameVerifiedAddresses?: Resolver<Maybe<Array<ResolversTypes['ID']>>, ParentType, ContextType>;
+  taprootAddress?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -835,6 +859,7 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
   deleteCollection?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationDeleteCollectionArgs, 'id'>>;
   nonceBitcoin?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceBitcoinArgs, 'address'>>;
   nonceEthereum?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceEthereumArgs, 'address' | 'chainId'>>;
+  nonceFrame?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceFrameArgs, 'trustedBytes'>>;
   role?: Resolver<ResolversTypes['Role'], ParentType, ContextType, RequireFields<MutationRoleArgs, 'id'>>;
   signOutBitcoin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   signOutEthereum?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -899,16 +924,17 @@ export type Web3LoginUserResolvers<ContextType = Context, ParentType extends Res
 };
 
 export type Web3UserResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Web3User'] = ResolversParentTypes['Web3User']> = {
-  address?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   allowedActions?: Resolver<Array<ResolversTypes['Permission']>, ParentType, ContextType>;
+  associatedAddresses?: Resolver<ResolversTypes['AssociatedAddresses'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   token?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['BlockchainNetwork'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type Resolvers<ContextType = Context> = {
   AppInfo?: AppInfoResolvers<ContextType>;
+  AssociatedAddresses?: AssociatedAddressesResolvers<ContextType>;
   AxolotlAvailableClaimedFunding?: AxolotlAvailableClaimedFundingResolvers<ContextType>;
   AxolotlAvailableOpenEditionFunding?: AxolotlAvailableOpenEditionFundingResolvers<ContextType>;
   AxolotlFeeEstimate?: AxolotlFeeEstimateResolvers<ContextType>;
