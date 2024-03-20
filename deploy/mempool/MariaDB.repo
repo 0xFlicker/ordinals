@@ -1,0 +1,7 @@
+[mariadb]
+name = MariaDB
+# baseurl = https://rpm.mariadb.org/10.5/rhel/$releasever/$basearch
+baseurl = https://mirror.nodesdirect.com/mariadb/yum/10.5/rhel/9/aarch64
+## gpgkey = https://rpm.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgkey = https://mirror.nodesdirect.com/mariadb/yum/RPM-GPG-KEY-MariaDB
+gpgcheck = 1
