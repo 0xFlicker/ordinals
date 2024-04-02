@@ -8,7 +8,6 @@
     "rootDir": "./src" /* Specify the root folder within your source files. */,
     "outDir": "dist" /* Specify an output folder for all emitted files. */,
     "paths": {
-      "@0xflick/ordinals-render/*": ["../../ordinals/render/src/*"]
     },
     "noErrorTruncation": true,
     "noImplicitAny": true,
@@ -19,10 +18,6 @@
     "strictNullChecks": false
     // "strictPropertyInitialization": false
   },
-  "include": ["src/**/*.ts"],
-  "references": [
-    {
-      "path": "../../ordinals/render"
-    }
-  ]
+  "include": ["./src/**/*.ts"],
+  "references": [  ]
 }

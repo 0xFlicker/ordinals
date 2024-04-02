@@ -1,17 +1,15 @@
-import type { Image } from "canvas";
-
-const imageBufferCache = new Map<string, Image | HTMLImageElement>();
+const imageBufferCache = new Map<string, HTMLImageElement>();
 
 export interface IImageFetcher {
-  (key: string): Promise<Image | HTMLImageElement>;
+  (key: string): Promise<HTMLImageElement>;
 }
 
 export async function getImage(
   imgPath: string,
-  imageFetcher: IImageFetcher
-): Promise<Image | HTMLImageElement> {
+  imageFetcher: IImageFetcher,
+): Promise<HTMLImageElement> {
   if (imageBufferCache.has(imgPath)) {
-    return imageBufferCache.get(imgPath) as Image;
+    return imageBufferCache.get(imgPath);
   }
   const img = await imageFetcher(imgPath);
   imageBufferCache.set(imgPath, img);

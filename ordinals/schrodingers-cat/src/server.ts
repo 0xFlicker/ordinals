@@ -18,7 +18,7 @@ run with:
 import { readFile, stat } from "fs/promises";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { fileTypeFromBuffer, fileTypeFromFile } from "file-type";
+import { fileTypeFromFile } from "file-type";
 import cbor from "cbor";
 const { encode: cborEncode } = cbor;
 
@@ -57,9 +57,14 @@ app.get("/content/*", async ({ req }) => {
     console.log(`Fetching local file: .${decodeURIComponent(req.path)}`);
     const content = await readFile(`.${decodeURIComponent(req.path)}`);
     const type = await fileTypeFromFile(`.${decodeURIComponent(req.path)}`);
+
     return new Response(content, {
       headers: {
-        "Content-Type": type ? type.mime : "application/octet-stream",
+        "Content-Type": type
+          ? type.mime
+          : req.path.endsWith(".js")
+          ? "text/javascript"
+          : "application/octet-stream",
       },
     });
   }

@@ -1,4 +1,3 @@
-import { zipObj } from "ramda";
 import { ILayer } from "./core.js";
 
 export const alwaysCompatible = (other: ILayer) => true;
@@ -12,7 +11,7 @@ export function weightSampleFromWeights<T extends string>(
   _weights: {
     [key in T]: number;
   },
-  randomProvider?: (sum: number) => number
+  randomProvider?: (sum: number) => number,
 ): T {
   const choices = Object.keys(_weights) as T[];
   const weights = Object.values(_weights) as number[];
@@ -22,7 +21,7 @@ export function weightSampleFromWeights<T extends string>(
 export function mapWeightedValuesToRange<T extends string>(
   min: number,
   max: number,
-  weights: { [key in T]: number }
+  weights: { [key in T]: number },
 ): {
   [key in T]: number;
 } {
@@ -35,7 +34,7 @@ export function mapWeightsToRange(weights: number[], min: number, max: number) {
   const normalizedWeights = weights.map((weight) => weight / total);
   const range = max - min;
   const scaledWeights = normalizedWeights.map((weight) =>
-    Math.round(weight * range)
+    Math.round(weight * range),
   );
   // Check that the sum of the scaled weights is equal to the range
   const sum = scaledWeights.reduce((acc, curr) => acc + curr, 0);
@@ -43,7 +42,7 @@ export function mapWeightsToRange(weights: number[], min: number, max: number) {
     // If not, add the difference to the largest value
     const diff = range - sum;
     const maxIndex = scaledWeights.indexOf(
-      scaledWeights.reduce((acc, curr) => Math.max(acc, curr), 0)
+      scaledWeights.reduce((acc, curr) => Math.max(acc, curr), 0),
     );
     scaledWeights[maxIndex] += diff;
   }
@@ -56,7 +55,8 @@ export function mapWeightsToRange(weights: number[], min: number, max: number) {
 export function weightedSample<T>(
   list: T[],
   weights: number[],
-  randomProvider: (sum: number) => number = (sum: number) => Math.random() * sum
+  randomProvider: (sum: number) => number = (sum: number) =>
+    Math.random() * sum,
 ): T {
   if (list.length !== weights.length) {
     throw new RangeError("Chance: Length of array and weights must match");
@@ -118,4 +118,16 @@ export function weightedChance<T>(list: T[], weights: number[]): T {
     i++;
   }
   return list[i];
+}
+
+export function zipObj<T extends string, U>(
+  keys: T[],
+  values: U[],
+): { [key in T]: U } {
+  const len = Math.min(keys.length, values.length);
+  const out: { [key in T]: U } = {} as { [key in T]: U };
+  for (let idx = 0; idx < len; idx++) {
+    out[keys[idx]] = values[idx];
+  }
+  return out;
 }

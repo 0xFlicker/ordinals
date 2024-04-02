@@ -1,4 +1,3 @@
-import type { Canvas } from "canvas";
 import { getImage, IImageFetcher } from "./cache.js";
 import { createCanvas } from "./canvas.js";
 
@@ -33,10 +32,10 @@ export async function composeWithCanvas(
   ...ops: ((ctx: CanvasRenderingContext2D) => Promise<void>)[]
 ) {
   return async (ctx: CanvasRenderingContext2D) => {
-    const canvas = (await createCanvas(
+    const canvas = createCanvas(
       ctx.canvas.width,
       ctx.canvas.height,
-    )) as HTMLCanvasElement;
+    ) as HTMLCanvasElement;
     const ctx2 = canvas.getContext("2d");
     ctx2.clearRect(0, 0, canvas.width, canvas.height);
     await composeDrawOps(...ops)(ctx2);
@@ -44,7 +43,10 @@ export async function composeWithCanvas(
   };
 }
 
-export async function renderCanvas(canvas: Canvas, layers: ILayer[]) {
+export async function renderCanvas(
+  canvas: HTMLCanvasElement,
+  layers: ILayer[],
+) {
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (const layer of [...layers].sort((a, b) => a.zIndex - b.zIndex)) {

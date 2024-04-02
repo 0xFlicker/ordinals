@@ -1,5 +1,5 @@
 import type { ILayer, IMetadata, IImageFetcher } from "@0xflick/assets";
-import { weightSampleFromWeights } from "@0xflick/ordinals-axolotl-valley-web";
+import { weightSampleFromWeights } from "@0xflick/assets";
 import {
   makeCatLayer,
   makeBackgroundLayer,

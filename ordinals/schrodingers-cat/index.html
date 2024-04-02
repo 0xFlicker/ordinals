@@ -16,12 +16,66 @@
             #main {
                 width: 720px;
                 height: 720px;
+                position: absolute;
+            }
+            .container {
+                display: flex;
+                justify-content: flex-start;
+                align-items: flex-end;
+                flex-direction: column;
+                width: 720px;
+                height: 720px;
+            }
+            #menu {
+                background-color: #ffffff;
+                color: #000000;
+                border: 1px solid #000000;
+                box-shadow: 2px 2px 5px black;
+                padding: 10px;
+                z-index: 1;
+            }
+            .hidden {
+                display: none;
+            }
+            .menu-list {
+                list-style-type: none;
+                padding: 0;
+                margin: 0;
+            }
+            .menu-button {
+                background-color: #ffffff;
+                color: #000000;
+                border: 0px solid #000000;
+                padding: 5px;
+                margin: 5px;
             }
         </style>
     </head>
     <body>
+        <!-- 
+            the menu
+                Draw the menu using DOM elements (ul/li/buttons) at the top - right of the canvas
+                The menu should be styled with a white background and black text
+                The menu should have a border around it
+                The menu should have a drop shadow
+                The menu should have a padding of 10px
+        -->
+        
         <canvas id="main" width="720" height="720"></canvas>
+        <!-- <div class="container">
+            <div id="menu">
+                <ul class="menu-list">
+                    <li><button class="menu-button" id="reset">Reset</button></li>
+                    <li><button class="menu-button" id="toggle">Toggle</button></li>
+                    <li><button class="menu-button" id="step">Step</button></li>
+                    <li><button class="menu-button" id="run">Run</button></li>
+                    <li><button class="menu-button" id="stop">Stop</button></li>
+                </ul>
+            </div>
+        </div> -->
+
         <script src="/content/cbor.js" type="text/javascript"></script>
-        <script src="/content/script.js" type="text/javascript"></script>
+        <script src="/content/flick.js" type="module"></script>
+        <script src="/content/script.js" type="module"></script>
     </body>
 </html>

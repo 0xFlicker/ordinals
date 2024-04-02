@@ -3,5 +3,6 @@ metadata
 attributes
 generated
 dist
+lib
 properties
 tsconfig.tsbuildinfo
