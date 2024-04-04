@@ -257,6 +257,61 @@ export const NFTNyc: FC<{}> = () => {
             </CardActionArea>
           </Grid2>
           <Grid2 component={Card} elevation={6} sm={12} width="100%">
+            <CardActionArea href="https://t.me/flick_the_dev">
+              <CardContent
+                component={Box}
+                display="flex"
+                justifyContent="center"
+                alignContent="center"
+                padding={4}
+              >
+                <Box
+                  width="100%"
+                  display="flex"
+                  padding={4}
+                  justifyContent="center"
+                  alignContent="center"
+                >
+                  <Box
+                    display="flex"
+                    flexDirection="column"
+                    height="100%"
+                    justifyContent="center"
+                  >
+                    <NextImage
+                      src="/images/nftnyc/telegram.png"
+                      width={128}
+                      height={128}
+                      alt="x"
+                    />
+                  </Box>
+                  <Box flexGrow={1} />
+                  <Box
+                    display="flex"
+                    flexDirection="column"
+                    height="100%"
+                    justifyContent="center"
+                  >
+                    <Typography
+                      mx={4}
+                      fontSize={{
+                        md: 32,
+                        lg: 32,
+                      }}
+                    >
+                      @flick_the_dev
+                    </Typography>
+                  </Box>
+
+                  <Box flexGrow={1} />
+                  <Box padding={1} sx={{ backgroundColor: "white" }}>
+                    <QR value="https://t.me/flick_the_dev" size={128} />
+                  </Box>
+                </Box>
+              </CardContent>
+            </CardActionArea>
+          </Grid2>
+          <Grid2 component={Card} elevation={6} sm={12} width="100%">
             <CardActionArea href="/op-lock-cat">
               <CardContent
                 component={Box}
