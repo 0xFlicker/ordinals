@@ -1,0 +1,6 @@
+@keyframes wiggle {
+    0% { transform: rotateZ(0deg); }
+    2% { transform: rotateZ(3deg); }
+    6% { transform: rotateZ(-3deg); }
+    8% { transform: rotateZ(0deg); }
+  }

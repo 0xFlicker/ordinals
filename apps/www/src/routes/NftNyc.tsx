@@ -49,7 +49,7 @@ import CardActionArea from "@mui/material/CardActionArea";
 export const NFTNyc: FC<{}> = () => {
   return (
     <DefaultProvider>
-      <Container maxWidth="lg" sx={{ mt: 2 }}>
+      <Container maxWidth="lg" sx={{ mt: 2, mb: 16 }}>
         <Grid2 container>
           <Grid2
             component={Paper}
@@ -72,7 +72,7 @@ export const NFTNyc: FC<{}> = () => {
                 lg: 128,
               }}
             >
-              flick socials
+              flick the dev
             </Typography>
             <Box flexGrow={1} />
             <NextImage
@@ -85,6 +85,67 @@ export const NFTNyc: FC<{}> = () => {
               }}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
+          </Grid2>
+          <Grid2 component={Card} elevation={6} sm={12} width="100%">
+            <CardActionArea href="/op-lock-cat">
+              <CardContent
+                component={Box}
+                display="flex"
+                justifyContent="center"
+                alignContent="center"
+                padding={4}
+              >
+                <Box
+                  width="100%"
+                  display="flex"
+                  padding={4}
+                  justifyContent="center"
+                  alignContent="center"
+                >
+                  <NextImage
+                    src="/images/op-lock-cat/closed-box-1.png"
+                    width={128}
+                    height={128}
+                    alt="closed box"
+                    style={{
+                      animation: "wiggle 5s infinite 2s",
+                      transform: "rotateZ(0deg)",
+                      transformOrigin: "50% 50%",
+                    }}
+                  />
+
+                  <Box flexGrow={1} />
+                  <Box
+                    display="flex"
+                    flexDirection="column"
+                    height="100%"
+                    justifyContent="center"
+                  >
+                    <Typography
+                      mx={4}
+                      fontSize={{
+                        md: 32,
+                        lg: 32,
+                      }}
+                    >
+                      OP_LOCK_CAT
+                    </Typography>
+                  </Box>
+                  <Box flexGrow={1} />
+                  <NextImage
+                    src="/images/op-lock-cat/closed-box-2.png"
+                    width={128}
+                    height={128}
+                    alt="closed box"
+                    style={{
+                      animation: "wiggle 5s infinite 0s",
+                      transform: "rotateZ(0deg)",
+                      transformOrigin: "50% 50%",
+                    }}
+                  />
+                </Box>
+              </CardContent>
+            </CardActionArea>
           </Grid2>
           <Grid2 component={Card} elevation={6} sm={12} width="100%">
             <CardActionArea href="https://warpcast.com/~/invite-page/6097?id=6207e4ee">
@@ -141,7 +202,7 @@ export const NFTNyc: FC<{}> = () => {
             </CardActionArea>
           </Grid2>
           <Grid2 component={Card} elevation={6} sm={12} width="100%">
-            <CardActionArea href="https://warpcast.com/~/invite-page/6097?id=6207e4ee">
+            <CardActionArea href="https://x.com/0xflick">
               <CardContent
                 component={Box}
                 display="flex"
@@ -189,11 +250,59 @@ export const NFTNyc: FC<{}> = () => {
 
                   <Box flexGrow={1} />
                   <Box padding={1} sx={{ backgroundColor: "white" }}>
-                    <QR
-                      value="https://xverse.com/~/invite-page/6097?id=6207e4ee"
-                      size={128}
-                    />
+                    <QR value="https://x.com/0xflick" size={128} />
                   </Box>
+                </Box>
+              </CardContent>
+            </CardActionArea>
+          </Grid2>
+          <Grid2 component={Card} elevation={6} sm={12} width="100%">
+            <CardActionArea href="/op-lock-cat">
+              <CardContent
+                component={Box}
+                display="flex"
+                justifyContent="center"
+                alignContent="center"
+                padding={4}
+              >
+                <Box
+                  width="100%"
+                  display="flex"
+                  padding={4}
+                  justifyContent="center"
+                  alignContent="center"
+                >
+                  <NextImage
+                    src="/images/nftnyc/0xflick.png"
+                    width={196}
+                    height={128}
+                    alt="closed box"
+                  />
+
+                  <Box flexGrow={1} />
+                  <Box
+                    display="flex"
+                    flexDirection="column"
+                    height="100%"
+                    justifyContent="center"
+                  >
+                    <Typography
+                      mx={4}
+                      fontSize={{
+                        md: 32,
+                        lg: 32,
+                      }}
+                    >
+                      other projects
+                    </Typography>
+                  </Box>
+                  <Box flexGrow={1} />
+                  <NextImage
+                    src="/images/nftnyc/206.png"
+                    width={128}
+                    height={128}
+                    alt="closed box"
+                  />
                 </Box>
               </CardContent>
             </CardActionArea>
