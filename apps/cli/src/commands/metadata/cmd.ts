@@ -1,6 +1,6 @@
 import { toBitcoinNetworkName } from "@0xflick/ordinals-models";
 import fs from "fs";
-import type { Tx } from "@0xflick/mempool.js/lib/interfaces/bitcoin/transactions.js";
+import type { Tx } from "mempool.js/lib/interfaces/bitcoin/transactions.js";
 import { GraphQLClient } from "graphql-request";
 import { FundingStatus, getSdk } from "../../graphql.generated.js";
 import { createMempoolBitcoinClient } from "../../mempool.js";

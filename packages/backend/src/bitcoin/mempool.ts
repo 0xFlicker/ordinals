@@ -1,6 +1,6 @@
-import mempoolJS from "@0xflick/mempool.js";
+import mempoolJS from "@mempool/mempool.js";
 import { BitcoinNetworkNames } from "@0xflick/inscriptions";
-import { MempoolConfig } from "@0xflick/mempool.js/lib/interfaces/index.js";
+import { MempoolConfig } from "mempool.js/lib/interfaces/index.js";
 
 export type MempoolClient = ReturnType<typeof createMempoolClient>;
 export function createMempoolClient({

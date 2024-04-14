@@ -113,12 +113,11 @@ export async function makeBackgroundLayer(
   imageFetcher: IImageFetcher,
 ) {
   return {
-    draw: composeDrawOps(
-      await composeWithCanvas(
-        cachedDrawImage(resolveProperties(`bg-${layerName}`), imageFetcher),
-      ),
-      ...applyColorFilters({ colors: backgroundColorDetails, color }),
-    ),
+    draw: composeDrawOps(),
+    // await composeWithCanvas(
+    //   cachedDrawImage(resolveProperties(`bg-${layerName}`), imageFetcher),
+    // ),
+    // ...applyColorFilters({ colors: backgroundColorDetails, color }),
     zIndex: Layers.background,
   };
 }

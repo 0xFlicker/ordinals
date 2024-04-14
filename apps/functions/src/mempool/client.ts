@@ -1,4 +1,4 @@
-import mempoolJS from "@0xflick/mempool.js";
+import mempoolJS from "@mempool/mempool.js";
 // import { inspect } from "util";
 
 const { bitcoin } = mempoolJS({

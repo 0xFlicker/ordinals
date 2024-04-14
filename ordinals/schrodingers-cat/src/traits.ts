@@ -56,7 +56,10 @@ export function generateTraits({
     ] as const;
   };
   const [boxSeedRef, boxSeedChomper] = createSeedChomper(boxSeed);
-  const [revealSeedRef, revealSeedChomper] = createSeedChomper(revealSeed);
+  const isRevealed = !!revealSeed;
+  const [revealSeedRef, revealSeedChomper] = isRevealed
+    ? createSeedChomper(revealSeed)
+    : [];
   const backgroundColor = weightSampleFromWeights(
     weights.backgroundColorWeights,
     boxSeedChomper,
@@ -75,14 +78,17 @@ export function generateTraits({
   );
 
   let aliveOrDead: null | AliveOrDead = null;
-  let boxType: null | BoxType = null;
+  let boxType: null | BoxType = !isRevealed
+    ? weightSampleFromWeights(weights.openBoxWeights, boxSeedChomper)
+    : null;
   let catColor: null | TAllBaseColors = null;
   let accentColor: null | TAccentColors = null;
   let catType: null | CatDeadType | "healthy" = null;
   let eyeType: null | AliveEyes | "undead" | "missing" = null;
   let catSkinType: null | CatAliveType | "ethereal" | "missing" = null;
   let catPositionType: null | CatPositionType = null;
-  if (revealSeed) {
+
+  if (isRevealed) {
     aliveOrDead = weightSampleFromWeights(
       weights.aliveOrDeadWeights,
       revealSeedChomper,
@@ -141,6 +147,8 @@ export function generateTraits({
           break;
       }
     }
+  } else {
+    boxType = weightSampleFromWeights(weights.openBoxWeights, boxSeedChomper);
   }
 
   const metadata: IAttributeMetadata = {
@@ -163,12 +171,14 @@ export function generateTraits({
         trait_type: "Box Color",
         value: boxColor,
       },
-      ...(aliveOrDead !== null && [
-        {
-          trait_type: "Box Type",
-          value: boxType,
-        },
-      ]),
+      ...(aliveOrDead !== null
+        ? [
+            {
+              trait_type: "Box Type",
+              value: boxType,
+            },
+          ]
+        : []),
       ...(aliveOrDead === "a"
         ? [
             {
@@ -215,6 +225,7 @@ export function generateTraits({
         : []),
     ],
   };
+
   return {
     metadata,
     backgroundColor,
@@ -262,7 +273,8 @@ export async function operations({
     boxSeed,
     revealSeed,
   });
-  const open = aliveOrDead !== null ? boxType : null;
+  // should only be alive or dead
+  const open = boxType !== null ? boxType : null;
   return {
     metadata,
     layers: [
@@ -271,7 +283,7 @@ export async function operations({
         imageFetcher,
       ),
       await makeBoxLayer({ color: boxColor, open }, imageFetcher),
-      ...(open
+      ...(aliveOrDead
         ? [
             await makeCatLayer(
               {

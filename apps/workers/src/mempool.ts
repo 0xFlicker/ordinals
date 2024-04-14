@@ -6,7 +6,7 @@ import {
   testnetMempoolAuth,
   mainnetMempoolAuth,
 } from "@0xflick/ordinals-backend";
-import mempoolJS from "@0xflick/mempool.js";
+import mempoolJS from "@mempool/mempool.js";
 import { BitcoinNetworkNames } from "@0xflick/ordinals-models";
 
 type MempoolClient = ReturnType<typeof mempoolJS>;

@@ -132,7 +132,7 @@ async function main() {
       } else {
         seedBytes = randomUint8ArrayOfLength(32);
       }
-      await renderLayers(seedBytes, randomUint8ArrayOfLength(32));
+      await renderLayers(seedBytes);
     }
 
     // if (!isRevealed) {
