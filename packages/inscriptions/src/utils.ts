@@ -183,3 +183,16 @@ export function serializeTxidAndIndexWithStripping(
 
   return serializedBuffer.toString("hex");
 }
+
+export function numberToLittleEndian(number: number) {
+  // first determine the number of bytes needed to represent the number
+  let bytesNeeded = 1;
+  let currentNumber = number;
+  while (currentNumber > 255) {
+    bytesNeeded++;
+    currentNumber = currentNumber / 256;
+  }
+  const buffer = Buffer.alloc(bytesNeeded);
+  buffer.writeUIntLE(number, 0, bytesNeeded);
+  return buffer;
+}

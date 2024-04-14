@@ -12,6 +12,15 @@ export interface InscriptionFile {
   compress?: boolean;
 }
 
+export interface DestinationInscriptionFile {
+  id?: InscriptionId;
+  content: ArrayBuffer;
+  mimetype: string;
+  metadata?: Record<string, any>;
+  compress?: boolean;
+  destinationAddress: string;
+}
+
 export interface WritableInscription {
   leaf: string;
   tapkey: string;
