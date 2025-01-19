@@ -1,6 +1,5 @@
 query getSelf {
   self {
-    address
     roles {
       id
     }

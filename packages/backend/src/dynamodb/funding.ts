@@ -12,6 +12,9 @@ import {
   encodeCursor,
   paginate,
   TFundingStatus,
+  IPresaleModel,
+  toPresaleId,
+  TPresaleStatus,
 } from "@0xflick/ordinals-models";
 import { IFundingDao } from "../dao/funding.js";
 import {
@@ -52,6 +55,15 @@ export type TFundingCollectionDb<T extends Record<string, any>> = {
   maxSupply: number;
   totalCount: number;
 } & T;
+
+type TPresaleDb = Omit<
+  TFundingDb<{
+    sk: string;
+    farcasterFid?: number;
+    secKey: string;
+  }>,
+  "contentIds"
+>;
 
 function excludePrimaryKeys<T extends Record<string, any>>(
   input: T,
@@ -279,6 +291,98 @@ export class FundingDao<
       count,
       size,
     };
+  }
+
+  public async getAllPresalesByFarcasterFid({
+    farcasterFid,
+  }: {
+    farcasterFid: string;
+  }) {
+    const results: IPresaleModel[] = [];
+    for await (const item of this.listAllPresalesByFarcasterFid({
+      farcasterFid,
+    })) {
+      results.push(item);
+    }
+    return results;
+  }
+
+  public listAllPresalesByFarcasterFid({
+    farcasterFid,
+  }: {
+    farcasterFid: string;
+  }): AsyncGenerator<IPresaleModel, any, unknown> {
+    return paginate((options) =>
+      this.listAllPresalesByFarcasterFidPaginated({
+        farcasterFid,
+        ...options,
+      }),
+    );
+  }
+
+  public async listAllPresalesByFarcasterFidPaginated({
+    farcasterFid,
+    cursor,
+    limit,
+  }: {
+    farcasterFid: string;
+  } & IPaginationOptions): Promise<IPaginatedResult<IPresaleModel>> {
+    const pagination = decodeCursor(cursor);
+    const result = await this.client.send(
+      new QueryCommand({
+        TableName: FundingDao.TABLE_NAME,
+        IndexName: "farcasterFid-index",
+        KeyConditionExpression: "farcasterFid = :farcasterFid",
+        ExpressionAttributeValues: {
+          ":farcasterFid": farcasterFid,
+        },
+        ...(pagination && { ExclusiveStartKey: pagination.lastEvaluatedKey }),
+        ...(limit && { Limit: limit }),
+      }),
+    );
+    const lastEvaluatedKey = result.LastEvaluatedKey;
+    const page = pagination ? pagination.page + 1 : 1;
+    const size = result.Items?.length || 0;
+    const count = (pagination ? pagination.count : 0) + size;
+
+    return {
+      items:
+        result.Items?.map((item) =>
+          this.fromFundingDbToPresale(item as TPresaleDb),
+        ) ?? [],
+      cursor: encodeCursor({
+        page,
+        count,
+        lastEvaluatedKey,
+      }),
+      page,
+      count,
+      size,
+    };
+  }
+
+  public async createPresale(item: IPresaleModel) {
+    const db = this.toFundingDbFromPresale(item);
+    await this.client.send(
+      new PutCommand({
+        TableName: FundingDao.TABLE_NAME,
+        Item: db,
+        ReturnValues: "NONE",
+      }),
+    );
+  }
+
+  public async getPresale(id: string) {
+    const db = await this.client.send(
+      new GetCommand({
+        TableName: FundingDao.TABLE_NAME,
+        Key: {
+          pk: id,
+          sk: "funding",
+        },
+      }),
+    );
+    return this.fromFundingDbToPresale(db.Item as TPresaleDb);
   }
 
   public async createFunding(item: IAddressInscriptionModel<ItemMeta>) {
@@ -733,6 +837,46 @@ export class FundingDao<
     );
   }
 
+  private toFundingDbFromPresale({
+    address,
+    collectionId,
+    destinationAddress,
+    fundingAmountBtc,
+    fundingAmountSat,
+    fundingStatus,
+    id,
+    network,
+    timesChecked,
+    fundingTxid,
+    fundingVout,
+    lastChecked,
+    tipAmountDestination,
+    tipAmountSat,
+    farcasterFid,
+    secKey,
+  }: IPresaleModel): TPresaleDb {
+    return {
+      pk: id,
+      sk: "funding",
+      id,
+      address,
+      collectionId,
+      destinationAddress,
+      fundingAmountBtc,
+      fundingAmountSat,
+      fundingStatus,
+      network,
+      secKey,
+      timesChecked,
+      ...(fundingTxid && { fundingTxid }),
+      ...(fundingVout && { fundingVout }),
+      ...(lastChecked && { lastChecked: lastChecked.getTime() }),
+      ...(tipAmountDestination && { tipAmountDestination }),
+      ...(tipAmountSat && { tipAmountSat }),
+      ...(farcasterFid && { farcasterFid }),
+    };
+  }
+
   private toFundingDb<T extends Record<string, any>>({
     address,
     contentIds,
@@ -832,6 +976,52 @@ export class FundingDao<
       totalCount: totalCount,
       pendingCount: pendingCount,
       meta: excludePrimaryKeys(meta) as T,
+    };
+  }
+
+  private fromFundingDbToPresale({
+    id,
+    address,
+    collectionId,
+    destinationAddress,
+    network,
+    fundingStatus,
+    fundingTxid,
+    fundingVout,
+    timesChecked,
+    lastChecked,
+    fundingAmountBtc,
+    fundingAmountSat,
+    tipAmountDestination,
+    tipAmountSat,
+    farcasterFid,
+    secKey,
+  }: TPresaleDb): IPresaleModel {
+    return {
+      address,
+      ...(typeof collectionId !== "undefined"
+        ? { collectionId: toCollectionId(collectionId) }
+        : {
+            collectionId: toCollectionId(""),
+          }),
+      id: toPresaleId(id),
+      network: toBitcoinNetworkName(network),
+      fundingStatus: fundingStatus as TPresaleStatus,
+      timesChecked,
+      fundingAmountBtc,
+      fundingAmountSat,
+      destinationAddress,
+      secKey,
+      ...(typeof lastChecked !== "undefined" && {
+        lastChecked: new Date(lastChecked),
+      }),
+      ...(typeof fundingTxid !== "undefined" && { fundingTxid }),
+      ...(typeof fundingVout !== "undefined" && { fundingVout }),
+      ...(typeof tipAmountSat !== "undefined" && { tipAmountSat }),
+      ...(typeof tipAmountDestination !== "undefined" && {
+        tipAmountDestination,
+      }),
+      ...(typeof farcasterFid !== "undefined" && { farcasterFid }),
     };
   }
 

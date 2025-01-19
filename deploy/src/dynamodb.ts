@@ -173,6 +173,14 @@ export class DynamoDB extends Construct {
       },
       projectionType: dynamodb.ProjectionType.ALL,
     });
+    fundingTable.addGlobalSecondaryIndex({
+      indexName: "farcasterFid-index",
+      partitionKey: {
+        name: "farcasterFid",
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
     this.fundingTable = fundingTable;
     new cdk.CfnOutput(this, "FundingTableName", {
       exportName: "FundingTableName",

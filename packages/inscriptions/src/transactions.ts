@@ -57,6 +57,54 @@ export interface PendingTransaction {
   };
 }
 
+// a presale transaction is a transaction that can be spent using the secKey. there is no inscription attached to it
+export async function generatePresaleAddress({
+  amount,
+  feeRate,
+  network,
+  privKey,
+}: {
+  privKey: string;
+  feeRate: number;
+  amount: number;
+  network: BitcoinNetworkNames;
+}) {
+  const secKey = new cryptoUtils.KeyPair(privKey);
+  const pubKey = secKey.pub.x;
+  const script = [pubKey, "OP_CHECKSIG"];
+  const leaf = Tap.tree.getLeaf(Script.encode(script));
+  const [tapKey] = Tap.getPubKey(pubKey, { target: leaf });
+  const fundingAddress = Address.p2tr.encode(
+    tapKey,
+    networkNamesToTapScriptName(network),
+  );
+  // using this redeemtx to both simulate a spend (for gas estimation), but also
+  const vout0 = {
+    value: amount,
+    scriptPubKey: ["OP_1", tapKey],
+  };
+  const tx = Tx.create({
+    // fake input
+    vin: [
+      {
+        txid: "a99d1112bcb35845fd44e703ef2c611f0360dd2bb28927625dbc13eab58cd968",
+        vout: 0,
+      },
+    ],
+    vout: [vout0],
+  });
+
+  const txsize = Tx.util.getTxSize(tx).size;
+  const fee = Math.ceil(feeRate * txsize);
+  vout0.value += fee;
+
+  return {
+    tapKey,
+    amount: vout0.value,
+    fundingAddress,
+  };
+}
+
 export interface FundingAddressRequest {
   inscriptions: InscriptionContent[];
   padding?: number;
@@ -268,7 +316,7 @@ export async function generateFundingAddress({
     base_size * inscriptionsToWrite.length +
     padding * inscriptionsToWrite.length;
 
-  let fundingAddress = Address.p2tr.encode(
+  const fundingAddress = Address.p2tr.encode(
     init_tapkey,
     networkNamesToTapScriptName(network),
   );
@@ -367,7 +415,6 @@ export async function generateRefundTransaction({
   if (!isValid) {
     throw new Error("Invalid signature");
   }
-
   return Tx.encode(refundTx).hex;
 }
 
@@ -385,7 +432,6 @@ export interface GenesisTransactionRequest {
   initCBlock: string;
   secKey: cryptoUtils.SecretKey;
 }
-export interface GenesisTransactionResponse {}
 
 export async function generateGenesisTransaction({
   inscriptions,

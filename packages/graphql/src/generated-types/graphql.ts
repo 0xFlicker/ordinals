@@ -295,6 +295,7 @@ export type Mutation = {
   nonceBitcoin: Nonce;
   nonceEthereum: Nonce;
   nonceFrame: Nonce;
+  presale: PresaleResponse;
   role: Role;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
@@ -342,6 +343,11 @@ export type MutationNonceEthereumArgs = {
 
 export type MutationNonceFrameArgs = {
   trustedBytes: Scalars['String']['input'];
+};
+
+
+export type MutationPresaleArgs = {
+  request: PresaleRequest;
 };
 
 
@@ -405,6 +411,62 @@ export type PermissionResource =
   | 'ROLE'
   | 'USER';
 
+export type PresaleProblem = {
+  __typename?: 'PresaleProblem';
+  code: Scalars['String']['output'];
+  message: Scalars['String']['output'];
+};
+
+export type PresaleQuery = {
+  collectionId?: InputMaybe<Scalars['ID']['input']>;
+  destinationAddress?: InputMaybe<Scalars['String']['input']>;
+  farcasterVerifiedAddress?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  next?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<PresaleStatus>;
+};
+
+export type PresaleRequest = {
+  collectionId: Scalars['ID']['input'];
+  count: Scalars['Int']['input'];
+  destinationAddress: Scalars['String']['input'];
+  farcasterFid?: InputMaybe<Scalars['Int']['input']>;
+  farcasterVerifiedPayload?: InputMaybe<Scalars['String']['input']>;
+  feeRate?: InputMaybe<Scalars['Int']['input']>;
+  network: BitcoinNetwork;
+};
+
+export type PresaleResponse = {
+  __typename?: 'PresaleResponse';
+  data?: Maybe<PresaleResponseData>;
+  problems?: Maybe<Array<PresaleProblem>>;
+};
+
+export type PresaleResponseData = {
+  __typename?: 'PresaleResponseData';
+  destinationAddress: Scalars['String']['output'];
+  farcasterVerifiedAddress?: Maybe<Scalars['String']['output']>;
+  fundingAddress: Scalars['String']['output'];
+  fundingAmountBtc: Scalars['String']['output'];
+  fundingAmountSats: Scalars['Int']['output'];
+  id: Scalars['ID']['output'];
+  network: BitcoinNetwork;
+  status: PresaleStatus;
+};
+
+export type PresaleStatus =
+  | 'FUNDED'
+  | 'FUNDING'
+  | 'PENDING'
+  | 'SWEEPING'
+  | 'SWEPT';
+
+export type PresalesResult = {
+  __typename?: 'PresalesResult';
+  next?: Maybe<Scalars['String']['output']>;
+  presales?: Maybe<Array<PresaleResponseData>>;
+};
+
 export type Query = {
   __typename?: 'Query';
   appInfo: AppInfo;
@@ -416,6 +478,8 @@ export type Query = {
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
   inscriptionTransaction?: Maybe<InscriptionTransaction>;
+  presale?: Maybe<PresaleResponse>;
+  presales: PresalesResult;
   role?: Maybe<Role>;
   roles: Array<Role>;
   self?: Maybe<Web3User>;
@@ -458,6 +522,16 @@ export type QueryInscriptionFundingsArgs = {
 
 export type QueryInscriptionTransactionArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryPresaleArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryPresalesArgs = {
+  query: PresaleQuery;
 };
 
 
@@ -631,6 +705,13 @@ export type ResolversTypes = {
   PermissionAction: PermissionAction;
   PermissionInput: PermissionInput;
   PermissionResource: PermissionResource;
+  PresaleProblem: ResolverTypeWrapper<PresaleProblem>;
+  PresaleQuery: PresaleQuery;
+  PresaleRequest: PresaleRequest;
+  PresaleResponse: ResolverTypeWrapper<PresaleResponse>;
+  PresaleResponseData: ResolverTypeWrapper<PresaleResponseData>;
+  PresaleStatus: PresaleStatus;
+  PresalesResult: ResolverTypeWrapper<PresalesResult>;
   Query: ResolverTypeWrapper<{}>;
   Role: ResolverTypeWrapper<RoleModel>;
   String: ResolverTypeWrapper<Scalars['String']['output']>;
@@ -675,6 +756,12 @@ export type ResolversParentTypes = {
   Nonce: Nonce;
   Permission: Permission;
   PermissionInput: PermissionInput;
+  PresaleProblem: PresaleProblem;
+  PresaleQuery: PresaleQuery;
+  PresaleRequest: PresaleRequest;
+  PresaleResponse: PresaleResponse;
+  PresaleResponseData: PresaleResponseData;
+  PresalesResult: PresalesResult;
   Query: {};
   Role: RoleModel;
   String: Scalars['String']['output'];
@@ -860,6 +947,7 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
   nonceBitcoin?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceBitcoinArgs, 'address'>>;
   nonceEthereum?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceEthereumArgs, 'address' | 'chainId'>>;
   nonceFrame?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceFrameArgs, 'trustedBytes'>>;
+  presale?: Resolver<ResolversTypes['PresaleResponse'], ParentType, ContextType, RequireFields<MutationPresaleArgs, 'request'>>;
   role?: Resolver<ResolversTypes['Role'], ParentType, ContextType, RequireFields<MutationRoleArgs, 'id'>>;
   signOutBitcoin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   signOutEthereum?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -887,6 +975,36 @@ export type PermissionResolvers<ContextType = Context, ParentType extends Resolv
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type PresaleProblemResolvers<ContextType = Context, ParentType extends ResolversParentTypes['PresaleProblem'] = ResolversParentTypes['PresaleProblem']> = {
+  code?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  message?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type PresaleResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['PresaleResponse'] = ResolversParentTypes['PresaleResponse']> = {
+  data?: Resolver<Maybe<ResolversTypes['PresaleResponseData']>, ParentType, ContextType>;
+  problems?: Resolver<Maybe<Array<ResolversTypes['PresaleProblem']>>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type PresaleResponseDataResolvers<ContextType = Context, ParentType extends ResolversParentTypes['PresaleResponseData'] = ResolversParentTypes['PresaleResponseData']> = {
+  destinationAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  farcasterVerifiedAddress?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  fundingAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  fundingAmountBtc?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  fundingAmountSats?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  network?: Resolver<ResolversTypes['BitcoinNetwork'], ParentType, ContextType>;
+  status?: Resolver<ResolversTypes['PresaleStatus'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type PresalesResultResolvers<ContextType = Context, ParentType extends ResolversParentTypes['PresalesResult'] = ResolversParentTypes['PresalesResult']> = {
+  next?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  presales?: Resolver<Maybe<Array<ResolversTypes['PresaleResponseData']>>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type QueryResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Query'] = ResolversParentTypes['Query']> = {
   appInfo?: Resolver<ResolversTypes['AppInfo'], ParentType, ContextType>;
   axolotlAvailableOpenEditionFundingClaims?: Resolver<Array<ResolversTypes['AxolotlAvailableOpenEditionFunding']>, ParentType, ContextType, RequireFields<QueryAxolotlAvailableOpenEditionFundingClaimsArgs, 'request'>>;
@@ -897,6 +1015,8 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   inscriptionFunding?: Resolver<Maybe<ResolversTypes['InscriptionFunding']>, ParentType, ContextType, RequireFields<QueryInscriptionFundingArgs, 'id'>>;
   inscriptionFundings?: Resolver<ResolversTypes['InscriptionFundingsResult'], ParentType, ContextType, RequireFields<QueryInscriptionFundingsArgs, 'query'>>;
   inscriptionTransaction?: Resolver<Maybe<ResolversTypes['InscriptionTransaction']>, ParentType, ContextType, RequireFields<QueryInscriptionTransactionArgs, 'id'>>;
+  presale?: Resolver<Maybe<ResolversTypes['PresaleResponse']>, ParentType, ContextType, RequireFields<QueryPresaleArgs, 'id'>>;
+  presales?: Resolver<ResolversTypes['PresalesResult'], ParentType, ContextType, RequireFields<QueryPresalesArgs, 'query'>>;
   role?: Resolver<Maybe<ResolversTypes['Role']>, ParentType, ContextType, RequireFields<QueryRoleArgs, 'id'>>;
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   self?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
@@ -955,6 +1075,10 @@ export type Resolvers<ContextType = Context> = {
   Mutation?: MutationResolvers<ContextType>;
   Nonce?: NonceResolvers<ContextType>;
   Permission?: PermissionResolvers<ContextType>;
+  PresaleProblem?: PresaleProblemResolvers<ContextType>;
+  PresaleResponse?: PresaleResponseResolvers<ContextType>;
+  PresaleResponseData?: PresaleResponseDataResolvers<ContextType>;
+  PresalesResult?: PresalesResultResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;
   Role?: RoleResolvers<ContextType>;
   Web3LoginUser?: Web3LoginUserResolvers<ContextType>;

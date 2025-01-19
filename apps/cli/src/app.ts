@@ -13,6 +13,7 @@ import { testOne } from "./commands/test/one.js";
 import { bootstrap } from "./commands/bootstrap/index.js";
 import { generateReceiverAddress } from "./commands/taproot.js";
 import { findMalformedFunding } from "./commands/rescue/cmd.js";
+import { collectAddresses } from "./commands/rune.js";
 const program = new Command();
 
 program
@@ -309,6 +310,14 @@ recoverCommand
       cachedResponse,
       writeFilePath: writeFile,
     });
+  });
+
+const runeCommand = program.command("rune");
+
+runeCommand
+  .command("collect-addresses <idsFile> <outputFile>")
+  .action(async (idsFile, outputFile) => {
+    await collectAddresses(idsFile, outputFile);
   });
 
 program.parse(process.argv);

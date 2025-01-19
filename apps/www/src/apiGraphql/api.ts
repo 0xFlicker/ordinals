@@ -23,6 +23,14 @@ export type AppInfo = {
   pubKey: Scalars['String']['output'];
 };
 
+export type AssociatedAddresses = {
+  __typename?: 'AssociatedAddresses';
+  evmSignedAddress: Array<Scalars['ID']['output']>;
+  frameFid?: Maybe<Scalars['ID']['output']>;
+  frameVerifiedAddresses?: Maybe<Array<Scalars['ID']['output']>>;
+  taprootAddress: Array<Scalars['ID']['output']>;
+};
+
 export type AxolotlAvailableClaimedFunding = {
   __typename?: 'AxolotlAvailableClaimedFunding';
   claimingAddress: Scalars['String']['output'];
@@ -282,6 +290,8 @@ export type Mutation = {
   deleteCollection: Scalars['Boolean']['output'];
   nonceBitcoin: Nonce;
   nonceEthereum: Nonce;
+  nonceFrame: Nonce;
+  presale: PresaleResponse;
   role: Role;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
@@ -324,6 +334,16 @@ export type MutationNonceBitcoinArgs = {
 export type MutationNonceEthereumArgs = {
   address: Scalars['ID']['input'];
   chainId: Scalars['Int']['input'];
+};
+
+
+export type MutationNonceFrameArgs = {
+  trustedBytes: Scalars['String']['input'];
+};
+
+
+export type MutationPresaleArgs = {
+  request: PresaleRequest;
 };
 
 
@@ -389,6 +409,63 @@ export enum PermissionResource {
   User = 'USER'
 }
 
+export type PresaleProblem = {
+  __typename?: 'PresaleProblem';
+  code: Scalars['String']['output'];
+  message: Scalars['String']['output'];
+};
+
+export type PresaleQuery = {
+  collectionId?: InputMaybe<Scalars['ID']['input']>;
+  destinationAddress?: InputMaybe<Scalars['String']['input']>;
+  farcasterVerifiedAddress?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  next?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<PresaleStatus>;
+};
+
+export type PresaleRequest = {
+  collectionId: Scalars['ID']['input'];
+  count: Scalars['Int']['input'];
+  destinationAddress: Scalars['String']['input'];
+  farcasterFid?: InputMaybe<Scalars['Int']['input']>;
+  farcasterVerifiedPayload?: InputMaybe<Scalars['String']['input']>;
+  feeRate?: InputMaybe<Scalars['Int']['input']>;
+  network: BitcoinNetwork;
+};
+
+export type PresaleResponse = {
+  __typename?: 'PresaleResponse';
+  data?: Maybe<PresaleResponseData>;
+  problems?: Maybe<Array<PresaleProblem>>;
+};
+
+export type PresaleResponseData = {
+  __typename?: 'PresaleResponseData';
+  destinationAddress: Scalars['String']['output'];
+  farcasterVerifiedAddress?: Maybe<Scalars['String']['output']>;
+  fundingAddress: Scalars['String']['output'];
+  fundingAmountBtc: Scalars['String']['output'];
+  fundingAmountSats: Scalars['Int']['output'];
+  id: Scalars['ID']['output'];
+  network: BitcoinNetwork;
+  status: PresaleStatus;
+};
+
+export enum PresaleStatus {
+  Funded = 'FUNDED',
+  Funding = 'FUNDING',
+  Pending = 'PENDING',
+  Sweeping = 'SWEEPING',
+  Swept = 'SWEPT'
+}
+
+export type PresalesResult = {
+  __typename?: 'PresalesResult';
+  next?: Maybe<Scalars['String']['output']>;
+  presales?: Maybe<Array<PresaleResponseData>>;
+};
+
 export type Query = {
   __typename?: 'Query';
   appInfo: AppInfo;
@@ -400,6 +477,8 @@ export type Query = {
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
   inscriptionTransaction?: Maybe<InscriptionTransaction>;
+  presale?: Maybe<PresaleResponse>;
+  presales: PresalesResult;
   role?: Maybe<Role>;
   roles: Array<Role>;
   self?: Maybe<Web3User>;
@@ -442,6 +521,16 @@ export type QueryInscriptionFundingsArgs = {
 
 export type QueryInscriptionTransactionArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryPresaleArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryPresalesArgs = {
+  query: PresaleQuery;
 };
 
 
@@ -496,11 +585,11 @@ export type Web3LoginUser = {
 
 export type Web3User = {
   __typename?: 'Web3User';
-  address: Scalars['ID']['output'];
   allowedActions: Array<Permission>;
+  associatedAddresses: AssociatedAddresses;
+  id: Scalars['ID']['output'];
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;
-  type: BlockchainNetwork;
 };
 
 export type OpenEditionClaimMutationVariables = Exact<{
@@ -516,6 +605,20 @@ export type FeeEstimateQueryVariables = Exact<{
 
 
 export type FeeEstimateQuery = { __typename?: 'Query', currentBitcoinFees: { __typename?: 'FeeEstimate', minimum: number, fastest: number, halfHour: number, hour: number } };
+
+export type PresaleCollectionQueryVariables = Exact<{
+  collectionId: Scalars['ID']['input'];
+}>;
+
+
+export type PresaleCollectionQuery = { __typename?: 'Query', collection: { __typename?: 'Collection', id: string, name: string, metadata: Array<{ __typename?: 'KeyValue', key: string, value: string }> } };
+
+export type PresaleRequestMutationVariables = Exact<{
+  request: PresaleRequest;
+}>;
+
+
+export type PresaleRequestMutation = { __typename?: 'Mutation', presale: { __typename?: 'PresaleResponse', problems?: Array<{ __typename?: 'PresaleProblem', code: string, message: string }> | null, data?: { __typename?: 'PresaleResponseData', id: string, fundingAmountBtc: string, fundingAmountSats: number, fundingAddress: string, destinationAddress: string, network: BitcoinNetwork, farcasterVerifiedAddress?: string | null, status: PresaleStatus } | null } };
 
 
 export const OpenEditionClaimDocument = gql`
@@ -547,6 +650,38 @@ export const FeeEstimateDocument = gql`
   }
 }
     `;
+export const PresaleCollectionDocument = gql`
+    query presaleCollection($collectionId: ID!) {
+  collection(id: $collectionId) {
+    id
+    name
+    metadata {
+      key
+      value
+    }
+  }
+}
+    `;
+export const PresaleRequestDocument = gql`
+    mutation presaleRequest($request: PresaleRequest!) {
+  presale(request: $request) {
+    problems {
+      code
+      message
+    }
+    data {
+      id
+      fundingAmountBtc
+      fundingAmountSats
+      fundingAddress
+      destinationAddress
+      network
+      farcasterVerifiedAddress
+      status
+    }
+  }
+}
+    `;
 
 export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, string>) => Promise<T>, operationName: string, operationType?: string) => Promise<T>;
 
@@ -560,6 +695,12 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     feeEstimate(variables: FeeEstimateQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<FeeEstimateQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<FeeEstimateQuery>(FeeEstimateDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'feeEstimate', 'query');
+    },
+    presaleCollection(variables: PresaleCollectionQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<PresaleCollectionQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<PresaleCollectionQuery>(PresaleCollectionDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'presaleCollection', 'query');
+    },
+    presaleRequest(variables: PresaleRequestMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<PresaleRequestMutation> {
+      return withWrapper((wrappedRequestHeaders) => client.request<PresaleRequestMutation>(PresaleRequestDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'presaleRequest', 'mutation');
     }
   };
 }

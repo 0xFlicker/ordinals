@@ -23,6 +23,7 @@ export type ValidateResponse = {
   };
 };
 
+// TODO: replace with https://docs.neynar.com/reference/validate-frame
 export async function validateFrameMessage(payload: string) {
   // Convert the hex string to a binary buffer
   const hexToBinary = (hex: string) => {

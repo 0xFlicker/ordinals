@@ -6,13 +6,12 @@ const defaultOptions = {} as const;
 export type GetSelfQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
 
-export type GetSelfQuery = { __typename?: 'Query', self?: { __typename?: 'Web3User', address: string, token?: string | null, roles: Array<{ __typename?: 'Role', id: string }>, allowedActions: Array<{ __typename?: 'Permission', action: Types.PermissionAction, resource: Types.PermissionResource }> } | null };
+export type GetSelfQuery = { __typename?: 'Query', self?: { __typename?: 'Web3User', token?: string | null, roles: Array<{ __typename?: 'Role', id: string }>, allowedActions: Array<{ __typename?: 'Permission', action: Types.PermissionAction, resource: Types.PermissionResource }> } | null };
 
 
 export const GetSelfDocument = gql`
     query getSelf {
   self {
-    address
     roles {
       id
     }

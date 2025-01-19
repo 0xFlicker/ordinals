@@ -45,7 +45,7 @@ describe("#RolePermissions DAO", () => {
     await permissionsDao.bind({
       roleId,
       action: EActions.GET,
-      resource: EResource.PERMISSION,
+      resource: EResource.AFFILIATE,
     });
     const permissions: IRolePermission[] = [];
     for await (const p of permissionsDao.getPermissions(roleId)) {
@@ -67,7 +67,7 @@ describe("#RolePermissions DAO", () => {
       {
         roleId,
         action: EActions.GET,
-        resource: EResource.PERMISSION,
+        resource: EResource.AFFILIATE,
       },
     ]);
   });

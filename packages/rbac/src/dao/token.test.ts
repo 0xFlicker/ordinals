@@ -94,6 +94,7 @@ describe("#Token DAO", () => {
         roleIds: [roleId],
       },
       nonce: "0",
+      issuer: TokenModel.JWT_CLAIM_ISSUER,
     });
     expect(token).toBeDefined();
     expect(
@@ -101,6 +102,7 @@ describe("#Token DAO", () => {
         token,
         nonce: "0",
         roleIds: [roleId],
+        issuer: TokenModel.JWT_CLAIM_ISSUER,
       }),
     ).toEqual(
       expect.objectContaining({
