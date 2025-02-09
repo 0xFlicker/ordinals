@@ -9,6 +9,7 @@
     "composite": true,
     "jsx": "preserve",
     "moduleResolution": "Node16",
+    "allowJs": true,
     "paths": {},
     "plugins": []
   },

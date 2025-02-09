@@ -1,7 +1,7 @@
 export interface InscriptionId {
   id: string;
   fundingAddress: string;
-  tapKey: string;
+  inscriptionIndex: number;
 }
 
 export interface InscriptionFile {
@@ -22,15 +22,9 @@ export interface DestinationInscriptionFile {
 }
 
 export interface WritableInscription {
-  leaf: string;
-  tapkey: string;
-  cblock: string;
-  inscriptionAddress: string;
-  txsize: number;
-  fee: number;
-  file?: InscriptionFile;
-  script: BitcoinScriptData[];
-  metadata?: Record<string, any>;
+  destinationAddress: string;
+  pointerIndex?: number;
+  file: InscriptionFile;
 }
 
 export type BitcoinScriptData = { base64: string } | string;
