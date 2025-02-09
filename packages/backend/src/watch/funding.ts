@@ -142,13 +142,14 @@ export function watchForFundings(
               };
             }),
 
-            // retry({
-            //   resetOnSuccess: true,
-            //   count: funding.timesChecked,
-            //   delay(error, retryCount) {
-            //     return timer(customBackoff(retryCount));
-            //   },
-            // }),
+            retry({
+              resetOnSuccess: true,
+              count: funding.timesChecked,
+              delay(error, retryCount) {
+                logger.error(error, "Error checking funding");
+                return timer(customBackoff(retryCount));
+              },
+            }),
             mergeMap(async (funding) => {
               try {
                 logger.info(
@@ -181,27 +182,6 @@ export function watchForFundings(
             }),
             catchError((error) => {
               if (error instanceof NoVoutFound) {
-                // const now = new Date();
-                // return from(
-                //   fundingDao
-                //     .updateFundingLastChecked({
-                //       id: funding.id,
-                //       lastChecked: now,
-                //     })
-                //     .catch((error) => {
-                //       logger.error(
-                //         error,
-                //         "Error updating funding last checked",
-                //       );
-                //       throw error;
-                //     })
-                //     .then(() => {
-                //       logger.trace(
-                //         `Updated last checked for ${funding.address}`,
-                //       );
-                //       throw error;
-                //     }),
-                // );
                 return EMPTY;
               }
               logger.error(

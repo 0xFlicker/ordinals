@@ -1,0 +1,5 @@
+query AllCollections {
+  collections {
+    id
+  }
+}

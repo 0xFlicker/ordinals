@@ -13,7 +13,7 @@ import { testOne } from "./commands/test/one.js";
 import { bootstrap } from "./commands/bootstrap/index.js";
 import { generateReceiverAddress } from "./commands/taproot.js";
 import { findMalformedFunding } from "./commands/rescue/cmd.js";
-import { collectAddresses } from "./commands/rune.js";
+import { allocateAirdrop, collectAddresses } from "./commands/rune.js";
 const program = new Command();
 
 program
@@ -220,20 +220,26 @@ collectionCommand
     "metadata in key=value format. can be used multiple times",
   )
   .option("-s, --swie-login <chainid>", "login to the api")
+  .option("-t, --token <token>", "token")
   .option("-d, --doc <doc>", "key=path format. load a file as the metadata")
-  .action(async (name, maxSupply, { url, metadata, doc, swieLogin }) => {
-    const token = swieLogin
-      ? await siwe({
-          chainId: Number(swieLogin),
-          url,
-        })
-      : null;
+  .action(async (name, maxSupply, { url, metadata, doc, swieLogin, token }) => {
+    if (typeof token === "undefined") {
+      console.log(`Resolving token`);
+      token = swieLogin
+        ? await siwe({
+            chainId: Number(swieLogin),
+            url,
+          })
+        : null;
+    }
+    console.log(`Resolving metadata`);
     metadata = Array.isArray(metadata)
       ? metadata
       : typeof metadata !== "undefined"
       ? [metadata]
       : [];
     if (doc) {
+      console.log(`Resolving doc`);
       doc = Array.isArray(doc) ? doc : [doc];
       for (const d of doc) {
         const [key, docPath] = d.split("=");
@@ -242,6 +248,7 @@ collectionCommand
         metadata.push(`${key}=${data}`);
       }
     }
+    console.log(`Creating collection`);
     await collectionCreate({
       name,
       maxSupply: Number(maxSupply),
@@ -318,6 +325,12 @@ runeCommand
   .command("collect-addresses <idsFile> <outputFile>")
   .action(async (idsFile, outputFile) => {
     await collectAddresses(idsFile, outputFile);
+  });
+
+runeCommand
+  .command("allocate-airdrop <addressesFile> <outputFile>")
+  .action(async (addressesFile, outputFile) => {
+    await allocateAirdrop(addressesFile, outputFile);
   });
 
 program.parse(process.argv);

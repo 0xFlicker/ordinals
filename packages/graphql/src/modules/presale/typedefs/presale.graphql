@@ -1,0 +1,61 @@
+input PresaleRequest {
+  collectionId: ID!
+  farcasterVerifiedPayload: String
+  farcasterFid: Int
+  destinationAddress: String!
+  count: Int!
+  feeRate: Int
+  network: BitcoinNetwork!
+}
+
+type PresaleProblem {
+  code: String!
+  message: String!
+}
+
+enum PresaleStatus {
+  PENDING
+  FUNDING
+  FUNDED
+  SWEEPING
+  SWEPT
+}
+
+type PresaleResponseData {
+  id: ID!
+  fundingAmountBtc: String!
+  fundingAmountSats: Int!
+  fundingAddress: String!
+  destinationAddress: String!
+  network: BitcoinNetwork!
+  farcasterVerifiedAddress: String
+  status: PresaleStatus!
+}
+
+type PresaleResponse {
+  problems: [PresaleProblem!]
+  data: PresaleResponseData
+}
+
+input PresaleQuery {
+  collectionId: ID
+  status: PresaleStatus
+  farcasterVerifiedAddress: String
+  destinationAddress: String
+  next: String
+  limit: Int
+}
+
+type PresalesResult {
+  presales: [PresaleResponseData!]
+  next: String
+}
+
+type Mutation {
+  presale(request: PresaleRequest!): PresaleResponse!
+}
+
+type Query {
+  presale(id: ID!): PresaleResponse
+  presales(query: PresaleQuery!): PresalesResult!
+}

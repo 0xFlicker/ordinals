@@ -1,21 +1,28 @@
 {
   "extends": "@0xflick/tsconfig/tsconfig.base.json",
   "compilerOptions": {
+    "module": "ES2022",
     "target": "ES2022",
-    "lib": ["esnext"],
-    "module": "Node16",
-    "outDir": "./dist",
-    "composite": true,
-    "incremental": true,
+    "composite": true /* Enable the use of the ES2015 module loader. */,
+    "outDir": "dist" /* Specify an output folder for all emitted files. */,
     "paths": {
       "@0xflick/ordinals-graphql": ["../../packages/graphql/src/index"],
       "@0xflick/ordinals-backend": ["../../packages/backend/src/index"],
       "@0xflick/ordinals-models": ["../../packages/models/src/index"]
     },
+    "incremental": true,
+    "noErrorTruncation": true,
+    "noImplicitAny": false,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictNullChecks": false,
+    "moduleResolution": "node",
     "plugins": []
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["./node_modules"],
+  "include": ["**/*.ts", "./codegen.ts"],
+  "exclude": ["**/node_modules", "**/.*/", "dist", "build"],
   "references": [
     {
       "path": "../../packages/graphql"

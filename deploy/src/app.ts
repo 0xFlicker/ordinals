@@ -21,6 +21,7 @@ new BackendStack(app, "ordinals", {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: "us-east-1",
   },
+  origin: process.env.ORIGIN || "https://bitflick.xyz",
 });
 
 new FrameStack(app, "frame", {
@@ -28,6 +29,7 @@ new FrameStack(app, "frame", {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: "us-east-1",
   },
+  origin: process.env.ORIGIN || "https://bitflick.xyz",
 });
 
 new BitcoinExeStack(app, "bitcoin-exe", {

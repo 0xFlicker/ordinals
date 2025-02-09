@@ -84,7 +84,7 @@ export class InscriptionFundingModel {
       } catch (e) {
         throw new UnableToGetS3ObjectError(
           this.bucket,
-          await this.rootDocumentKey,
+          this.rootDocumentKey,
           "Unable to parse JSON",
         );
       }
@@ -93,13 +93,16 @@ export class InscriptionFundingModel {
     this.document = await this._fetchingDocPromise;
     return this.document;
   }
-  public getInscriptionContentKey(tapKey: string) {
-    return `address/${this.fundingAddress}/inscriptions/${this.id}/content/${tapKey}.json`;
+  public async getInscriptionContentKey(inscriptionIndex: number) {
+    const doc = await this.fetchInscription();
+    return `address/${this.fundingAddress}/inscriptions/${
+      this.id
+    }/content/${inscriptionIndex.toString().padStart(4, "0")}.json`;
   }
 
   private _inscriptions: Map<string, Promise<InscriptionFile>> = new Map();
-  public async fetchInscriptionContent(s3Client: S3Client, tapKey: string) {
-    const key = this.getInscriptionContentKey(tapKey);
+  public async fetchInscriptionContent(s3Client: S3Client, index: number) {
+    const key = await this.getInscriptionContentKey(index);
     if (this._inscriptions.has(key)) {
       return await this._inscriptions.get(key)!;
     }
@@ -140,12 +143,14 @@ export class InscriptionFundingModel {
     const inscriptions = document.writableInscriptions;
     // returns inscriptions in the order they are inscribed
     // Assumes all fetched
-    const inscriptionOrder = (): Promise<InscriptionFile>[] => {
-      return inscriptions.map(
-        (inscription) =>
-          this._inscriptions.get(
-            this.getInscriptionContentKey(inscription.tapkey),
-          )!,
+    const inscriptionOrder = async (): Promise<InscriptionFile[]> => {
+      return Promise.all(
+        inscriptions.map(
+          async (_, index) =>
+            await this._inscriptions.get(
+              await this.getInscriptionContentKey(index),
+            )!,
+        ),
       );
     };
     // full, no need to check for missing
@@ -153,18 +158,18 @@ export class InscriptionFundingModel {
       return inscriptionOrder();
     }
     // all existing tap keys
-    const existingTapKeys: Map<string, boolean> = [
-      ...this._inscriptions.keys(),
-    ].reduce((memo, tapKey) => {
-      memo.set(tapKey, true);
-      return memo;
-    }, new Map<string, boolean>());
-    const missingTapKeys = inscriptions.filter(
-      (inscription) => !existingTapKeys.has(inscription.tapkey),
+    const existingTapKeys: Map<number, boolean> = [...this._inscriptions.keys()]
+      .map(Number)
+      .reduce((memo, pointerIndex) => {
+        memo.set(pointerIndex, true);
+        return memo;
+      }, new Map<number, boolean>());
+    const missingInscriptions = inscriptions.filter(
+      (inscription) => !existingTapKeys.has(inscription.pointerIndex ?? 0),
     );
     await Promise.all(
-      missingTapKeys.map(async (inscription) =>
-        this.fetchInscriptionContent(s3Client, inscription.tapkey),
+      missingInscriptions.map(async (inscription) =>
+        this.fetchInscriptionContent(s3Client, inscription.pointerIndex ?? 0),
       ),
     );
     return inscriptionOrder();

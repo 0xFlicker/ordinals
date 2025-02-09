@@ -1,12 +1,3 @@
-type InscriptionTransactionContent {
-  leaf: String!
-  tapKey: String!
-  cblock: String!
-  txsize: Int!
-  fee: Int!
-  script: [BitcoinScriptItem!]!
-}
-
 type InscriptionData {
   textContent: String
   base64Content: String

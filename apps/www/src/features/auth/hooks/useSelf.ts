@@ -12,7 +12,6 @@ export const useSelf = ({ skip }: { skip?: boolean } = {}) => {
     () =>
       data && data.self
         ? {
-            address: data.self.address,
             roleIds: data.self.roles?.map((role) => role.id) ?? [],
             allowedActions: data.self.allowedActions,
             token: data.self.token,

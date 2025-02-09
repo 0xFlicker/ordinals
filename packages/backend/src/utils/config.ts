@@ -1,7 +1,16 @@
+import config from "@0xflick/ordinals-config";
 import { lazySingleton } from "@0xflick/ordinals-models";
 
+const deploymentName = config.deployment.name;
+
 export const awsEndpoint = lazySingleton(() => {
-  return process.env.AWS_ENDPOINT_URL;
+  return process.env.AWS_ENDPOINT_URL ?? deploymentName === "localstack"
+    ? "http://localhost.localstack.cloud:4566"
+    : undefined;
+});
+
+export const deploymentS3 = lazySingleton(() => {
+  return process.env.DEPLOYMENT_S3 || "localstack";
 });
 
 export const awsRegion = lazySingleton(() => {
@@ -9,7 +18,17 @@ export const awsRegion = lazySingleton(() => {
 });
 
 export const inscriptionBucket = lazySingleton(() => {
-  return process.env.INSCRIPTION_BUCKET || "inscriptions";
+  return deploymentName === "localstack"
+    ? process.env.INSCRIPTION_BUCKET_LOCAL ||
+        process.env.INSCRIPTION_BUCKET ||
+        "inscriptions"
+    : process.env.INSCRIPTION_BUCKET || "inscriptions";
+});
+
+export const uploadBucket = lazySingleton(() => {
+  return deploymentName === "localstack"
+    ? process.env.UPLOAD_BUCKET_LOCAL || process.env.UPLOAD_BUCKET || "uploads"
+    : process.env.UPLOAD_BUCKET || "uploads";
 });
 
 export const dynamoDbUrl = lazySingleton(() => {
@@ -49,4 +68,16 @@ export const mainnetMempoolUrl = lazySingleton(() => {
 });
 export const mainnetMempoolAuth = lazySingleton(() => {
   return process.env.MAINNET_MEMPOOL_AUTH ?? null;
+});
+
+export const fundedQueueUrl = lazySingleton(() => {
+  return process.env.FUNDED_QUEUE_URL ?? null;
+});
+
+export const invalidFundingQueueUrl = lazySingleton(() => {
+  return process.env.INVALID_FUNDING_QUEUE_URL ?? null;
+});
+
+export const genesisQueueUrl = lazySingleton(() => {
+  return process.env.GENESIS_QUEUE_URL ?? null;
 });

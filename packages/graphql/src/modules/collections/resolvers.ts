@@ -1,27 +1,48 @@
 import { v4 as uuid } from "uuid";
 import { CollectionsModule } from "./generated-types/module-types.js";
 import { CollectionError } from "./errors.js";
-import { ID_Collection, toCollectionId } from "@0xflick/ordinals-models";
+import {
+  ID_Collection,
+  TCollectionModel,
+  TCollectionParentInscription,
+  toCollectionId,
+} from "@0xflick/ordinals-models";
 import { CollectionModel } from "./models.js";
 import { verifyAuthorizedUser } from "../auth/controller.js";
 import {
   EActions,
   EResource,
+  TAllowedAction,
+  createMatcher,
   defaultAdminStrategyAll,
   isActionOnResource,
 } from "@0xflick/ordinals-rbac-models";
 import { DISALLOWED_META_KEYS } from "@0xflick/ordinals-backend";
 import { createLogger } from "@0xflick/ordinals-backend";
+import {
+  getCollectionWithParentInscription,
+  getMultiPartUploadID,
+  getS3UploadUrl,
+  getSignedMultipartUploadUrl,
+  updateCollectionParentInscription,
+} from "./controllers.js";
+import { startS3Polling } from "./poll.js";
+import ordinals from "@0xflick/ordinals-config";
+import { toBitcoinNetworkName } from "../bitcoin/transforms.js";
+
+const deployment = ordinals.deployment.name;
 
 const logger = createLogger({ name: "graphql/collections" });
 
-const canPerformCreateCollection = defaultAdminStrategyAll(
-  EResource.COLLECTION,
-  isActionOnResource({
-    action: EActions.CREATE,
-    resource: EResource.COLLECTION,
-  }),
-);
+// Everyone can create a collection (for now)
+const canPerformCreateCollection = () => true;
+// defaultAdminStrategyAll(
+//   EResource.COLLECTION,
+//   isActionOnResource({
+//     action: EActions.CREATE,
+//     resource: EResource.COLLECTION,
+//   }),
+// );
 const canPerformUpdateCollection = defaultAdminStrategyAll(
   EResource.COLLECTION,
   isActionOnResource({
@@ -40,13 +61,15 @@ export const resolvers: CollectionsModule.Resolvers = {
   Mutation: {
     createCollection: async (
       _parent,
-      { input: { name, maxSupply, meta } },
+      { input: { name, maxSupply, meta, parentInscription } },
       context,
       info,
     ) => {
-      const { fundingDao, requireMutation } = context;
+      const { fundingDao, requireMutation, userRolesDao } = context;
       requireMutation(info);
+
       await verifyAuthorizedUser(context, canPerformCreateCollection);
+
       const collections = await fundingDao.getCollectionByName(name);
       if (collections.length > 0) {
         throw new CollectionError("COLLECTION_ALREADY_EXISTS", name);
@@ -77,18 +100,84 @@ export const resolvers: CollectionsModule.Resolvers = {
           );
         }
       }
-
-      const id = uuid();
-      const model = {
-        id: toCollectionId(id),
+      const {
+        parentInscriptionId,
+        parentInscriptionFileName: inputParentInscriptionFileName,
+        parentInscriptionContentType,
+      } = parentInscription ?? {};
+      const id = toCollectionId(uuid());
+      // remove any leading or trailing dots
+      const parentInscriptionFileName = `${id}/${inputParentInscriptionFileName?.replace(
+        /(^\.\.|\/.\.)/g,
+        "",
+      )}`;
+      const model: TCollectionModel<{
+        parentInscriptionId?: string;
+        parentInscriptionFileName?: string;
+        parentInscriptionContentType?: string;
+      }> = {
+        id,
         name,
         totalCount: 0,
         maxSupply,
         pendingCount: 0,
-        meta: metadata,
+        type: "collection",
+        meta: {
+          ...metadata,
+          ...(parentInscriptionId ? { parentInscriptionId } : {}),
+          ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
+          ...(parentInscriptionContentType
+            ? { parentInscriptionContentType }
+            : {}),
+        },
       };
+      let modelParentInscription: TCollectionParentInscription | undefined;
+
+      // If the user is requesting a parent inscription and not providing a parent inscription id, we need to create a new S3 upload url
+      if (
+        parentInscription &&
+        !parentInscriptionId &&
+        parentInscriptionFileName &&
+        parentInscriptionContentType
+      ) {
+        logger.info(
+          {
+            fileName: parentInscriptionFileName,
+            contentType: parentInscriptionContentType,
+            collectionId: id,
+          },
+          "Creating parent inscription",
+        );
+        const [uploadUrl, multipartUploadId] = await Promise.all([
+          getS3UploadUrl({
+            fileName: parentInscriptionFileName,
+            contentType: parentInscriptionContentType,
+            context,
+            metadata: {
+              "collection-id": id,
+            },
+          }),
+          getMultiPartUploadID({
+            fileName: parentInscriptionFileName,
+            contentType: parentInscriptionContentType,
+            context,
+            metadata: {
+              "collection-id": id,
+            },
+          }),
+        ]);
+        modelParentInscription = {
+          ...(parentInscriptionId ? { parentInscriptionId } : {}),
+          ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
+          ...(parentInscriptionContentType
+            ? { parentInscriptionContentType }
+            : {}),
+          uploadUrl,
+          multipartUploadId,
+        };
+      }
       await fundingDao.createCollection(model);
-      return new CollectionModel(model);
+      return new CollectionModel(model, modelParentInscription);
     },
     deleteCollection: async (_parent, { id }, context, info) => {
       const { fundingDao, requireMutation } = context;
@@ -98,12 +187,51 @@ export const resolvers: CollectionsModule.Resolvers = {
       return true;
     },
     collection: async (_parent, { id }, context) => {
-      const { fundingDao } = context;
-      const model = await fundingDao.getCollection(id as ID_Collection);
-      if (!model) {
-        throw new CollectionError("COLLECTION_NOT_FOUND", id);
+      return getCollectionWithParentInscription(toCollectionId(id), context);
+    },
+    createCollectionParentInscription: async (
+      _parent,
+      { collectionId, bitcoinNetwork },
+      {
+        uploadBucket,
+        typedFundingDao,
+        s3Client,
+        inscriptionBucket,
+        defaultTipDestination,
+      },
+    ) => {
+      const fundingDao = typedFundingDao<
+        {},
+        { parentInscriptionFileName?: string }
+      >();
+      const collection = await fundingDao.getCollection(
+        toCollectionId(collectionId),
+      );
+      if (!collection) {
+        throw new CollectionError("COLLECTION_NOT_FOUND", collectionId);
       }
-      return new CollectionModel(model);
+      const { parentInscriptionFileName } = collection.meta ?? {};
+      if (!parentInscriptionFileName) {
+        throw new CollectionError(
+          "COLLECTION_PARENT_INSCRIPTION_NOT_FOUND",
+          collectionId,
+        );
+      }
+      const inscriptionFunding = await updateCollectionParentInscription({
+        parentInscriptionFileName,
+        s3Client,
+        uploadBucketName: uploadBucket,
+        inscriptionBucketName: inscriptionBucket,
+        bitcoinNetwork: toBitcoinNetworkName(bitcoinNetwork),
+        tipDestination: defaultTipDestination,
+      });
+      if (!inscriptionFunding) {
+        throw new CollectionError(
+          "COLLECTION_PARENT_INSCRIPTION_NOT_FOUND",
+          collectionId,
+        );
+      }
+      return inscriptionFunding;
     },
   },
   Query: {
@@ -113,12 +241,19 @@ export const resolvers: CollectionsModule.Resolvers = {
       return models.map((model) => new CollectionModel(model));
     },
     collection: async (_parent, { id }, context) => {
-      const { fundingDao } = context;
-      const model = await fundingDao.getCollection(id as ID_Collection);
-      if (!model) {
-        throw new CollectionError("COLLECTION_NOT_FOUND", id);
-      }
-      return new CollectionModel(model);
+      return getCollectionWithParentInscription(toCollectionId(id), context);
+    },
+    signMultipartUpload: async (
+      _parent,
+      { multipartUploadId, partNumber, fileName },
+      context,
+    ) => {
+      return getSignedMultipartUploadUrl({
+        fileName,
+        multipartUploadId,
+        partNumber,
+        context,
+      });
     },
   },
   Collection: {

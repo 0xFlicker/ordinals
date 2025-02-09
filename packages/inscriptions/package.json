@@ -5,7 +5,8 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "build": "tsc --build"
+    "build": "tsc --build",
+    "test": "yarn node --experimental-vm-modules $(yarn bin jest)"
   },
   "dependencies": {
     "@0xflick/crypto-utils": "^1.10.3-0xflick.0",
@@ -17,8 +18,11 @@
     "qrcode": "^1.5.3"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.4.2",
     "@types/qrcode": "^1.5.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "typescript": "^5.1.3"
   }
 }

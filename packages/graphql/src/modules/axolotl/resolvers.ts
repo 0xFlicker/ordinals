@@ -35,8 +35,8 @@ function getConfig(config?: {
 }): {
   revealDelta: number;
   scriptUrl: string;
-  tipAddress?: string;
-  tipAmount?: number;
+  tipAddress: string;
+  tipAmount: number;
 } {
   let revealDelta: number;
   let scriptUrl: string;
@@ -83,6 +83,7 @@ async function createTranscriptionFunding({
   inscriptionBucket,
   createMempoolBitcoinClient,
   tip,
+  tipDestination,
 }: {
   address: string;
   inscriptions: InscriptionContent[];
@@ -94,6 +95,7 @@ async function createTranscriptionFunding({
   inscriptionBucket: string;
   s3Client: S3Client;
   tip: number;
+  tipDestination: string;
   createMempoolBitcoinClient: (opts: {
     network: BitcoinNetworkNames;
   }) => MempoolClient["bitcoin"];
@@ -127,13 +129,14 @@ async function createTranscriptionFunding({
     network,
     tip,
     inscriptions,
+    tipAmountDestination: tipDestination,
   });
 
   const addressModel = new AddressInscriptionModel({
+    createdAt: new Date(),
     address: fundingAddress,
     destinationAddress: address,
     network,
-    contentIds: writableInscriptions.map((inscription) => inscription.tapkey),
     fundingStatus: "funding",
     timesChecked: 0,
     fundingAmountBtc,
@@ -156,6 +159,7 @@ async function createTranscriptionFunding({
     totalFee,
     writableInscriptions,
     tip,
+    tipAmountDestination: tipDestination,
   };
   const inscriptionFundingModel = new InscriptionFundingModel({
     id: addressModel.id,
@@ -282,6 +286,18 @@ export const resolvers: AxolotlModule.Resolvers = {
       const { revealDelta, scriptUrl, tipAddress, tipAmount } = (() => {
         switch (network) {
           case "REGTEST":
+            if (!collection.meta?.regtest_tip_address) {
+              throw new AxolotlError(
+                "Regtest network bad config, missing tip_address",
+                "BAD_CONFIG",
+              );
+            }
+            if (!collection.meta?.regtest_tip_amount) {
+              throw new AxolotlError(
+                "Regtest network bad config, missing tip_amount",
+                "BAD_CONFIG",
+              );
+            }
             return getConfig({
               revealDelta: collection.meta?.regtest_reveal_delta
                 ? parseInt(collection.meta?.regtest_reveal_delta)
@@ -293,6 +309,18 @@ export const resolvers: AxolotlModule.Resolvers = {
                 : undefined,
             });
           case "MAINNET":
+            if (!collection.meta?.mainnet_tip_address) {
+              throw new AxolotlError(
+                "Mainnet network bad config, missing tip_address",
+                "BAD_CONFIG",
+              );
+            }
+            if (!collection.meta?.mainnet_tip_amount) {
+              throw new AxolotlError(
+                "Mainnet network bad config, missing tip_amount",
+                "BAD_CONFIG",
+              );
+            }
             return getConfig({
               revealDelta: collection.meta?.mainnet_reveal_delta
                 ? parseInt(collection.meta?.mainnet_reveal_delta)
@@ -304,6 +332,18 @@ export const resolvers: AxolotlModule.Resolvers = {
                 : undefined,
             });
           case "TESTNET":
+            if (!collection.meta?.testnet_tip_address) {
+              throw new AxolotlError(
+                "Testnet network bad config, missing tip_address",
+                "BAD_CONFIG",
+              );
+            }
+            if (!collection.meta?.testnet_tip_amount) {
+              throw new AxolotlError(
+                "Testnet network bad config, missing tip_amount",
+                "BAD_CONFIG",
+              );
+            }
             return getConfig({
               revealDelta: collection.meta?.testnet_reveal_delta
                 ? parseInt(collection.meta?.testnet_reveal_delta)

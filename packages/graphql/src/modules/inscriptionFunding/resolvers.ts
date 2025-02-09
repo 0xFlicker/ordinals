@@ -1,5 +1,4 @@
 import { bitcoinToSats } from "@0xflick/inscriptions";
-import { InscriptionTransactionModel } from "../inscriptionTransaction/models.js";
 import { InscriptionFundingModule } from "./generated-types/module-types.js";
 import { getFundingModel, getUrl } from "./controllers.js";
 import {
@@ -61,10 +60,6 @@ export const resolvers: InscriptionFundingModule.Resolvers = {
     },
   },
   InscriptionFunding: {
-    async inscriptionTransaction(parent, _) {
-      await parent.fetchInscription();
-      return new InscriptionTransactionModel(parent);
-    },
     fundingAmountSats: async (p) => {
       return Number(bitcoinToSats(await p.fundingAmountBtc));
     },

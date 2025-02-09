@@ -27,7 +27,15 @@ function setCookie(
   token: string,
 ) {
   logger.info("Setting cookie");
-  res.setHeader("set-cookie", serializeSessionCookie(token, "/api/"));
+  res.setHeader(
+    "set-cookie",
+    serializeSessionCookie({
+      value: token,
+      path: "/api/",
+      cookieName: "session",
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+    }),
+  );
 }
 const typeDefs = parse(
   await fs.promises.readFile(join(__dirname, "./schema.graphql"), "utf8"),
@@ -52,9 +60,10 @@ const server = new ApolloServer({
       ...apolloContext,
       setToken: (token: string) => setCookie(express.res, token),
       getToken: () => {
-        const cookieToken = deserializeSessionCookie(
-          express.req.headers.cookie,
-        );
+        const cookieToken = deserializeSessionCookie({
+          cookies: express.req.headers.cookie,
+          cookieName: "session",
+        });
         if (cookieToken) {
           return cookieToken;
         }
@@ -69,7 +78,10 @@ const server = new ApolloServer({
       },
       clearToken: () => {
         logger.info("Clearing cookie");
-        express.res.setHeader("set-cookie", expireSessionCookie("/api/"));
+        express.res.setHeader(
+          "set-cookie",
+          expireSessionCookie({ cookieName: "session", path: "/api/" }),
+        );
       },
     };
   },

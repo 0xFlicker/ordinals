@@ -1,4 +1,4 @@
-22222import { FC, useCallback, useState, MouseEvent } from "react";
+import { FC, useCallback, useState, MouseEvent } from "react";
 import Backdrop from "@mui/material/Backdrop";
 import Box from "@mui/material/Box";
 import Image from "next/image";
@@ -14,7 +14,6 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { Chain, useChainId, useSwitchNetwork } from "wagmi";
 import type { SxProps, TooltipProps } from "@mui/material";
-
 
 export type TChain = Chain & {
   chainImageUrl: string;
@@ -55,64 +54,64 @@ export const ConnectedDropDownModal: FC<{
   chains,
   currentChain,
 }) => {
-    const open = Boolean(anchorEl);
-    return (
-      <Menu
-        anchorEl={anchorEl}
-        open={open}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "right",
-        }}
-        onClose={(event) => {
-          (event as MouseEvent).stopPropagation();
-          handleClose();
-        }}
-        keepMounted
-        BackdropComponent={Backdrop}
-        BackdropProps={{
-          timeout: 500,
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "right",
-        }}
-      >
-        <Box sx={{ width: 320 }}>
-          <MenuList disablePadding>
-            {chains.map((chain) => (
-              <MenuItem
-                key={chain.id}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleSwitch(chain);
-                }}
-              >
-                <ListItemIcon>
-                  {currentChain?.id === chain.id ? (
-                    // large CheckIcon
-                    <CheckIcon sx={{ fontSize: 40 }} />
-                  ) : (
-                    <Image
-                      src={`${assetPrefix ?? ""}${decorateChainImageUrl(chain)}`}
-                      alt=""
-                      width={40}
-                      height={40}
-                    />
-                  )}
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Typography textAlign="right">{chain.name}</Typography>
-                  }
-                />
-              </MenuItem>
-            ))}
-          </MenuList>
-        </Box>
-      </Menu>
-    );
-  };
+  const open = Boolean(anchorEl);
+  return (
+    <Menu
+      anchorEl={anchorEl}
+      open={open}
+      anchorOrigin={{
+        vertical: "bottom",
+        horizontal: "right",
+      }}
+      onClose={(event) => {
+        (event as MouseEvent).stopPropagation();
+        handleClose();
+      }}
+      keepMounted
+      BackdropComponent={Backdrop}
+      BackdropProps={{
+        timeout: 500,
+      }}
+      transformOrigin={{
+        vertical: "top",
+        horizontal: "right",
+      }}
+    >
+      <Box sx={{ width: 320 }}>
+        <MenuList disablePadding>
+          {chains.map((chain) => (
+            <MenuItem
+              key={chain.id}
+              onClick={(event) => {
+                event.stopPropagation();
+                handleSwitch(chain);
+              }}
+            >
+              <ListItemIcon>
+                {currentChain?.id === chain.id ? (
+                  // large CheckIcon
+                  <CheckIcon sx={{ fontSize: 40 }} />
+                ) : (
+                  <Image
+                    src={`${assetPrefix ?? ""}${decorateChainImageUrl(chain)}`}
+                    alt=""
+                    width={40}
+                    height={40}
+                  />
+                )}
+              </ListItemIcon>
+              <ListItemText
+                primary={
+                  <Typography textAlign="right">{chain.name}</Typography>
+                }
+              />
+            </MenuItem>
+          ))}
+        </MenuList>
+      </Box>
+    </Menu>
+  );
+};
 export const ChainSelector: FC<{
   assetPrefix?: string;
   sx?: SxProps;
@@ -122,8 +121,7 @@ export const ChainSelector: FC<{
 
   const chainId = useChainId();
 
-  const { chains, error, isLoading, switchNetwork } =
-    useSwitchNetwork();
+  const { chains, error, isLoading, switchNetwork } = useSwitchNetwork();
   const handleMenu = useCallback((event: MouseEvent) => {
     event.stopPropagation();
     setMenuAnchorEl(event.currentTarget);
@@ -148,8 +146,9 @@ export const ChainSelector: FC<{
         title={
           <>
             <Typography>switch networks</Typography>
-            <Typography>{`current network: ${chain?.name ?? "unknown"
-              }`}</Typography>
+            <Typography>{`current network: ${
+              chain?.name ?? "unknown"
+            }`}</Typography>
             {error && <Typography color="error">{error.message}</Typography>}
             {!chain && <Typography>try connecting first</Typography>}
           </>

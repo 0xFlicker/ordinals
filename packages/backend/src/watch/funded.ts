@@ -106,41 +106,19 @@ export function watchForFunded(
               };
             }),
             catchError((error) => {
-              // logger.error(error, "Error checking funding for", funded.address);
               if (error instanceof NoVoutFound) {
                 logger.info(`No payment found for ${funded.address}`);
-                // const now = new Date();
-                // return from(
-                //   Promise.resolve().then(async () => {
-                //     // try {
-                //     //   fundingDao.updateFundingLastChecked({
-                //     //     id: funded.id,
-                //     //     lastChecked: now,
-                //     //   });
-                //     // } catch (error) {
-                //     //   logger.error(
-                //     //     error,
-                //     //     "Error updating funding last checked",
-                //     //   );
-                //     //   throw error;
-                //     // }
-                //     // logger.trace(`Updated last checked for ${funded.id}`);
-                //     // throw error;
-                //     return EMPTY;
-                //   }),
-                // );
               }
-              // logger.error(error, "Error checking funding for", funded.address);
-              // throw error;
               return EMPTY;
             }),
-            // retry({
-            //   resetOnSuccess: true,
-            //   count: funded.timesChecked,
-            //   delay(error, retryCount) {
-            //     return timer(customBackoff(retryCount));
-            //   },
-            // }),
+            retry({
+              resetOnSuccess: true,
+              count: funded.timesChecked,
+              delay(error, retryCount) {
+                logger.error(error, "Error checking funding");
+                return timer(customBackoff(retryCount));
+              },
+            }),
             mergeMap(async (funded) => {
               if (!funded) {
                 logger.error("No funding found!");
@@ -178,13 +156,10 @@ export function watchForFunded(
                     initLeaf: doc.initLeaf,
                     initScript: doc.initScript,
                     initTapKey: doc.initTapKey,
-                    inscriptions: doc.writableInscriptions,
-                    padding: doc.padding,
                     secKey,
                     txid: funded.txid,
                     vout: funded.vout,
-                    tip: doc.tip,
-                    tippingAddress: fundedDb.tipAmountDestination,
+                    fee: doc.totalFee,
                   });
 
                   try {

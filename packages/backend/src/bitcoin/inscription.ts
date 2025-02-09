@@ -6,9 +6,9 @@ import {
   generatePrivKey,
 } from "@0xflick/inscriptions";
 import {
-  hashInscriptions,
   toAddressInscriptionId,
   TInscriptionDoc,
+  hashAddress,
 } from "@0xflick/ordinals-models";
 
 export async function createInscriptionTransaction({
@@ -17,12 +17,14 @@ export async function createInscriptionTransaction({
   feeRate,
   tip,
   inscriptions,
+  tipAmountDestination,
 }: {
   address: string;
   network: BitcoinNetworkNames;
   feeRate: number;
   tip?: number;
   inscriptions: InscriptionContent[];
+  tipAmountDestination: string;
 }): Promise<TInscriptionDoc & { files: InscriptionFile[] }> {
   const privKey = generatePrivKey();
   const {
@@ -49,12 +51,7 @@ export async function createInscriptionTransaction({
   });
 
   return {
-    id: toAddressInscriptionId(
-      hashInscriptions(
-        fundingAddress,
-        inscriptionsToWrite.map((i) => i.tapkey),
-      ),
-    ),
+    id: toAddressInscriptionId(hashAddress(fundingAddress)),
     files,
     fundingAddress,
     fundingAmountBtc: amount,
@@ -69,5 +66,6 @@ export async function createInscriptionTransaction({
     totalFee,
     writableInscriptions: inscriptionsToWrite,
     tip: tip ?? 0,
+    tipAmountDestination,
   };
 }

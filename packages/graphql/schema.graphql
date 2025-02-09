@@ -44,10 +44,6 @@ type Query {
   userByAddress(address: ID!): Web3User!
 }
 
-type Query {
-  inscriptionTransaction(id: ID!): InscriptionTransaction
-}
-
 input PresaleRequest {
   collectionId: ID!
   farcasterVerifiedPayload: String
@@ -165,27 +161,6 @@ type Mutation {
   role(id: ID!): Role!
 }
 
-type InscriptionTransaction {
-  inscriptions: [InscriptionTransactionContent!]!
-  overhead: Int!
-  padding: Int!
-  initScript: [BitcoinScriptItem!]!
-  initTapKey: String!
-  initLeaf: String!
-  initCBlock: String!
-
-  count: Int!
-}
-
-type InscriptionTransactionContent {
-  leaf: String!
-  tapKey: String!
-  cblock: String!
-  txsize: Int!
-  fee: Int!
-  script: [BitcoinScriptItem!]!
-}
-
 type InscriptionData {
   textContent: String
   base64Content: String
@@ -231,7 +206,7 @@ type InscriptionFunding {
   network: BitcoinNetwork!
   qrValue: String!
   qrSrc: String!
-  inscriptionTransaction: InscriptionTransaction!
+
   status: FundingStatus!
   fundingTxId: String
   fundingTxUrl: String
@@ -240,7 +215,13 @@ type InscriptionFunding {
   fundingRevealTxIds: [String!]
   fundingRevealTxUrls: [String!]
 
-  inscriptionContent(tapKey: String!): InscriptionData!
+  overhead: Int!
+  padding: Int!
+  count: Int!
+  fee: Int!
+
+  inscriptionContent(index: Int!): InscriptionData!
+  inscriptionContents: [InscriptionData!]!
 }
 
 input InscriptionFundingQuery {
@@ -262,11 +243,29 @@ type InscriptionFundingsResult {
   count: Int
 }
 
+# input EstimateInscriptionFundingInput {
+#   size: Int!
+#   contentType: String!
+#   meta: [KeyValueInput!]
+# }
+
+# type EstimateInscriptionFundingResult {
+#   fundingAmountBtc: String!
+#   fundingAmountSats: Int!
+#   totalFeeBtc: String!
+#   totalFeeSats: Int!
+# }
+
 type Query {
   inscriptionFunding(id: ID!): InscriptionFunding
   inscriptionFundings(
     query: InscriptionFundingQuery!
   ): InscriptionFundingsResult!
+  # estimateInscriptionFundingSize(
+  #   destinationAddress: String
+  #   network: BitcoinNetwork
+  #   inscriptions: [EstimateInscriptionFundingInput!]!
+  # ): EstimateInscriptionFundingResult!
 }
 
 type KeyValue {
@@ -278,20 +277,35 @@ input KeyValueInput {
   value: String!
 }
 
+type CollectionParentInscription {
+  parentInscriptionId: String
+  parentInscriptionFileName: String
+  parentInscriptionContentType: String
+  uploadUrl: String
+  multipartUploadId: String
+}
+
 type Collection {
   id: ID!
   name: String!
   totalCount: Int!
   pendingCount: Int!
   maxSupply: Int!
-
+  parentInscription: CollectionParentInscription
   metadata: [KeyValue!]!
   updateMetadata(metadata: [KeyValueInput!]!): Collection!
+}
+
+input CollectionParentInscriptionInput {
+  parentInscriptionId: String
+  parentInscriptionFileName: String
+  parentInscriptionContentType: String
 }
 
 input CollectionInput {
   name: String!
   maxSupply: Int!
+  parentInscription: CollectionParentInscriptionInput
   meta: String
 }
 
@@ -299,11 +313,20 @@ type Mutation {
   createCollection(input: CollectionInput!): Collection!
   deleteCollection(id: ID!): Boolean!
   collection(id: ID!): Collection!
+  createCollectionParentInscription(
+    collectionId: ID!
+    bitcoinNetwork: BitcoinNetwork!
+  ): InscriptionFunding!
 }
 
 type Query {
   collections: [Collection!]!
   collection(id: ID!): Collection!
+  signMultipartUpload(
+    multipartUploadId: String!
+    partNumber: Int!
+    fileName: String!
+  ): String!
 }
 
 enum BitcoinNetwork {

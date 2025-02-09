@@ -19,13 +19,14 @@ export interface IAddressInscriptionModel<T = Record<string, any>> {
   network: BitcoinNetworkNames;
   id: ID_AddressInscription;
   collectionId?: ID_Collection;
-  contentIds: string[];
   fundingTxid?: string;
   fundingVout?: number;
   revealTxids?: string[];
   genesisTxid?: string;
   fundingStatus: TFundingStatus;
+  createdAt: Date;
   lastChecked?: Date;
+  nextCheckAt?: Date;
   timesChecked: number;
   fundingAmountBtc: string;
   fundingAmountSat: number;
@@ -33,19 +34,15 @@ export interface IAddressInscriptionModel<T = Record<string, any>> {
   tipAmountSat?: number;
   tipAmountDestination?: string;
   meta: T;
+  type: "address-inscription";
 }
 
 function xor(buf1: Uint8Array, buf2: Uint8Array) {
   return buf1.map((b, i) => b ^ buf2[i]);
 }
 
-export function hashInscriptions(address: string, tapKeys: string[]) {
-  return Buffer.from(
-    [Address.decode(address).data, ...tapKeys].reduce(
-      (memo, tapKey) => xor(Buffer.from(tapKey, "hex"), memo),
-      new Uint8Array(32),
-    ),
-  ).toString("hex");
+export function hashAddress(address: string) {
+  return Buffer.from(Address.decode(address).data).toString("hex");
 }
 
 export class AddressInscriptionModel<T extends Record<string, any> = {}>
@@ -54,7 +51,6 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
   public address: string;
   public network: BitcoinNetworkNames;
   public collectionId?: ID_Collection;
-  public contentIds: string[];
   public destinationAddress: string;
   public fundingTxid?: string;
   public fundingVout?: number;
@@ -62,17 +58,21 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
   public genesisTxid?: string;
   public fundingStatus: TFundingStatus;
   public lastChecked?: Date;
+  public nextCheckAt?: Date;
+  public createdAt: Date;
   public timesChecked: number;
   public fundingAmountBtc: string;
   public fundingAmountSat: number;
   public tipAmountSat?: number;
   public tipAmountDestination?: string;
   public meta: T;
+  public type: "address-inscription" = "address-inscription";
 
-  constructor(item: Omit<IAddressInscriptionModel<T>, "id"> & { id?: string }) {
+  constructor(
+    item: Omit<IAddressInscriptionModel<T>, "id" | "type"> & { id?: string },
+  ) {
     this.address = item.address;
     this.network = item.network;
-    this.contentIds = item.contentIds;
     if (item.id) {
       this._id = toAddressInscriptionId(item.id);
     }
@@ -84,7 +84,9 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
     this.genesisTxid = item.genesisTxid;
     this.fundingStatus = item.fundingStatus;
     this.lastChecked = item.lastChecked;
+    this.nextCheckAt = item.nextCheckAt ?? new Date();
     this.timesChecked = item.timesChecked;
+    this.createdAt = item.createdAt;
     this.fundingAmountBtc = item.fundingAmountBtc;
     this.fundingAmountSat = item.fundingAmountSat;
     this.tipAmountSat = item.tipAmountSat;
@@ -95,9 +97,7 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
   private _id?: ID_AddressInscription;
   public get id(): ID_AddressInscription {
     if (!this._id) {
-      this._id = toAddressInscriptionId(
-        hashInscriptions(this.address, this.contentIds),
-      );
+      this._id = toAddressInscriptionId(hashAddress(this.address));
     }
     return this._id;
   }

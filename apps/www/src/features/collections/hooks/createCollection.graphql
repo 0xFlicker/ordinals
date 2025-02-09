@@ -1,0 +1,27 @@
+mutation CreateCollection($input: CollectionInput!) {
+  createCollection(input: $input) {
+    id
+    parentInscription {
+      uploadUrl
+      multipartUploadId
+    }
+  }
+}
+
+mutation CreateCollectionParentInscription(
+  $collectionId: ID!
+  $bitcoinNetwork: BitcoinNetwork!
+) {
+  createCollectionParentInscription(
+    collectionId: $collectionId
+    bitcoinNetwork: $bitcoinNetwork
+  ) {
+    id
+    fundingAmountBtc
+    fundingAddress
+    destinationAddress
+    network
+    qrValue
+    qrSrc
+  }
+}

@@ -9,16 +9,19 @@ export interface IAwsContext {
 export function createAwsContext({
   awsEndpoint: endpoint,
   awsRegion: region,
+  deploymentS3,
 }: IConfigContext): IAwsContext {
   const s3Client = createS3Client({
-    endpoint,
+    ...(deploymentS3 !== "aws" && endpoint ? { endpoint } : {}),
     region,
-    ...(endpoint
+    ...(deploymentS3 === "localstack" ||
+    (typeof deploymentS3 === "undefined" && endpoint?.startsWith("http:"))
       ? {
           forcePathStyle: true,
         }
       : {}),
   });
+
   return {
     s3Client,
   };

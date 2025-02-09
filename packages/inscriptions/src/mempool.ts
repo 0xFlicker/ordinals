@@ -28,11 +28,11 @@ export async function addressReceivedMoneyInThisTx(
   let txid: string;
   let vout: number;
   let amt: number;
-  let nonjson: any;
+  let nonJson: any;
 
-  nonjson = await getData(url + "/api/address/" + address + "/txs");
+  nonJson = await getData(url + "/api/address/" + address + "/txs");
 
-  const json = JSON.parse(nonjson);
+  const json = JSON.parse(nonJson);
   for (const tx of json) {
     for (let i = 0; i < tx["vout"].length; i++) {
       const output = tx["vout"][i];
@@ -55,7 +55,7 @@ export async function waitForInscriptionFunding(
     [null, null, null];
   do {
     funded = await addressReceivedMoneyInThisTx(
-      inscription.inscriptionAddress,
+      inscription.destinationAddress,
       network,
     );
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -70,13 +70,13 @@ export async function addressOnceHadMoney(
   network: BitcoinNetworkNames,
 ) {
   let url = urlForNetworkName(network);
-  let nonjson;
+  let nonJson;
 
   url += "/api/address/" + address;
-  nonjson = await getData(url);
+  nonJson = await getData(url);
 
-  if (!isValidJson(nonjson)) return false;
-  let json = JSON.parse(nonjson);
+  if (!isValidJson(nonJson)) return false;
+  let json = JSON.parse(nonJson);
   if (
     json["chain_stats"]["tx_count"] > 0 ||
     (includeMempool && json["mempool_stats"]["tx_count"] > 0)

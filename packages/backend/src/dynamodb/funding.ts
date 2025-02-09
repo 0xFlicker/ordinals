@@ -1,4 +1,9 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  type AttributeValue as DynamoDBAttributeValue,
+  DynamoDBClient,
+} from "@aws-sdk/client-dynamodb";
+import { type AttributeValue as LambdaAttributeValue } from "aws-lambda";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   IAddressInscriptionModel,
   toAddressInscriptionId,
@@ -15,6 +20,7 @@ import {
   IPresaleModel,
   toPresaleId,
   TPresaleStatus,
+  BitcoinNetworkNames,
 } from "@0xflick/ordinals-models";
 import { IFundingDao } from "../dao/funding.js";
 import {
@@ -24,6 +30,7 @@ import {
   UpdateCommand,
   QueryCommand,
   ScanCommand,
+  DynamoDBDocumentClient,
 } from "@aws-sdk/lib-dynamodb";
 
 export type TFundingDb<T extends Record<string, any>> = {
@@ -31,13 +38,14 @@ export type TFundingDb<T extends Record<string, any>> = {
   id: string;
   address: string;
   network: string;
-  contentIds: string[];
   collectionId?: string;
   fundingTxid?: string;
   fundingVout?: number;
   revealTxids?: string[];
   genesisTxid?: string;
   lastChecked?: number;
+  createdAt: number;
+  nextCheckAt?: number;
   timesChecked: number;
   fundingStatus: string;
   fundingAmountBtc: string;
@@ -79,7 +87,7 @@ export class FundingDao<
 {
   public static TABLE_NAME = "Funding";
 
-  private client: DynamoDBClient;
+  private client: DynamoDBDocumentClient;
 
   constructor(client: DynamoDBClient) {
     this.client = client;
@@ -155,7 +163,7 @@ export class FundingDao<
     return {
       items:
         result.Items?.map((item) =>
-          this.fromFundingDb(item as TFundingDb<ItemMeta>),
+          FundingDao.fromFundingDb(item as TFundingDb<ItemMeta>),
         ) ?? [],
       cursor: encodeCursor({
         page,
@@ -293,6 +301,117 @@ export class FundingDao<
     };
   }
 
+  public async getAllFundingsByStatusNextCheckAt({
+    fundingStatus,
+    nextCheckAt,
+  }: {
+    fundingStatus: TFundingStatus;
+    nextCheckAt: Date;
+  }) {
+    const results: {
+      address: string;
+      id: string;
+      nextCheckAt: Date;
+      fundingAmountSat: number;
+      network: BitcoinNetworkNames;
+    }[] = [];
+    for await (const item of this.listAllFundingsByStatusNextCheckAt({
+      fundingStatus,
+      nextCheckAt,
+    })) {
+      results.push(item);
+    }
+    return results;
+  }
+
+  public listAllFundingsByStatusNextCheckAt({
+    fundingStatus,
+    nextCheckAt,
+  }: {
+    fundingStatus: TFundingStatus;
+    nextCheckAt: Date;
+  }): AsyncGenerator<
+    {
+      address: string;
+      id: string;
+      createdAt: Date;
+      nextCheckAt: Date;
+      fundingAmountSat: number;
+      network: BitcoinNetworkNames;
+    },
+    any,
+    unknown
+  > {
+    return paginate((options) =>
+      this.listAllFundingsByStatusNextCheckAtPaginated({
+        fundingStatus,
+        nextCheckAt,
+        ...options,
+      }),
+    );
+  }
+
+  public async listAllFundingsByStatusNextCheckAtPaginated({
+    fundingStatus,
+    nextCheckAt,
+    cursor,
+    limit,
+  }: {
+    fundingStatus: TFundingStatus;
+    nextCheckAt: Date;
+  } & IPaginationOptions): Promise<
+    IPaginatedResult<{
+      address: string;
+      id: string;
+      createdAt: Date;
+      nextCheckAt: Date;
+      fundingAmountSat: number;
+      network: BitcoinNetworkNames;
+    }>
+  > {
+    const pagination = decodeCursor(cursor);
+    const result = await this.client.send(
+      new QueryCommand({
+        TableName: FundingDao.TABLE_NAME,
+        IndexName: "statusNextCheckAtIndex",
+        KeyConditionExpression:
+          "fundingStatus = :fundingStatus AND nextCheckAt < :now",
+        ExpressionAttributeValues: {
+          ":fundingStatus": fundingStatus,
+          ":now": nextCheckAt.getTime(),
+        },
+        ...(pagination && { ExclusiveStartKey: pagination.lastEvaluatedKey }),
+        ...(limit && { Limit: limit }),
+      }),
+    );
+    const lastEvaluatedKey = result.LastEvaluatedKey;
+    const page = pagination ? pagination.page + 1 : 1;
+    const size = result.Items?.length || 0;
+    const count = (pagination ? pagination.count : 0) + size;
+
+    return {
+      items:
+        result.Items?.map((item) => ({
+          address: item.address,
+          id: item.id,
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(0),
+          nextCheckAt: item.nextCheckAt
+            ? new Date(item.nextCheckAt)
+            : new Date(0),
+          fundingAmountSat: item.fundingAmountSat,
+          network: toBitcoinNetworkName(item.network),
+        })) ?? [],
+      cursor: encodeCursor({
+        page,
+        count,
+        lastEvaluatedKey,
+      }),
+      page,
+      count,
+      size,
+    };
+  }
+
   public async getAllPresalesByFarcasterFid({
     farcasterFid,
   }: {
@@ -406,7 +525,7 @@ export class FundingDao<
         },
       }),
     );
-    return this.fromFundingDb(db.Item as TFundingDb<ItemMeta>);
+    return FundingDao.fromFundingDb(db.Item as TFundingDb<ItemMeta>);
   }
 
   public async deleteFunding(id: string) {
@@ -460,6 +579,29 @@ export class FundingDao<
         UpdateExpression: "ADD pendingCount :pendingCount",
         ExpressionAttributeValues: {
           ":pendingCount": pendingCount,
+        },
+      }),
+    );
+  }
+
+  public async updateFundingNextCheckAt({
+    id,
+    nextCheckAt,
+  }: {
+    id: string;
+    nextCheckAt: Date;
+  }) {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: FundingDao.TABLE_NAME,
+        Key: {
+          pk: id,
+          sk: "funding",
+        },
+        ConditionExpression: "attribute_exists(pk)",
+        UpdateExpression: "SET nextCheckAt = :nextCheckAt",
+        ExpressionAttributeValues: {
+          ":nextCheckAt": nextCheckAt.getTime(),
         },
       }),
     );
@@ -639,7 +781,7 @@ export class FundingDao<
   }
 
   public async createCollection(item: TCollectionModel<CollectionMeta>) {
-    const db = this.toCollectionDb(item);
+    const db = FundingDao.toCollectionDb(item);
     await this.client.send(
       new PutCommand({
         TableName: FundingDao.TABLE_NAME,
@@ -662,7 +804,7 @@ export class FundingDao<
     if (!db.Item) {
       return null;
     }
-    return this.fromCollectionDb(
+    return FundingDao.fromCollectionDb(
       db.Item as TFundingCollectionDb<CollectionMeta>,
     );
   }
@@ -682,7 +824,7 @@ export class FundingDao<
       return [];
     }
     return db.Items.map((item) =>
-      this.fromCollectionDb(item as TFundingCollectionDb<CollectionMeta>),
+      FundingDao.fromCollectionDb(item as TFundingCollectionDb<CollectionMeta>),
     );
   }
 
@@ -789,7 +931,9 @@ export class FundingDao<
     return {
       items:
         result.Items?.map((item) =>
-          this.fromCollectionDb(item as TFundingCollectionDb<CollectionMeta>),
+          FundingDao.fromCollectionDb(
+            item as TFundingCollectionDb<CollectionMeta>,
+          ),
         ) ?? [],
       cursor,
       page,
@@ -832,7 +976,7 @@ export class FundingDao<
     if (!response.Attributes) {
       throw new Error("Collection not found");
     }
-    return this.fromCollectionDb(
+    return FundingDao.fromCollectionDb(
       response.Attributes as TFundingCollectionDb<CollectionMeta>,
     );
   }
@@ -850,6 +994,8 @@ export class FundingDao<
     fundingTxid,
     fundingVout,
     lastChecked,
+    nextCheckAt,
+    createdAt,
     tipAmountDestination,
     tipAmountSat,
     farcasterFid,
@@ -871,15 +1017,16 @@ export class FundingDao<
       ...(fundingTxid && { fundingTxid }),
       ...(fundingVout && { fundingVout }),
       ...(lastChecked && { lastChecked: lastChecked.getTime() }),
+      ...(nextCheckAt && { nextCheckAt: nextCheckAt.getTime() }),
       ...(tipAmountDestination && { tipAmountDestination }),
       ...(tipAmountSat && { tipAmountSat }),
       ...(farcasterFid && { farcasterFid }),
+      ...(createdAt && { createdAt: createdAt.getTime() }),
     };
   }
 
   private toFundingDb<T extends Record<string, any>>({
     address,
-    contentIds,
     collectionId,
     destinationAddress,
     id,
@@ -891,6 +1038,8 @@ export class FundingDao<
     revealTxids,
     meta,
     lastChecked,
+    nextCheckAt,
+    createdAt,
     timesChecked,
     fundingAmountBtc,
     fundingAmountSat,
@@ -903,15 +1052,18 @@ export class FundingDao<
       id,
       address,
       collectionId,
-      contentIds,
       network,
       fundingStatus,
       timesChecked,
       fundingAmountBtc,
       fundingAmountSat,
       destinationAddress,
+      createdAt: createdAt.getTime(),
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: lastChecked.getTime(),
+      }),
+      ...(typeof nextCheckAt !== "undefined" && {
+        nextCheckAt: nextCheckAt.getTime(),
       }),
       ...(typeof tipAmountSat !== "undefined" && { tipAmountSat }),
       ...(typeof tipAmountDestination !== "undefined" && {
@@ -933,7 +1085,7 @@ export class FundingDao<
     };
   }
 
-  private toCollectionDb<T extends Record<string, any>>({
+  private static toCollectionDb<T extends Record<string, any>>({
     id,
     maxSupply,
     pendingCount,
@@ -961,7 +1113,7 @@ export class FundingDao<
     };
   }
 
-  private fromCollectionDb<T extends Record<string, any>>({
+  private static fromCollectionDb<T extends Record<string, any>>({
     collectionId,
     maxSupply,
     collectionName,
@@ -976,6 +1128,7 @@ export class FundingDao<
       totalCount: totalCount,
       pendingCount: pendingCount,
       meta: excludePrimaryKeys(meta) as T,
+      type: "collection",
     };
   }
 
@@ -990,6 +1143,8 @@ export class FundingDao<
     fundingVout,
     timesChecked,
     lastChecked,
+    nextCheckAt,
+    createdAt,
     fundingAmountBtc,
     fundingAmountSat,
     tipAmountDestination,
@@ -1012,8 +1167,12 @@ export class FundingDao<
       fundingAmountSat,
       destinationAddress,
       secKey,
+      createdAt: new Date(createdAt),
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: new Date(lastChecked),
+      }),
+      ...(typeof nextCheckAt !== "undefined" && {
+        nextCheckAt: new Date(nextCheckAt),
       }),
       ...(typeof fundingTxid !== "undefined" && { fundingTxid }),
       ...(typeof fundingVout !== "undefined" && { fundingVout }),
@@ -1025,11 +1184,10 @@ export class FundingDao<
     };
   }
 
-  private fromFundingDb<T extends Record<string, any>>({
+  private static fromFundingDb<T extends Record<string, any>>({
     id,
     address,
     collectionId,
-    contentIds,
     destinationAddress,
     network,
     fundingStatus,
@@ -1039,6 +1197,8 @@ export class FundingDao<
     revealTxids,
     timesChecked,
     lastChecked,
+    nextCheckAt,
+    createdAt,
     fundingAmountBtc,
     fundingAmountSat,
     tipAmountDestination,
@@ -1047,7 +1207,6 @@ export class FundingDao<
   }: TFundingDb<T>): IAddressInscriptionModel<T> {
     return {
       address,
-      contentIds,
       id: toAddressInscriptionId(id),
       network: toBitcoinNetworkName(network),
       fundingStatus: fundingStatus as TFundingStatus,
@@ -1055,8 +1214,13 @@ export class FundingDao<
       fundingAmountBtc,
       fundingAmountSat,
       destinationAddress,
+      type: "address-inscription",
+      createdAt: new Date(createdAt),
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: new Date(lastChecked),
+      }),
+      ...(typeof nextCheckAt !== "undefined" && {
+        nextCheckAt: new Date(nextCheckAt),
       }),
       ...(typeof fundingTxid !== "undefined" && { fundingTxid }),
       ...(typeof fundingVout !== "undefined" && { fundingVout }),
@@ -1071,5 +1235,15 @@ export class FundingDao<
       }),
       meta: excludePrimaryKeys(meta) as T,
     };
+  }
+
+  public static recordToModel<T extends Record<string, any>>(record: {
+    [key: string]: DynamoDBAttributeValue | LambdaAttributeValue;
+  }): IAddressInscriptionModel<T> | TCollectionModel<T> {
+    const dbRecord = unmarshall(record as unknown as DynamoDBAttributeValue);
+    const isCollection = dbRecord.sk === "collection";
+    return isCollection
+      ? FundingDao.fromCollectionDb(dbRecord as TFundingCollectionDb<T>)
+      : FundingDao.fromFundingDb(dbRecord as TFundingDb<T>);
   }
 }

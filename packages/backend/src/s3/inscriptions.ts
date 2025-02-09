@@ -24,8 +24,14 @@ export class FundingDocDao implements IFundingDocDao {
   }: Parameters<IFundingDocDao["transactionKey"]>[0]) {
     return `address/${fundingAddress}/inscriptions/${id}/transaction.json`;
   }
-  public transactionContentKey({ id, tapKey, fundingAddress }: InscriptionId) {
-    return `address/${fundingAddress}/inscriptions/${id}/content/${tapKey}.json`;
+  public transactionContentKey({
+    id,
+    fundingAddress,
+    inscriptionIndex,
+  }: InscriptionId) {
+    return `address/${fundingAddress}/inscriptions/${id}/content/${inscriptionIndex
+      .toString()
+      .padStart(4, "0")}.json`;
   }
   public async updateOrSaveInscriptionTransaction(item: TInscriptionDoc) {
     const { fundingAddress } = item;
@@ -38,7 +44,7 @@ export class FundingDocDao implements IFundingDocDao {
         }),
         Body: JSON.stringify(item),
         ContentType: "application/json",
-      })
+      }),
     );
   }
 
@@ -53,7 +59,7 @@ export class FundingDocDao implements IFundingDocDao {
         Key: this.transactionContentKey(id),
         Body: JSON.stringify(item),
         ContentType: "application/json",
-      })
+      }),
     );
   }
 
@@ -62,7 +68,7 @@ export class FundingDocDao implements IFundingDocDao {
       new GetObjectCommand({
         Bucket: this.bucket,
         Key: this.transactionContentKey(id),
-      })
+      }),
     );
     if (!response.Body) {
       throw new Error("No body returned from S3");
@@ -72,13 +78,13 @@ export class FundingDocDao implements IFundingDocDao {
   }
 
   async getInscriptionTransaction(
-    request: Parameters<IFundingDocDao["getInscriptionTransaction"]>[0]
+    request: Parameters<IFundingDocDao["getInscriptionTransaction"]>[0],
   ): Promise<TInscriptionDoc> {
     const response = await this.s3Client.send(
       new GetObjectCommand({
         Bucket: this.bucket,
         Key: this.transactionKey(request),
-      })
+      }),
     );
     if (!response.Body) {
       throw new Error("No body returned from S3");

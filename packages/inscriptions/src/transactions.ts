@@ -5,6 +5,7 @@ import { BrotliOptions, brotliCompress, constants } from "zlib";
 import { promisify } from "util";
 import {
   Address,
+  OutputData,
   Script,
   Signer,
   Tap,
@@ -216,9 +217,8 @@ export async function generateFundingAddress({
     );
   }
 
-  const inscriptionsToWrite: WritableInscription[] = [];
-  let total_fee = 0;
-  const base_size = 160;
+  const inscriptionsToWrite: Omit<WritableInscription, "destinationAddress">[] =
+    [];
 
   const datas = await Promise.all(
     files.map(async ({ mimetype, compress, content }) => {
@@ -249,106 +249,110 @@ export async function generateFundingAddress({
     }),
   );
 
+  // Build one master script containing all inscriptions
+  const masterScript: (string | Uint8Array)[] = [pubkey, "OP_CHECKSIG"];
+  let totalSize = 0;
+
   for (let i = 0; i < files.length; i++) {
     const [compress, data] = datas[i];
     const metadata = files[i].metadata;
     const mimetype = ec.encode(files[i].mimetype);
 
-    // chunk metadataCbor into 520 byte chunks
-    const chunks = [];
+    // Start inscription
+    masterScript.push("OP_0", "OP_IF");
+    masterScript.push(ec.encode("ord"), "01", mimetype);
+
+    // Add pointer for all inscriptions after first one
+    if (i > 0) {
+      masterScript.push("02", new Uint8Array([i * padding])); // Little-endian pointer to output index
+    }
+
+    // Add parent inscription references if any
+    if (parentInscriptions && parentInscriptions.length > 0) {
+      parentInscriptions.forEach(({ txid, index }) => {
+        masterScript.push(
+          "03",
+          serializeTxidAndIndexWithStripping(txid, index),
+        );
+      });
+    }
+
+    // Add metadata if any
     if (metadata) {
       const metadataCbor = cborEncode(metadata);
-      for (let i = 0; i < metadataCbor.byteLength; i += 520) {
-        chunks.push(Uint8Array.prototype.slice.call(metadataCbor, i, i + 520));
+      for (let j = 0; j < metadataCbor.byteLength; j += 520) {
+        const chunk = Uint8Array.prototype.slice.call(metadataCbor, j, j + 520);
+        masterScript.push("05", chunk);
       }
     }
-    const script: (string | Uint8Array)[] = [
-      pubkey,
-      "OP_CHECKSIG",
-      "OP_0",
-      "OP_IF",
-      ec.encode("ord"),
-      "01",
-      mimetype,
-      ...(parentInscriptions && parentInscriptions?.length > 0
-        ? parentInscriptions
-            .map(({ txid, index }) => [
-              "03",
-              serializeTxidAndIndexWithStripping(txid, index),
-            ])
-            .flat()
-        : []),
-      ...chunks.map((chunk) => ["05", chunk]).flat(),
-      ...(compress ? ["09", ec.encode("br")] : []),
-      "OP_0",
-      data,
-      "OP_ENDIF",
-    ];
 
-    const leaf = Tap.tree.getLeaf(Script.encode(script));
-    const [tapKey, cblock] = Tap.getPubKey(pubkey, { target: leaf });
+    // Add compression flag if needed
+    if (compress) {
+      masterScript.push("09", ec.encode("br"));
+    }
 
-    const inscriptionAddress = Address.p2tr.encode(
-      tapKey,
-      networkNamesToTapScriptName(network),
-    );
-
-    const txsize = data.byteLength;
-    const fee = Math.ceil(feeRate * txsize);
-    total_fee += fee;
+    // Add content
+    masterScript.push("OP_0", data, "OP_ENDIF");
 
     inscriptionsToWrite.push({
-      leaf: leaf,
-      tapkey: tapKey,
-      cblock: cblock,
-      inscriptionAddress: inscriptionAddress,
-      txsize: txsize,
-      fee: fee,
-      script: scriptDataToSerializedScript(script),
+      pointerIndex: i,
       file: files[i],
     });
+
+    totalSize += data.byteLength;
   }
 
-  // we are covering 2 times the same outputs, once for seeder, once for the inscribers
-  let total_fees =
-    total_fee +
-    (69 + inscriptionsToWrite.length * 2 * 31 + 10) * feeRate +
-    base_size * inscriptionsToWrite.length +
-    padding * inscriptionsToWrite.length;
+  const leaf = Tap.tree.getLeaf(Script.encode(masterScript));
+  const [tapKey, cblock] = Tap.getPubKey(pubkey, { target: leaf });
+
+  const inscriptionAddress = Address.p2tr.encode(
+    tapKey,
+    networkNamesToTapScriptName(network),
+  );
+
+  // Generate the reveal transaction
+  const inscriptionsToWriteWithDestination = inscriptionsToWrite.map(
+    (inscription) => ({
+      ...inscription,
+      destinationAddress: inscriptionAddress,
+    }),
+  );
+  const revealTx = await generateGenesisTransactionData({
+    amount:
+      (69 + inscriptionsToWrite.length * 2 * 31 + 10) * feeRate +
+      padding * inscriptionsToWrite.length,
+    fee: 0,
+    initCBlock: init_cblock,
+    initLeaf: init_leaf,
+    initScript: init_script,
+    initTapKey: init_tapkey,
+    secKey: secKey,
+    txid: "a99d1112bcb35845fd44e703ef2c611f0360dd2bb28927625dbc13eab58cd968",
+    vout: 0,
+  });
+  const { vsize } = Tx.util.getTxSize(revealTx);
+  const feeSize = Math.ceil(feeRate * vsize);
+  // Now that we have the actual fee size, we can calculate the actual amount
+  const amount = padding * inscriptionsToWrite.length + tip + feeSize;
 
   const fundingAddress = Address.p2tr.encode(
     init_tapkey,
     networkNamesToTapScriptName(network),
   );
 
-  if (!isNaN(tip) && tip >= 500) {
-    total_fees += 50 * feeRate + tip;
-  }
-  total_fees = Math.ceil(total_fees);
   let qr_value =
-    "bitcoin:" +
-    fundingAddress +
-    "?amount=" +
-    satsToBitcoin(BigInt(total_fees));
+    "bitcoin:" + fundingAddress + "?amount=" + satsToBitcoin(BigInt(amount));
 
-  let overhead = total_fees - total_fee - padding * inscriptions.length - tip;
-
-  if (isNaN(overhead)) {
-    overhead = 0;
-  }
-
-  if (isNaN(tip)) {
-    tip = 0;
-  }
+  const overhead = amount - feeSize;
 
   return {
     fundingAddress,
-    amount: satsToBitcoin(BigInt(total_fees)),
+    amount: satsToBitcoin(BigInt(amount)),
     qrValue: qr_value,
     qrSrc: await createQR(qr_value),
     files,
-    totalFee: total_fee,
-    inscriptionsToWrite,
+    totalFee: feeSize,
+    inscriptionsToWrite: inscriptionsToWriteWithDestination,
     overhead,
     padding,
     initScript: scriptDataToSerializedScript(init_script),
@@ -419,13 +423,10 @@ export async function generateRefundTransaction({
 }
 
 export interface GenesisTransactionRequest {
-  inscriptions: WritableInscription[];
   txid: string;
   vout: number;
   amount: number;
-  tip?: number;
-  padding: number;
-  tippingAddress?: string;
+  fee: number;
   initScript: BitcoinScriptData[];
   initTapKey: string;
   initLeaf: string;
@@ -433,35 +434,23 @@ export interface GenesisTransactionRequest {
   secKey: cryptoUtils.SecretKey;
 }
 
-export async function generateGenesisTransaction({
-  inscriptions,
+export async function generateGenesisTransactionData({
   txid,
   vout,
   amount,
-  tip,
-  padding,
-  tippingAddress,
   initScript,
   initTapKey,
   initLeaf,
   initCBlock,
   secKey,
-}: GenesisTransactionRequest) {
-  let outputs: TxTemplate["vout"] = [];
-
-  for (let i = 0; i < inscriptions.length; i++) {
-    outputs.push({
-      value: padding + inscriptions[i].fee,
-      scriptPubKey: ["OP_1", inscriptions[i].tapkey],
-    });
-  }
-
-  if (tip && tippingAddress && !isNaN(tip) && tip >= 500) {
-    outputs.push({
-      value: tip,
-      scriptPubKey: Address.decode(tippingAddress).script,
-    });
-  }
+  fee,
+}: GenesisTransactionRequest): Promise<TxData> {
+  let outputs: TxTemplate["vout"] = [
+    {
+      value: fee,
+      scriptPubKey: ["OP_1", initTapKey],
+    },
+  ];
 
   const initRedeemTx = Tx.create({
     vin: [
@@ -484,126 +473,426 @@ export async function generateGenesisTransaction({
     serializedScriptToScriptData(initScript),
     initCBlock,
   ];
+  return initRedeemTx;
+}
+
+export async function generateGenesisTransaction({
+  txid,
+  vout,
+  amount,
+  initScript,
+  initTapKey,
+  initLeaf,
+  initCBlock,
+  secKey,
+  fee,
+}: GenesisTransactionRequest) {
+  const initRedeemTx = await generateGenesisTransactionData({
+    txid,
+    vout,
+    amount,
+    initScript,
+    initTapKey,
+    initLeaf,
+    initCBlock,
+    secKey,
+    fee,
+  });
 
   let rawTx = Tx.encode(initRedeemTx).hex;
   return rawTx as string;
 }
 
 export interface RevealTransactionRequest {
-  inscription: WritableInscription;
-  vout: number;
-  txid: string;
-  amount: number;
-  address: string;
-  secKey: cryptoUtils.SecretKey;
+  inputs: {
+    leaf: string;
+    tapkey: string;
+    cblock: string;
+    script: BitcoinScriptData[];
+    vout: number;
+    txid: string;
+    amount: number;
+    address: string;
+    secKey: cryptoUtils.SecretKey;
+    padding: number;
+    inscriptions: WritableInscription[];
+  }[];
+
   parentTxs?: (Required<TxTemplate>["vin"]["0"] & {
     value: number;
     secKey: cryptoUtils.SecretKey;
     parentVout: Required<TxTemplate>["vout"]["0"];
   })[];
+
+  // If you leave this empty, the fee will be paid to the miners
+  feeDestinations?: {
+    address: string;
+    percentage: number; // Percentage of available fee (0-100)
+  }[];
+
+  readonly feeRateRange: [number, number]; // sats/vbyte [highest, lowest]
+  readonly feeTarget?: number; // in sats, if not provided, the fee will be paid to the miners
 }
 
 export function generateRevealTransaction({
-  address,
-  inscription,
-  vout,
-  txid,
-  amount,
-  secKey,
-}: RevealTransactionRequest): string {
-  return Tx.encode(
-    generateRevealTransactionData({
-      address,
-      inscription,
-      vout,
-      txid,
-      amount,
-      secKey,
-    }),
-  ).hex;
+  inputs,
+  parentTxs,
+  feeDestinations,
+  feeRateRange,
+}: RevealTransactionRequest): {
+  hex: string;
+  platformFee: number;
+  minerFee: number;
+  underpriced?: boolean;
+} {
+  const result = generateRevealTransactionDataIteratively({
+    inputs,
+    parentTxs,
+    feeDestinations,
+    feeRateRange,
+  });
+  return {
+    hex: Tx.encode(result.txData).hex,
+    platformFee: result.platformFee,
+    underpriced: result.underpriced,
+    minerFee: result.minerFee,
+  };
 }
 
-export function generateRevealTransactionData({
-  address,
-  inscription,
-  vout,
-  txid,
-  amount,
-  secKey,
-  parentTxs,
-}: RevealTransactionRequest): TxData {
-  const redeemTx = Tx.create({
-    vin: [
-      ...(parentTxs?.map(({ parentVout: _, value, secKey, ...vin }) => {
-        let pubKey = secKey.pub.x;
+export function generateRevealTransactionDataIteratively(
+  request: RevealTransactionRequest,
+): {
+  txData: TxData;
+  feeRate: number;
+  platformFee: number;
+  underpriced?: boolean;
+  minerFee: number;
+} {
+  const [highestFeeRate, lowestFeeRate] = request.feeRateRange;
 
-        const [tPub] = Tap.getPubKey(pubKey);
-        return {
-          ...vin,
-          prevout: {
-            value,
-            scriptPubKey: ["OP_1", tPub],
-          },
-        };
-      }) || []),
-      {
-        txid,
-        vout,
-        prevout: {
-          value: amount,
-          scriptPubKey: ["OP_1", inscription.tapkey],
-        },
-      },
-    ],
-    vout: [
-      ...(parentTxs?.map(({ parentVout }) => parentVout) || []),
-      {
-        value: amount - inscription.fee,
-        scriptPubKey: ["OP_1", Address.p2tr.decode(address).hex],
-      },
-    ],
-  });
+  // Outer iterative search over fee rates
+  let currentRate = highestFeeRate;
+  while (currentRate >= lowestFeeRate) {
+    const maybeTx = buildTxAtFeeRate(request, currentRate);
+    if (maybeTx) {
+      return {
+        txData: maybeTx.txData,
+        feeRate: currentRate,
+        platformFee: maybeTx.platformFee,
+        minerFee: maybeTx.minerFee,
+      }; // Found a valid transaction at this rate
+    }
 
-  // If there are parent transactions inputs, sign them
-  if (parentTxs) {
-    for (let i = 0; i < parentTxs?.length || 0; i++) {
-      const { secKey } = parentTxs[i];
-      let pubKey = secKey.pub.x;
+    // Drop the fee rate (could do -1 sats/vB, or multiply by 0.95, etc.)
+    currentRate = Math.floor(currentRate * 0.95);
+  }
 
-      const [tPub] = Tap.getPubKey(pubKey);
-      const [tSecKey] = Tap.getSecKey(secKey);
+  // Try one last time at lowest fee rate
+  const lastTry = buildTxAtFeeRate(request, lowestFeeRate);
+  if (lastTry) {
+    return {
+      txData: lastTry.txData,
+      feeRate: lowestFeeRate,
+      platformFee: lastTry.platformFee,
+      underpriced: true,
+      minerFee: lastTry.minerFee,
+    };
+  }
 
-      const sig = Signer.taproot.sign(tSecKey, redeemTx, i);
-      redeemTx.vin[i].witness = [sig];
-      const isValid = Signer.taproot.verifyTx(redeemTx, i, {
-        pubkey: tPub,
-      });
-      if (!isValid) {
-        throw new Error("Invalid signature");
-      }
+  // If we still can't build it at lowest rate, try with no platform fee
+  const finalAttempt = buildTxAtFeeRate(
+    {
+      ...request,
+      feeDestinations: undefined,
+    },
+    lowestFeeRate,
+  );
+
+  if (!finalAttempt) {
+    throw new Error(
+      "Cannot create valid transaction even with no platform fee",
+    );
+  }
+
+  return {
+    txData: finalAttempt.txData,
+    feeRate: lowestFeeRate,
+    platformFee: 0,
+    underpriced: true,
+    minerFee: finalAttempt.minerFee,
+  };
+}
+
+/**
+ * Tries to build a valid transaction at a given feeRate.
+ * Returns TxData if successful, or null if no valid distribution found.
+ */
+function buildTxAtFeeRate(
+  request: RevealTransactionRequest,
+  feeRate: number,
+): { txData: TxData; platformFee: number; minerFee: number } | null {
+  // 1) Build base skeleton: mandatory inputs/outputs for padding and inscriptions
+  const { txSkeleton, witnessSigners } = buildSkeleton(request);
+
+  // 2) Estimate base size and compute minimal miner fee
+  let baseVSize = 0;
+  try {
+    baseVSize = Tx.util.getTxSize(txSkeleton).vsize;
+  } catch {
+    console.log(
+      "Invalid or can't estimate",
+      JSON.stringify(txSkeleton, null, 2),
+    );
+    // If we can't even size it, bail
+    return null;
+  }
+  const baseMinerFee = Math.ceil(feeRate * baseVSize);
+
+  // 3) Check that we have enough input to pay for required padding + base miner fee
+  const totalInputAmount = getTotalInputAmount(request);
+  const requiredPadding = getRequiredPaddingAmount(request);
+  if (totalInputAmount < requiredPadding + baseMinerFee) {
+    // Not possible at this fee rate
+    return null;
+  }
+
+  // 4) If no feeDestinations, sign and return
+  const leftoverForFees = totalInputAmount - requiredPadding;
+  if (!request.feeDestinations || request.feeDestinations.length === 0) {
+    // Just sign it with the base miner fee in mind. (We assume leftover covers the base fee.)
+    signAllVin(txSkeleton, witnessSigners);
+    return { txData: txSkeleton, platformFee: 0, minerFee: baseMinerFee };
+  }
+
+  // 5) We do an inner loop for platform-fee distributions (just an example approach)
+  const feePercentCandidates = [100, 95, 90, 85, 80, 75];
+  for (const platformFeePercent of feePercentCandidates) {
+    const maybeTxData = tryPlatformFeeDistribution(
+      txSkeleton,
+      witnessSigners,
+      leftoverForFees,
+      baseMinerFee,
+      request.feeDestinations,
+      feeRate,
+      platformFeePercent,
+      request.feeTarget,
+    );
+    if (maybeTxData) {
+      return {
+        ...maybeTxData,
+        minerFee: baseMinerFee,
+      };
     }
   }
-  const sig = Signer.taproot.sign(
-    secKey.raw,
-    redeemTx,
-    redeemTx.vin.length - 1,
-    {
-      extension: inscription.leaf,
-    },
-  );
-  redeemTx.vin[redeemTx.vin.length - 1].witness = [
-    sig.hex,
-    serializedScriptToScriptData(inscription.script),
-    inscription.cblock,
-  ];
 
-  const pubKey = secKey.pub.x;
-  const isValid = Signer.taproot.verifyTx(redeemTx, redeemTx.vin.length - 1, {
-    pubkey: pubKey,
+  // 6) If we didn't succeed in that range, optionally try going from 70% down to 0%
+  //    or handle that logic in the same function. Your call.
+  //    e.g.:
+  for (let pct = 70; pct >= 0; pct -= 5) {
+    const maybeTxData = tryPlatformFeeDistribution(
+      txSkeleton,
+      witnessSigners,
+      leftoverForFees,
+      baseMinerFee,
+      request.feeDestinations,
+      feeRate,
+      pct,
+      request.feeTarget,
+    );
+    if (maybeTxData) {
+      return {
+        ...maybeTxData,
+        minerFee: baseMinerFee,
+      };
+    }
+  }
+
+  // 7) If no distribution works, return null
+  return null;
+}
+
+/**
+ * Attempts a specific platform fee distribution given a transaction skeleton.
+ * Returns a signed TxData if successful, or null if not feasible.
+ */
+function tryPlatformFeeDistribution(
+  skeleton: TxData,
+  witnessSigners: Array<() => TxData["vin"][number]["witness"]>,
+  leftover: number,
+  minerFee: number,
+  feeDestinations: { address: string; percentage: number }[],
+  feeRate: number,
+  platformFeePercent: number,
+  feeTarget?: number,
+): { txData: TxData; platformFee: number } | null {
+  // Clone the skeleton so we don't mutate the original
+  const tempTxData: TxData = {
+    version: skeleton.version,
+    locktime: skeleton.locktime,
+    vin: skeleton.vin.map((vin) => ({ ...vin })),
+    vout: [...skeleton.vout], // shallow copy
+  };
+
+  const totalPct = feeDestinations.reduce((s, d) => s + d.percentage, 0);
+  const allocatedToPlatform = leftover * (platformFeePercent / 100);
+
+  // Build platform outputs
+  const platformOutputs = feeDestinations.map((dest) => {
+    const share = Math.floor(
+      (allocatedToPlatform * dest.percentage) / totalPct,
+    );
+    return {
+      value: share,
+      scriptPubKey: ["OP_1", Address.p2tr.decode(dest.address).hex],
+    } as OutputData;
   });
 
-  if (!isValid) {
-    throw new Error("Invalid signature");
+  // Add platform outputs temporarily
+  tempTxData.vout.push(...platformOutputs);
+
+  // Recalculate final size + total fee at the new outputs
+  let newVSize = 0;
+  try {
+    newVSize = Tx.util.getTxSize(tempTxData).vsize;
+  } catch {
+    // Invalid or can't estimate
+    tempTxData.vout.splice(-platformOutputs.length);
+    return null;
   }
-  return redeemTx;
+  const totalFeeNeeded = Math.ceil(feeRate * newVSize);
+
+  // If leftover can't cover total fees, revert and return null
+  if (leftover < totalFeeNeeded) {
+    tempTxData.vout.splice(-platformOutputs.length);
+    return null;
+  }
+
+  // Optionally check target platform fee if feeTarget was set
+  const actualPlatformFee = allocatedToPlatform - (totalFeeNeeded - minerFee);
+  if (feeTarget && actualPlatformFee < feeTarget * 0.75) {
+    // Not enough platform fee to bother, revert
+    tempTxData.vout.splice(-platformOutputs.length);
+    return null;
+  }
+
+  // If we reach here, it's valid:
+  // Sign inputs
+  signAllVin(tempTxData, witnessSigners);
+
+  return { txData: tempTxData, platformFee: actualPlatformFee };
+}
+
+/** Build a base transaction skeleton with mandatory inputs/outputs only. */
+function buildSkeleton(request: RevealTransactionRequest): {
+  txSkeleton: TxData;
+  witnessSigners: Array<() => TxData["vin"][number]["witness"]>;
+} {
+  const { inputs, parentTxs } = request;
+  const witnessSigners: Array<() => TxData["vin"][number]["witness"]> = [];
+  const vin: TxTemplate["vin"] = [];
+
+  // Parent TXs
+  parentTxs?.forEach((pTx, i) => {
+    const pubKey = pTx.secKey.pub.x;
+    const [tPub] = Tap.getPubKey(pubKey);
+    witnessSigners.push(() => {
+      const sig = Signer.taproot.sign(
+        Tap.getSecKey(pTx.secKey)[0],
+        txSkeleton,
+        i,
+      );
+      if (!Signer.taproot.verifyTx(txSkeleton, i, { pubkey: tPub })) {
+        throw new Error("Invalid signature (parentTx)");
+      }
+      return [sig];
+    });
+    vin.push({
+      txid: pTx.txid,
+      vout: pTx.vout,
+      prevout: {
+        value: pTx.value,
+        scriptPubKey: ["OP_1", tPub],
+      },
+    });
+  });
+
+  // Inputs & Inscriptions
+  let indexOffset = parentTxs?.length ?? 0;
+  inputs.forEach((input, i) => {
+    witnessSigners.push(() => {
+      const sig = Signer.taproot.sign(
+        input.secKey.raw,
+        txSkeleton,
+        indexOffset + i,
+        {
+          extension: input.leaf,
+        },
+      );
+      return [
+        sig.hex,
+        serializedScriptToScriptData(input.script),
+        input.cblock,
+      ];
+    });
+
+    vin.push({
+      txid: input.txid,
+      vout: input.vout,
+      prevout: {
+        value: input.amount,
+        scriptPubKey: ["OP_1", input.tapkey],
+      },
+    });
+  });
+
+  // Build base outputs
+  const vout: TxTemplate["vout"] = [];
+
+  // Parent outputs
+  parentTxs?.forEach((pTx) => {
+    vout.push(pTx.parentVout);
+  });
+
+  // Inscription outputs
+  inputs.forEach((input) => {
+    input.inscriptions.forEach((inscription) => {
+      vout.push({
+        value: input.padding,
+        scriptPubKey: Address.toScriptPubKey(inscription.destinationAddress),
+      });
+    });
+  });
+
+  const txSkeleton: TxData = Tx.create({ vin, vout });
+  return { txSkeleton, witnessSigners };
+}
+
+/** Signs all vin with the stored witness signers. */
+function signAllVin(
+  txData: TxData,
+  signers: Array<() => TxData["vin"][number]["witness"]>,
+) {
+  for (let i = 0; i < signers.length; i++) {
+    txData.vin[i].witness = signers[i]();
+  }
+}
+
+/** Sums total input from parentTxs + inputs. */
+function getTotalInputAmount(request: RevealTransactionRequest): number {
+  const parentAmount =
+    request.parentTxs?.reduce((sum, p) => sum + p.value, 0) ?? 0;
+  const inputAmount = request.inputs.reduce((sum, inp) => sum + inp.amount, 0);
+  return parentAmount + inputAmount;
+}
+
+/** Computes required padding from inputs. */
+function getRequiredPaddingAmount(request: RevealTransactionRequest): number {
+  const totalInscriptions = request.inputs.reduce(
+    (acc, i) => acc + i.inscriptions.length,
+    0,
+  );
+  const parentCount = request.parentTxs?.length ?? 0;
+  // For simplicity, assume all inputs have the same padding. If they differ, you can adapt.
+  const perInputPadding = request.inputs[0]?.padding ?? 0;
+  return (totalInscriptions + parentCount) * perInputPadding;
 }

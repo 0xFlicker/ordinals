@@ -14,8 +14,8 @@ type InscriptionFactoryFn<T extends AxolotlModel> = (
   config: {
     scriptUrl: string;
     revealDelta: number;
-    tipAddress?: string;
-    tipAmount?: number;
+    tipAddress: string;
+    tipAmount: number;
   },
 ) => Promise<T>;
 
@@ -34,8 +34,8 @@ export async function openEditionStrategy<T extends AxolotlModel>(
     claimCount: number;
     destinationAddress: `0x${string}`;
     collectionId: ID_Collection;
-    tipAmount?: number;
-    tipAddress?: string;
+    tipAmount: number;
+    tipAddress: string;
     revealDelta: number;
     scriptUrl: string;
     inscriptionFactory: InscriptionFactoryFn<T>;

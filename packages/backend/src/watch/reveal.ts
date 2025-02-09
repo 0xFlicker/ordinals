@@ -160,12 +160,16 @@ export function watchForGenesis(
       const { txid, vout, amount } = mempoolResponse;
       return from([
         generateRevealTransaction({
-          address: funded.destinationAddress,
-          amount,
-          inscription,
-          secKey: new SecretKey(Buffer.from(doc.secKey, "hex")),
-          txid,
-          vout,
+          // address: funded.destinationAddress,
+          // amount,
+          // inscription,
+          // secKey: new SecretKey(Buffer.from(doc.secKey, "hex")),
+          // txid,
+          // vout,
+          inputs: [{
+            address: funded.destinationAddress,
+            amount: doc.
+          }]
         }),
       ]).pipe(
         mergeMap((revealTx) => {

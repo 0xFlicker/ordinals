@@ -4,14 +4,22 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "start": "node --loader ts-node/esm ./src/index.ts | bunyan --output short"
+    "start": "node --loader ts-node/esm ./src/index.ts | bunyan --output short",
+    "start:local": "DEPLOYMENT=localstack node --loader ts-node/esm ./src/index.ts | bunyan --output short",
+    "schema:types": "yarn graphql-codegen --config codegen.ts"
   },
   "devDependencies": {
     "@0xflick/tsconfig": "*",
+    "@graphql-codegen/typescript": "^4.0.1",
+    "@graphql-codegen/typescript-graphql-request": "^5.0.0",
+    "@graphql-codegen/typescript-operations": "^4.0.1",
+    "@types/aws-lambda": "^8.10.147",
     "bunyan": "^1.8.15",
     "typescript": "5.1.3"
   },
   "dependencies": {
-    "@mempool/mempool.js": "^2.3.0"
+    "@aws-sdk/util-dynamodb": "^3.731.1",
+    "@mempool/mempool.js": "^2.3.0",
+    "graphql-request": "^6.1.0"
   }
 }

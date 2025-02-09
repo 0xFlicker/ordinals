@@ -8,7 +8,9 @@ import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as s3n from "aws-cdk-lib/aws-s3-notifications";
 import * as apigw2 from "aws-cdk-lib/aws-apigatewayv2";
+
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { textFromSecret } from "./utils/files.js";
 import { copyFileSync } from "fs";
@@ -68,7 +70,7 @@ function compileGraphql() {
     platform: "node",
     target: "node20",
     format: "esm",
-    external: ["aws-sdk"],
+    external: ["aws-sdk", "@aws-sdk/*"],
     inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
     sourcemap: true,
   });
@@ -80,6 +82,31 @@ function compileGraphql() {
   return finalDir;
 }
 
+function compileS3CollectionMetaUpdate() {
+  const outfile = path.join(
+    cdk.FileSystem.mkdtemp("s3-collection-meta-update"),
+    "index.mjs",
+  );
+  buildSync({
+    entryPoints: [
+      path.join(
+        __dirname,
+        "../../apps/functions/src/lambdas/s3-collection-meta-update.ts",
+      ),
+    ],
+    outfile,
+    bundle: true,
+    platform: "node",
+    target: "node20",
+    format: "esm",
+    external: ["aws-sdk", "@aws-sdk/*"],
+    inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
+    sourcemap: true,
+  });
+  const finalDir = path.dirname(outfile);
+  return finalDir;
+}
+
 interface GraphqlProps {
   readonly domainName: string;
   readonly rbacTable: dynamodb.ITable;
@@ -87,7 +114,8 @@ interface GraphqlProps {
   readonly fundingTable: dynamodb.ITable;
   readonly claimsTable: dynamodb.ITable;
   readonly openEditionClaimsTable: dynamodb.ITable;
-  readonly inscriptionBucket?: s3.IBucket;
+  readonly inscriptionBucket: s3.IBucket;
+  readonly uploadBucket: s3.IBucket;
 }
 
 export class Graphql extends Construct {
@@ -103,17 +131,12 @@ export class Graphql extends Construct {
       rbacTable,
       userNonceTable,
       inscriptionBucket,
+      uploadBucket,
     }: GraphqlProps,
   ) {
     super(scope, id);
 
     const graphqlCodeDir = compileGraphql();
-
-    inscriptionBucket =
-      inscriptionBucket ??
-      new s3.Bucket(this, "InscriptionBucket", {
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
-      });
 
     const graphqlLambda = new lambda.Function(this, "GraphqlHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -131,6 +154,9 @@ export class Graphql extends Construct {
           openEditionClaims: openEditionClaimsTable.tableName,
         }),
         INSCRIPTION_BUCKET: inscriptionBucket.bucketName,
+        UPLOAD_BUCKET: uploadBucket.bucketName,
+        FUNDING_TABLE_STREAM_ARN: fundingTable.tableStreamArn ?? "null",
+        FUNDING_STREAM_REGION: "us-east-1",
         ...withSecretEnv(`${domainName}/.env.graphql`),
       },
     });
@@ -141,6 +167,29 @@ export class Graphql extends Construct {
     claimsTable.grantReadWriteData(graphqlLambda);
     openEditionClaimsTable.grantReadWriteData(graphqlLambda);
     inscriptionBucket.grantReadWrite(graphqlLambda);
+    uploadBucket.grantReadWrite(graphqlLambda);
+
+    const s3CollectionMetaUpdateCodeDir = compileS3CollectionMetaUpdate();
+    const s3CollectionMetaUpdateLambda = new lambda.Function(
+      this,
+      "S3CollectionMetaUpdateHandler",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        code: lambda.Code.fromAsset(s3CollectionMetaUpdateCodeDir),
+        handler: "index.handler",
+      },
+    );
+
+    rbacTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
+    userNonceTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
+    fundingTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
+    claimsTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
+    openEditionClaimsTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
+    uploadBucket.grantRead(s3CollectionMetaUpdateLambda);
+    uploadBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED_PUT,
+      new s3n.LambdaDestination(s3CollectionMetaUpdateLambda),
+    );
 
     const httpApi = new apigw2.HttpApi(this, "HttpApi", {
       description: "This service serves graphql.",

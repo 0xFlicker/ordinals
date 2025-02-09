@@ -7,20 +7,35 @@ input KeyValueInput {
   value: String!
 }
 
+type CollectionParentInscription {
+  parentInscriptionId: String
+  parentInscriptionFileName: String
+  parentInscriptionContentType: String
+  uploadUrl: String
+  multipartUploadId: String
+}
+
 type Collection {
   id: ID!
   name: String!
   totalCount: Int!
   pendingCount: Int!
   maxSupply: Int!
-
+  parentInscription: CollectionParentInscription
   metadata: [KeyValue!]!
   updateMetadata(metadata: [KeyValueInput!]!): Collection!
+}
+
+input CollectionParentInscriptionInput {
+  parentInscriptionId: String
+  parentInscriptionFileName: String
+  parentInscriptionContentType: String
 }
 
 input CollectionInput {
   name: String!
   maxSupply: Int!
+  parentInscription: CollectionParentInscriptionInput
   meta: String
 }
 
@@ -28,9 +43,18 @@ type Mutation {
   createCollection(input: CollectionInput!): Collection!
   deleteCollection(id: ID!): Boolean!
   collection(id: ID!): Collection!
+  createCollectionParentInscription(
+    collectionId: ID!
+    bitcoinNetwork: BitcoinNetwork!
+  ): InscriptionFunding!
 }
 
 type Query {
   collections: [Collection!]!
   collection(id: ID!): Collection!
+  signMultipartUpload(
+    multipartUploadId: String!
+    partNumber: Int!
+    fileName: String!
+  ): String!
 }

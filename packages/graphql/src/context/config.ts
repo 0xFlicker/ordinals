@@ -1,7 +1,9 @@
 import {
   awsEndpoint,
   awsRegion,
+  deploymentS3,
   inscriptionBucket,
+  uploadBucket,
   mainnetMempoolUrl,
   regtestMempoolUrl,
   testnetMempoolUrl,
@@ -93,11 +95,21 @@ export const sepoliaRpcUrl = lazySingleton(() => {
   return process.env.SEPOLIA_RPC_URL;
 });
 
+export const defaultTipDestination = lazySingleton(() => {
+  if (!process.env.DEFAULT_TIP_DESTINATION) {
+    throw new Error("DEFAULT_TIP_DESTINATION not set");
+  }
+  return process.env.DEFAULT_TIP_DESTINATION;
+});
+
 export interface IConfigContext {
   awsEndpoint?: string;
   awsRegion?: string;
+  deploymentS3?: string;
   inscriptionBucket: string;
+  uploadBucket: string;
   inscriptionTip: number;
+  defaultTipDestination: string;
   axolotlInscriptionTip: number;
   axolotlInscriptionTipDestination: string;
   axolotlAllowanceContractAddress: `0x${string}`;
@@ -124,11 +136,20 @@ export function createConfigContext(): IConfigContext {
     get awsRegion() {
       return awsRegion.get();
     },
+    get deploymentS3() {
+      return deploymentS3.get();
+    },
     get inscriptionBucket() {
       return inscriptionBucket.get();
     },
+    get uploadBucket() {
+      return uploadBucket.get();
+    },
     get inscriptionTip() {
       return inscriptionTip.get();
+    },
+    get defaultTipDestination() {
+      return defaultTipDestination.get();
     },
     get axolotlAllowanceChainId() {
       return axolotlAllowanceChainId.get();

@@ -120,13 +120,6 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
   }, [tokenReset, nonceReset, requestSignOut]);
 
   useEffect(() => {
-    if (isWeb3Connected && user && user.address !== address) {
-      console.log("User is authenticated, but address has changed");
-      signOut();
-    }
-  }, [user, address, signOut, isWeb3Connected]);
-
-  useEffect(() => {
     if (address && isUserRequestingSignIn && chainId) {
       fetchNonce({ variables: { address, chainId } })
         .then(() => {

@@ -141,6 +141,7 @@ export type Collection = {
   maxSupply: Scalars['Int']['output'];
   metadata: Array<KeyValue>;
   name: Scalars['String']['output'];
+  parentInscription?: Maybe<CollectionParentInscription>;
   pendingCount: Scalars['Int']['output'];
   totalCount: Scalars['Int']['output'];
   updateMetadata: Collection;
@@ -155,6 +156,22 @@ export type CollectionInput = {
   maxSupply: Scalars['Int']['input'];
   meta?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
+  parentInscription?: InputMaybe<CollectionParentInscriptionInput>;
+};
+
+export type CollectionParentInscription = {
+  __typename?: 'CollectionParentInscription';
+  multipartUploadId?: Maybe<Scalars['String']['output']>;
+  parentInscriptionContentType?: Maybe<Scalars['String']['output']>;
+  parentInscriptionFileName?: Maybe<Scalars['String']['output']>;
+  parentInscriptionId?: Maybe<Scalars['String']['output']>;
+  uploadUrl?: Maybe<Scalars['String']['output']>;
+};
+
+export type CollectionParentInscriptionInput = {
+  parentInscriptionContentType?: InputMaybe<Scalars['String']['input']>;
+  parentInscriptionFileName?: InputMaybe<Scalars['String']['input']>;
+  parentInscriptionId?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type FeeEstimate = {
@@ -286,11 +303,15 @@ export type Mutation = {
   axolotlFundingOpenEditionRequest: AxolotlOpenEditionResponse;
   collection: Collection;
   createCollection: Collection;
+  createCollectionParentInscription: InscriptionFunding;
   createRole: Role;
   deleteCollection: Scalars['Boolean']['output'];
   nonceBitcoin: Nonce;
   nonceEthereum: Nonce;
   nonceFrame: Nonce;
+  openCollectionClaim: OpenCollectionClaimResponse;
+  openCollectionCreate: OpenCollectionCreateResponse;
+  openCollectionCreatorUpload: OpenCollectionUploadResponse;
   presale: PresaleResponse;
   role: Role;
   signOutBitcoin: Scalars['Boolean']['output'];
@@ -312,6 +333,12 @@ export type MutationCollectionArgs = {
 
 export type MutationCreateCollectionArgs = {
   input: CollectionInput;
+};
+
+
+export type MutationCreateCollectionParentInscriptionArgs = {
+  bitcoinNetwork: BitcoinNetwork;
+  collectionId: Scalars['ID']['input'];
 };
 
 
@@ -339,6 +366,21 @@ export type MutationNonceEthereumArgs = {
 
 export type MutationNonceFrameArgs = {
   trustedBytes: Scalars['String']['input'];
+};
+
+
+export type MutationOpenCollectionClaimArgs = {
+  request: OpenCollectionClaimRequest;
+};
+
+
+export type MutationOpenCollectionCreateArgs = {
+  request: OpenCollectionCreateRequest;
+};
+
+
+export type MutationOpenCollectionCreatorUploadArgs = {
+  request: OpenCollectionCreatorUploadRequest;
 };
 
 
@@ -374,6 +416,135 @@ export type Nonce = {
   pubKey: Scalars['String']['output'];
   uri: Scalars['String']['output'];
   version?: Maybe<Scalars['String']['output']>;
+};
+
+export type OpenCollectionAvailableClaimedRequest = {
+  claimingAddress: Scalars['String']['input'];
+  collectionId: Scalars['ID']['input'];
+  destinationAddress?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type OpenCollectionAvailableFunding = {
+  __typename?: 'OpenCollectionAvailableFunding';
+  destinationAddress: Scalars['String']['output'];
+  funding?: Maybe<InscriptionFunding>;
+  id: Scalars['ID']['output'];
+  network?: Maybe<BitcoinNetwork>;
+  status: FundingStatus;
+  tokenIds: Array<Scalars['Int']['output']>;
+};
+
+export type OpenCollectionAvailableRequest = {
+  collectionId: Scalars['ID']['input'];
+  destinationAddress: Scalars['String']['input'];
+};
+
+export type OpenCollectionClaimRequest = {
+  claimingAddress: Scalars['String']['input'];
+  collectionId: Scalars['ID']['input'];
+  destinationAddress?: InputMaybe<Scalars['String']['input']>;
+  feeLevel?: InputMaybe<FeeLevel>;
+  feePerByte?: InputMaybe<Scalars['Int']['input']>;
+  network: BitcoinNetwork;
+};
+
+export type OpenCollectionClaimResponse = {
+  __typename?: 'OpenCollectionClaimResponse';
+  data?: Maybe<OpenCollectionData>;
+  problems?: Maybe<Array<OpenCollectionProblem>>;
+};
+
+export type OpenCollectionClaimedFunding = {
+  __typename?: 'OpenCollectionClaimedFunding';
+  claimingAddress: Scalars['String']['output'];
+  destinationAddress: Scalars['String']['output'];
+  funding?: Maybe<InscriptionFunding>;
+  id: Scalars['ID']['output'];
+  network?: Maybe<BitcoinNetwork>;
+  status: FundingStatus;
+  tokenId?: Maybe<Scalars['Int']['output']>;
+};
+
+export type OpenCollectionContents = {
+  __typename?: 'OpenCollectionContents';
+  tokenId: Scalars['Int']['output'];
+  url: Scalars['String']['output'];
+};
+
+export type OpenCollectionContentsResponse = {
+  __typename?: 'OpenCollectionContentsResponse';
+  cursor?: Maybe<Scalars['String']['output']>;
+  data?: Maybe<Array<OpenCollectionContents>>;
+  page: Scalars['Int']['output'];
+  problems?: Maybe<Array<OpenCollectionProblem>>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type OpenCollectionCreateData = {
+  __typename?: 'OpenCollectionCreateData';
+  id: Scalars['ID']['output'];
+  uploadUrl: Scalars['String']['output'];
+};
+
+export type OpenCollectionCreateRequest = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  maxSupply: Scalars['Int']['input'];
+  name: Scalars['String']['input'];
+  parentInscriptionId?: InputMaybe<Scalars['ID']['input']>;
+  requestParentInscription?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+export type OpenCollectionCreateResponse = {
+  __typename?: 'OpenCollectionCreateResponse';
+  data?: Maybe<OpenCollectionCreateData>;
+  problems?: Maybe<Array<OpenCollectionProblem>>;
+};
+
+export type OpenCollectionCreatorUploadRequest = {
+  collectionId: Scalars['ID']['input'];
+  tokenIds: Array<Scalars['Int']['input']>;
+};
+
+export type OpenCollectionData = {
+  __typename?: 'OpenCollectionData';
+  destinationAddress: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  inscriptionFunding?: Maybe<InscriptionFunding>;
+  tokenIds: Array<Scalars['Int']['output']>;
+};
+
+export type OpenCollectionFeeEstimate = {
+  __typename?: 'OpenCollectionFeeEstimate';
+  feePerByte: Scalars['Int']['output'];
+  tipPerTokenBtc: Scalars['String']['output'];
+  tipPerTokenSats: Scalars['Int']['output'];
+  totalFeeBtc: Scalars['String']['output'];
+  totalFeeSats: Scalars['Int']['output'];
+  totalInscriptionBtc: Scalars['String']['output'];
+  totalInscriptionSats: Scalars['Int']['output'];
+};
+
+export type OpenCollectionProblem = {
+  __typename?: 'OpenCollectionProblem';
+  code: Scalars['String']['output'];
+  message: Scalars['String']['output'];
+};
+
+export type OpenCollectionResponse = {
+  __typename?: 'OpenCollectionResponse';
+  data?: Maybe<OpenCollectionData>;
+  problems?: Maybe<Array<OpenCollectionProblem>>;
+};
+
+export type OpenCollectionUploadData = {
+  __typename?: 'OpenCollectionUploadData';
+  uploadUrls: Array<Scalars['String']['output']>;
+};
+
+export type OpenCollectionUploadResponse = {
+  __typename?: 'OpenCollectionUploadResponse';
+  data?: Maybe<OpenCollectionUploadData>;
+  problems?: Maybe<Array<OpenCollectionProblem>>;
 };
 
 export type Permission = {
@@ -477,11 +648,16 @@ export type Query = {
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
   inscriptionTransaction?: Maybe<InscriptionTransaction>;
+  openCollectionAvailableClaimedFundingClaims: Array<OpenCollectionClaimedFunding>;
+  openCollectionAvailableFundingClaims: Array<OpenCollectionAvailableFunding>;
+  openCollectionContents: OpenCollectionContentsResponse;
+  openCollectionEstimateFee: OpenCollectionFeeEstimate;
   presale?: Maybe<PresaleResponse>;
   presales: PresalesResult;
   role?: Maybe<Role>;
   roles: Array<Role>;
   self?: Maybe<Web3User>;
+  signMultipartUpload: Scalars['String']['output'];
   userByAddress: Web3User;
 };
 
@@ -524,6 +700,34 @@ export type QueryInscriptionTransactionArgs = {
 };
 
 
+export type QueryOpenCollectionAvailableClaimedFundingClaimsArgs = {
+  request: OpenCollectionAvailableClaimedRequest;
+};
+
+
+export type QueryOpenCollectionAvailableFundingClaimsArgs = {
+  request: OpenCollectionAvailableRequest;
+};
+
+
+export type QueryOpenCollectionContentsArgs = {
+  collectionId: Scalars['ID']['input'];
+  cursor?: InputMaybe<Scalars['String']['input']>;
+  page?: InputMaybe<Scalars['Int']['input']>;
+  tokenIds?: InputMaybe<Array<Scalars['Int']['input']>>;
+};
+
+
+export type QueryOpenCollectionEstimateFeeArgs = {
+  collectionId: Scalars['ID']['input'];
+  count?: InputMaybe<Scalars['Int']['input']>;
+  feeLevel?: InputMaybe<FeeLevel>;
+  feePerByte?: InputMaybe<Scalars['Int']['input']>;
+  network: BitcoinNetwork;
+  tokenIds?: InputMaybe<Array<Scalars['Int']['input']>>;
+};
+
+
 export type QueryPresaleArgs = {
   id: Scalars['ID']['input'];
 };
@@ -536,6 +740,13 @@ export type QueryPresalesArgs = {
 
 export type QueryRoleArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QuerySignMultipartUploadArgs = {
+  fileName: Scalars['String']['input'];
+  multipartUploadId: Scalars['String']['input'];
+  partNumber: Scalars['Int']['input'];
 };
 
 

@@ -16,7 +16,7 @@ type InscriptionFunding {
   network: BitcoinNetwork!
   qrValue: String!
   qrSrc: String!
-  inscriptionTransaction: InscriptionTransaction!
+
   status: FundingStatus!
   fundingTxId: String
   fundingTxUrl: String
@@ -25,7 +25,13 @@ type InscriptionFunding {
   fundingRevealTxIds: [String!]
   fundingRevealTxUrls: [String!]
 
-  inscriptionContent(tapKey: String!): InscriptionData!
+  overhead: Int!
+  padding: Int!
+  count: Int!
+  fee: Int!
+
+  inscriptionContent(index: Int!): InscriptionData!
+  inscriptionContents: [InscriptionData!]!
 }
 
 input InscriptionFundingQuery {
@@ -47,9 +53,27 @@ type InscriptionFundingsResult {
   count: Int
 }
 
+# input EstimateInscriptionFundingInput {
+#   size: Int!
+#   contentType: String!
+#   meta: [KeyValueInput!]
+# }
+
+# type EstimateInscriptionFundingResult {
+#   fundingAmountBtc: String!
+#   fundingAmountSats: Int!
+#   totalFeeBtc: String!
+#   totalFeeSats: Int!
+# }
+
 type Query {
   inscriptionFunding(id: ID!): InscriptionFunding
   inscriptionFundings(
     query: InscriptionFundingQuery!
   ): InscriptionFundingsResult!
+  # estimateInscriptionFundingSize(
+  #   destinationAddress: String
+  #   network: BitcoinNetwork
+  #   inscriptions: [EstimateInscriptionFundingInput!]!
+  # ): EstimateInscriptionFundingResult!
 }

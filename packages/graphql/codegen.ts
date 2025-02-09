@@ -12,8 +12,6 @@ const config: CodegenConfig = {
         graphqlModulesImportPath: "@0xflick/graphql-modules",
         contextType: "../context/index.js#Context",
         mappers: {
-          InscriptionTransaction:
-            "../modules/inscriptionTransaction/models.js#InscriptionTransactionModel",
           InscriptionFunding:
             "../modules/inscriptionFunding/models.js#InscriptionFundingModel",
           InscriptionTransactionContent:

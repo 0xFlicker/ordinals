@@ -1,20 +1,32 @@
-import { EventBridgeClient } from "@aws-sdk/client-eventbridge";
-import { PutEventsCommand } from "@aws-sdk/client-eventbridge";
+import {
+  EventBridgeClient,
+  PutEventsCommand,
+} from "@aws-sdk/client-eventbridge";
 import { createLogger } from "../utils/logger.js";
 
 const logger = createLogger({
   name: "backend/events/bus",
 });
 
-export async function emitMetadataEvent<T>({
+export function createEventBridgeClient({
+  endpoint,
+}: {
+  endpoint?: string;
+} = {}) {
+  return new EventBridgeClient({
+    ...(endpoint ? { endpoint } : {}),
+  });
+}
+
+export async function emitEvent<T>({
   event,
   eventBridge,
   eventBusName,
   source,
 }: {
   event: {
-    DetailType: string;
-    Detail: T;
+    Action: string;
+    Payload: T;
   };
   eventBridge: EventBridgeClient;
   eventBusName?: string;
@@ -27,23 +39,23 @@ export async function emitMetadataEvent<T>({
         {
           EventBusName: eventBusName,
           Source: source,
-          DetailType: event.DetailType,
-          Detail: JSON.stringify(event.Detail),
+          DetailType: event.Action,
+          Detail: JSON.stringify(event.Payload),
         },
       ],
     });
-    logger.debug(`Sending event ${event.DetailType} to EventBridge`);
+    logger.debug(`Sending event ${event.Action} to EventBridge`);
     const response = await eventBridge.send(command);
     logger.debug(
-      `Event ${event.DetailType} sent to EventBridge: ${response.Entries?.map(
-        (e) => e.EventId
-      ).join(", ")}`
+      `Event ${event.Action} sent to EventBridge: ${response.Entries?.map(
+        (e) => e.EventId,
+      ).join(", ")}`,
     );
     return response;
   } catch (error) {
     logger.error(
-      { err: error, detail: event.Detail },
-      `Failed to send event ${event.DetailType} to EventBridge`
+      { err: error, detail: event.Payload },
+      `Failed to send event ${event.Action} to EventBridge`,
     );
     throw error;
   }

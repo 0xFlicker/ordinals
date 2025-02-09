@@ -1,6 +1,7 @@
 export * from "./factory.js";
 export * from "./create.js";
 export * from "./funding.js";
+export * from "./funding-update.js";
 export * from "./incrementingReveal.js";
 export * from "./openEdition.js";
 export * from "./claims.js";

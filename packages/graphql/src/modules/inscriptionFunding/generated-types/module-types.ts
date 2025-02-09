@@ -3,7 +3,7 @@ import type * as Types from "../../../generated-types/graphql.js";
 import type * as gm from "@0xflick/graphql-modules";
 export namespace InscriptionFundingModule {
   interface DefinedFields {
-    InscriptionFunding: 'id' | 'fundingAmountBtc' | 'fundingAmountSats' | 'fundingAddress' | 'destinationAddress' | 'network' | 'qrValue' | 'qrSrc' | 'inscriptionTransaction' | 'status' | 'fundingTxId' | 'fundingTxUrl' | 'fundingGenesisTxId' | 'fundingGenesisTxUrl' | 'fundingRevealTxIds' | 'fundingRevealTxUrls' | 'inscriptionContent';
+    InscriptionFunding: 'id' | 'fundingAmountBtc' | 'fundingAmountSats' | 'fundingAddress' | 'destinationAddress' | 'network' | 'qrValue' | 'qrSrc' | 'status' | 'fundingTxId' | 'fundingTxUrl' | 'fundingGenesisTxId' | 'fundingGenesisTxUrl' | 'fundingRevealTxIds' | 'fundingRevealTxUrls' | 'overhead' | 'padding' | 'count' | 'fee' | 'inscriptionContent' | 'inscriptionContents';
     InscriptionFundingProblem: 'code' | 'message';
     InscriptionFundingsResult: 'fundings' | 'problems' | 'next' | 'count';
     Query: 'inscriptionFunding' | 'inscriptionFundings';
@@ -20,7 +20,6 @@ export namespace InscriptionFundingModule {
   export type FundingStatus = DefinedEnumValues['FundingStatus'];
   export type InscriptionFunding = Pick<Types.InscriptionFunding, DefinedFields['InscriptionFunding']>;
   export type BitcoinNetwork = Types.BitcoinNetwork;
-  export type InscriptionTransaction = Types.InscriptionTransaction;
   export type InscriptionData = Types.InscriptionData;
   export type InscriptionFundingQuery = Pick<Types.InscriptionFundingQuery, DefinedInputFields['InscriptionFundingQuery']>;
   export type InscriptionFundingProblem = Pick<Types.InscriptionFundingProblem, DefinedFields['InscriptionFundingProblem']>;
@@ -53,7 +52,6 @@ export namespace InscriptionFundingModule {
       network?: gm.Middleware[];
       qrValue?: gm.Middleware[];
       qrSrc?: gm.Middleware[];
-      inscriptionTransaction?: gm.Middleware[];
       status?: gm.Middleware[];
       fundingTxId?: gm.Middleware[];
       fundingTxUrl?: gm.Middleware[];
@@ -61,7 +59,12 @@ export namespace InscriptionFundingModule {
       fundingGenesisTxUrl?: gm.Middleware[];
       fundingRevealTxIds?: gm.Middleware[];
       fundingRevealTxUrls?: gm.Middleware[];
+      overhead?: gm.Middleware[];
+      padding?: gm.Middleware[];
+      count?: gm.Middleware[];
+      fee?: gm.Middleware[];
       inscriptionContent?: gm.Middleware[];
+      inscriptionContents?: gm.Middleware[];
     };
     InscriptionFundingProblem?: {
       '*'?: gm.Middleware[];

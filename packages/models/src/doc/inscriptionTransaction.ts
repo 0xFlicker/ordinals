@@ -27,6 +27,7 @@ export interface IInscriptionDocCommon {
   padding: number;
   writableInscriptions: WritableInscription[];
   tip: number;
+  tipAmountDestination: string;
 }
 
 export type TInscriptionDoc = IInscriptionDocCommon;

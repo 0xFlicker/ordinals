@@ -7,7 +7,6 @@ import {
   AddressInscriptionModel,
 } from "@0xflick/ordinals-models";
 import { InscriptionFundingModel } from "../inscriptionFunding/models.js";
-import { InscriptionTransactionModel } from "../inscriptionTransaction/models.js";
 import {
   IFundingDao,
   IFundingDocDao,
@@ -64,25 +63,21 @@ export class AxolotlModel implements IAxolotlMeta {
   public static MAX_SUPPLY = 10000;
 
   public readonly inscriptionFunding: InscriptionFundingModel;
-  public readonly inscriptionTransaction: InscriptionTransactionModel;
   public readonly inscriptionDocument: TInscriptionDoc;
   public readonly addressInscription: AddressInscriptionModel<IAxolotlMeta>;
   public readonly problems?: AxolotlProblem[];
   constructor({
     inscriptionDocument,
     inscriptionFunding,
-    inscriptionTransaction,
     addressInscription,
     problems,
   }: {
     inscriptionFunding: InscriptionFundingModel;
-    inscriptionTransaction: InscriptionTransactionModel;
     inscriptionDocument: TInscriptionDoc;
     addressInscription: AddressInscriptionModel<IAxolotlMeta>;
     problems?: AxolotlProblem[];
   }) {
     this.inscriptionFunding = inscriptionFunding;
-    this.inscriptionTransaction = inscriptionTransaction;
     this.inscriptionDocument = inscriptionDocument;
     this.addressInscription = addressInscription;
     this.problems = problems;
@@ -221,6 +216,8 @@ export class AxolotlModel implements IAxolotlMeta {
       network: "testnet",
       tip: tipPerToken * count,
       inscriptions: inscriptionContents,
+      tipAmountDestination:
+        "tb1pm0r7x8q0rl8tmz8mcv0ezxsv7en3qk7a0ksvj2mf5r8rw2aaflmqr78439",
     });
     const totalInscriptionSats = Number(bitcoinToSats(fundingAmountBtc));
     return {
@@ -261,7 +258,7 @@ export class AxolotlModel implements IAxolotlMeta {
     feeLevel?: InputMaybe<FeeLevel>;
     inscriptionBucket: string;
     tip?: number;
-    tipDestination?: string;
+    tipDestination: string;
     s3Client: S3Client;
     count: number;
     scriptUrl: string;
@@ -339,14 +336,15 @@ export class AxolotlModel implements IAxolotlMeta {
       network,
       tip: tip ?? 0 * inscriptionContents.length,
       inscriptions: inscriptionContents,
+      tipAmountDestination: tipDestination,
     });
 
     const addressModel = new AddressInscriptionModel<IAxolotlMeta>({
+      createdAt: new Date(),
       collectionId,
       address: fundingAddress,
       destinationAddress,
       network,
-      contentIds: writableInscriptions.map((inscription) => inscription.tapkey),
       fundingStatus: "funding",
       timesChecked: 0,
       fundingAmountBtc,
@@ -375,6 +373,7 @@ export class AxolotlModel implements IAxolotlMeta {
       totalFee,
       writableInscriptions,
       tip: tip ?? 0,
+      tipAmountDestination: tipDestination,
     };
     const inscriptionFundingModel = new InscriptionFundingModel({
       id: addressModel.id,
@@ -387,12 +386,12 @@ export class AxolotlModel implements IAxolotlMeta {
     await Promise.all([
       fundingDocDao.updateOrSaveInscriptionTransaction(doc),
       incrementingRevealDao.createFunding(addressModel),
-      ...writableInscriptions.map((f) =>
+      ...writableInscriptions.map((f, index) =>
         fundingDocDao.saveInscriptionContent({
           id: {
             fundingAddress,
             id: addressModel.id,
-            tapKey: f.tapkey,
+            inscriptionIndex: index,
           },
           content: f.file!.content,
           mimetype: f.file!.mimetype,
@@ -400,14 +399,9 @@ export class AxolotlModel implements IAxolotlMeta {
       ),
     ]);
 
-    const inscriptionTransactionModel = new InscriptionTransactionModel(
-      inscriptionFundingModel,
-    );
-
     return new AxolotlModel({
       inscriptionDocument: doc,
       inscriptionFunding: inscriptionFundingModel,
-      inscriptionTransaction: inscriptionTransactionModel,
       addressInscription: addressModel,
       problems,
     });
