@@ -31,6 +31,7 @@ export interface RevealTransactionRequest {
     value: number;
     secKey: cryptoUtils.SecretKey;
     parentVout: Required<TxTemplate>["vout"]["0"];
+    destinationAddress: string;
   })[];
 
   // If you leave this empty, the fee will be paid to the miners
@@ -459,7 +460,10 @@ function buildSkeleton(request: RevealTransactionRequest): {
 
   // Parent outputs
   parentTxs?.forEach((pTx) => {
-    vout.push(pTx.parentVout);
+    vout.push({
+      value: pTx.value,
+      scriptPubKey: Address.toScriptPubKey(pTx.destinationAddress),
+    });
   });
 
   // Inscription outputs

@@ -1,12 +1,9 @@
 import {
   addressReceivedMoneyInThisTx,
-  generateFundingAddress,
-  generateGenesisTransaction,
   generatePrivKey,
   broadcastTx,
   BitcoinNetworkNames,
   waitForInscriptionFunding,
-  generateRevealTransactionData,
   networkNamesToTapScriptName,
 } from "@0xflick/inscriptions";
 import { lookup } from "mime-types";

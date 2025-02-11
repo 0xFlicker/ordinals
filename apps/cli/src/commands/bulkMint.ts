@@ -3,16 +3,16 @@ import { globIterate } from "glob";
 import { lookup } from "mime-types";
 import {
   addressReceivedMoneyInThisTx,
-  generateFundingAddress,
-  generateGenesisTransaction,
+  generateFundableGenesisTransaction,
   generatePrivKey,
   broadcastTx,
   generateRevealTransaction,
   BitcoinNetworkNames,
-  waitForInscriptionFunding,
   InscriptionContent,
   loopTilAddressReceivesMoney,
+  bitcoinToSats,
 } from "@0xflick/inscriptions";
+import { createMempoolBitcoinClient } from "../mempool";
 
 export async function bulkMint({
   address,
@@ -45,11 +45,11 @@ export async function bulkMint({
   }
 
   console.log(`Found ${inscriptions.length} inscriptions`);
-
-  const response = await generateFundingAddress({
+  const padding = 540;
+  const response = await generateFundableGenesisTransaction({
     address,
     inscriptions,
-    padding: 600,
+    padding: padding,
     tip: 0,
     network,
     privKey,
@@ -70,52 +70,36 @@ export async function bulkMint({
   console.log(`Funded!`);
   let [txid, vout, amount] = funded;
   await loopTilAddressReceivesMoney(response.fundingAddress, true, network);
-  const genesisTx = await generateGenesisTransaction({
-    amount,
-    initCBlock: response.initCBlock,
-    initLeaf: response.initLeaf,
-    initScript: response.initScript,
-    initTapKey: response.initTapKey,
-    inscriptions: response.inscriptionsToWrite,
-    padding: response.padding,
-    secKey: response.secKey,
-    txid,
-    vout,
-  });
-  console.log(`Genesis tx: ${genesisTx}`);
-  const genesisTxId = await broadcastTx(genesisTx, network);
-  console.log(`Genesis tx id: ${genesisTxId}`);
 
   console.log(`Revealing....`);
   const inscriptionIds: string[] = [];
-
-  await loopTilAddressReceivesMoney(
-    response.inscriptionsToWrite[0].inscriptionAddress,
-    false,
-    network,
-  );
-
+  const mempoolClient = createMempoolBitcoinClient({ network });
+  const { fastestFee, hourFee } = await mempoolClient.fees.getFeesRecommended();
+  const revealTx = generateRevealTransaction({
+    feeRateRange: [fastestFee, hourFee],
+    inputs: [
+      {
+        address: address,
+        amount: Number(bitcoinToSats(response.amount)),
+        cblock: response.genesisCblock,
+        leaf: response.genesisLeaf,
+        script: response.genesisScript,
+        tapkey: response.genesisTapKey,
+        vout,
+        txid,
+        secKey: response.secKey,
+        padding,
+        inscriptions: response.inscriptionsToWrite,
+      },
+    ],
+  });
+  console.log(`Reveal tx: ${revealTx.hex}`);
+  console.log(`Reveal tx miner fee: ${revealTx.minerFee}`);
+  const revealTxId = await broadcastTx(revealTx.hex, network);
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   for (let i = 0; i < response.inscriptionsToWrite.length; i++) {
-    const inscription = response.inscriptionsToWrite[i];
-
-    const [txid, vout, amount] = await waitForInscriptionFunding(
-      inscription,
-      network,
-    );
-
-    const revealTx = await generateRevealTransaction({
-      amount,
-      inscription,
-      address,
-      secKey: response.secKey,
-      txid,
-      vout,
-    });
-    // console.log(`Reveal tx: ${revealTx}`);
-    const revealTxId = await broadcastTx(revealTx, network);
-    inscriptionIds[i] = `${revealTxId}i0`;
+    inscriptionIds[i] = `${revealTxId}i${i}`;
     console.log(`Reveal tx id: ${revealTxId}`);
   }
 

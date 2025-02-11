@@ -1,13 +1,13 @@
 import {
   addressReceivedMoneyInThisTx,
-  generateFundingAddress,
-  generateGenesisTransaction,
   generatePrivKey,
   broadcastTx,
   BitcoinNetworkNames,
   waitForInscriptionFunding,
-  generateRevealTransactionData,
   networkNamesToTapScriptName,
+  generateFundableGenesisTransaction,
+  bitcoinToSats,
+  generateRevealTransaction,
 } from "@0xflick/inscriptions";
 import { lookup } from "mime-types";
 import fs from "fs";
@@ -104,7 +104,7 @@ export async function mintChild({
     },
   ];
 
-  const response = await generateFundingAddress({
+  const response = await generateFundableGenesisTransaction({
     address,
     inscriptions: [
       {
@@ -148,52 +148,30 @@ export async function mintChild({
   } while (funded[0] == null);
   console.log(`Funded!`);
   let [txid, vout, amount] = funded;
-  const genesisTx = await generateGenesisTransaction({
-    amount,
-    initCBlock: response.initCBlock,
-    initLeaf: response.initLeaf,
-    initScript: response.initScript,
-    initTapKey: response.initTapKey,
-    inscriptions: response.inscriptionsToWrite,
-    padding: response.padding,
-    secKey: response.secKey,
-    txid,
-    vout,
+
+  const { fastestFee, hourFee } = await mempoolClient.fees.getFeesRecommended();
+  const revealTx = generateRevealTransaction({
+    feeRateRange: [fastestFee, hourFee],
+    inputs: [
+      {
+        address: address,
+        amount: Number(bitcoinToSats(response.amount)),
+        cblock: response.genesisCblock,
+        leaf: response.genesisLeaf,
+        script: response.genesisScript,
+        tapkey: response.genesisTapKey,
+        vout,
+        txid,
+        secKey: response.secKey,
+        padding,
+        inscriptions: response.inscriptionsToWrite,
+      },
+    ],
+    parentTxs,
   });
-  console.log(`Genesis tx: ${genesisTx}`);
-  const genesisTxId = await broadcastTx(genesisTx, network);
-  console.log(`Genesis tx id: ${genesisTxId}`);
 
-  funded = [null, null, null];
-  console.log("Waiting for inscription...");
-  do {
-    funded = await addressReceivedMoneyInThisTx(
-      response.inscriptionsToWrite[0].inscriptionAddress,
-      network,
-    );
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  } while (funded[0] == null);
-  console.log(`Revealing....`);
-
-  for (let i = 0; i < response.inscriptionsToWrite.length; i++) {
-    const inscription = response.inscriptionsToWrite[i];
-
-    const [txid, vout, amount] = await waitForInscriptionFunding(
-      inscription,
-      network,
-    );
-
-    const revealTxData = generateRevealTransactionData({
-      amount,
-      inscription,
-      address,
-      secKey: response.secKey,
-      txid,
-      vout,
-      parentTxs,
-    });
-    // console.log(`Reveal tx: ${Tx.encode(revealTxData).hex}`);
-    const revealTxId = await broadcastTx(Tx.encode(revealTxData).hex, network);
-    console.log(`Reveal tx id: ${revealTxId}`);
-  }
+  console.log(`Reveal tx: ${revealTx.hex}`);
+  console.log(`Reveal tx miner fee: ${revealTx.minerFee}`);
+  const revealTxId = await broadcastTx(revealTx.hex, network);
+  console.log(`Reveal tx id: ${revealTxId}`);
 }
