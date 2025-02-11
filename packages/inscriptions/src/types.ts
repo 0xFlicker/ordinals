@@ -1,3 +1,11 @@
+export interface InscriptionContent {
+  isBin?: boolean;
+  content: ArrayBuffer;
+  mimeType: string;
+  metadata?: Record<string, any>;
+  compress?: boolean;
+}
+
 export interface InscriptionId {
   id: string;
   fundingAddress: string;
