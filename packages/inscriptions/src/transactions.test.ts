@@ -58,7 +58,7 @@ describe("Bitcoin Inscription Transactions", () => {
         padding: 546,
       });
 
-      expect(typeof funding.genesisAddress).toBe("string");
+      expect(typeof funding.fundingAddress).toBe("string");
     });
   });
 

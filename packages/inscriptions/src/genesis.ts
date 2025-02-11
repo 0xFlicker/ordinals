@@ -42,7 +42,7 @@ export interface GenesisFundingRequest {
 
 export interface GenesisFundingResponse {
   // The address the user must fund:
-  genesisAddress: string;
+  fundingAddress: string;
   // The total # of sats we expect them to send:
   amount: string;
   // Standard fields you used to return:
@@ -260,7 +260,7 @@ export async function generateFundableGenesisTransaction(
 
   // 12) Return everything we used to from generateFundingAddress
   return {
-    genesisAddress,
+    fundingAddress: genesisAddress,
     amount: satsToBitcoin(BigInt(required)), // e.g. "0.00012345"
     qrValue: `bitcoin:${genesisAddress}?amount=${satsToBitcoin(
       BigInt(required),
