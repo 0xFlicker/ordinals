@@ -254,7 +254,7 @@ export async function generateFundableGenesisTransaction(
   // "padding * #inscriptions + tip + minimal-miner-fee-for-confirmation"
   // (You can tweak as needed.)
   const totalInscriptions = inscriptions.length;
-  const required = padding * totalInscriptions + tip + feeSize;
+  const required = tip + feeSize + padding * totalInscriptions;
 
   const overhead = required - feeSize;
 
@@ -272,7 +272,7 @@ export async function generateFundableGenesisTransaction(
     totalFee: feeSize,
     inscriptionsToWrite: inscriptionsToWrite.map((insc) => ({
       ...insc,
-      destinationAddress: genesisAddress,
+      destinationAddress: address,
     })),
     overhead,
     padding,

@@ -27,10 +27,10 @@ export interface RevealTransactionRequest {
     inscriptions: WritableInscription[];
   }[];
 
-  parentTxs?: (Required<TxTemplate>["vin"]["0"] & {
+  parentTxs?: (Omit<TxTemplate, "vin"> & {
+    vin: Required<TxTemplate>["vin"]["0"];
     value: number;
     secKey: cryptoUtils.SecretKey;
-    parentVout: Required<TxTemplate>["vout"]["0"];
     destinationAddress: string;
   })[];
 
@@ -272,7 +272,7 @@ function attachDummyWitnesses(
   txData: TxData,
   request: RevealTransactionRequest,
 ) {
-  // For parent txs - single signature witness
+  // For parent txs - single signature witnesse
   request.parentTxs?.forEach((_, i) => {
     txData.vin[i].witness = ["00".repeat(64)]; // Dummy signature
   });
@@ -302,10 +302,19 @@ function verifyAndSignTx(
   try {
     let offset = request.parentTxs?.length ?? 0;
     request.parentTxs?.forEach((pTx, i) => {
-      const [tPub] = Tap.getPubKey(pTx.secKey.pub.x);
-      if (!Signer.taproot.verifyTx(txSkeleton, i, { pubkey: tPub })) {
-        throw new Error("Invalid parent tx signature");
-      }
+      const pubKey = pTx.secKey.pub.x;
+      const [tPub] = Tap.getPubKey(pubKey);
+      witnessSigners.push(() => {
+        const tapSecKey = Tap.getSecKey(pTx.secKey)[0];
+
+        const sig = Signer.taproot.sign(tapSecKey, txSkeleton, i);
+
+        Signer.taproot.verifyTx(txSkeleton, i, {
+          pubkey: tPub,
+        });
+
+        return [sig];
+      });
     });
 
     request.inputs.forEach((_, i) => {
@@ -345,7 +354,8 @@ function tryPlatformFeeDistribution(
   };
 
   const totalPct = feeDestinations.reduce((s, d) => s + d.percentage, 0);
-  const allocatedToPlatform = leftover * (platformFeePercent / 100);
+  const allocatedToPlatform =
+    (leftover - minerFee) * (platformFeePercent / 100);
 
   // Build platform outputs
   const platformOutputs = feeDestinations.map((dest) => {
@@ -354,7 +364,9 @@ function tryPlatformFeeDistribution(
     );
     return {
       value: share,
-      scriptPubKey: ["OP_1", Address.p2tr.decode(dest.address).hex],
+      scriptPubKey: Address.p2tr.scriptPubKey(
+        Address.p2tr.decode(dest.address),
+      ),
     } as OutputData;
   });
 
@@ -393,7 +405,7 @@ function tryPlatformFeeDistribution(
 }
 
 /** Build a base transaction skeleton with mandatory inputs/outputs only. */
-function buildSkeleton(request: RevealTransactionRequest): {
+export function buildSkeleton(request: RevealTransactionRequest): {
   txSkeleton: TxData;
   witnessSigners: Array<() => TxData["vin"][number]["witness"]>;
 } {
@@ -406,22 +418,16 @@ function buildSkeleton(request: RevealTransactionRequest): {
     const pubKey = pTx.secKey.pub.x;
     const [tPub] = Tap.getPubKey(pubKey);
     witnessSigners.push(() => {
-      const sig = Signer.taproot.sign(
-        Tap.getSecKey(pTx.secKey)[0],
-        txSkeleton,
-        i,
-      );
-      if (!Signer.taproot.verifyTx(txSkeleton, i, { pubkey: tPub })) {
-        throw new Error("Invalid signature (parentTx)");
-      }
+      const tapSecKey = Tap.getSecKey(pTx.secKey)[0];
+      const sig = Signer.taproot.sign(tapSecKey, txSkeleton, i);
+      Signer.taproot.verifyTx(txSkeleton, i, { pubkey: tPub });
       return [sig];
     });
     vin.push({
-      txid: pTx.txid,
-      vout: pTx.vout,
+      ...pTx.vin,
       prevout: {
         value: pTx.value,
-        scriptPubKey: ["OP_1", tPub],
+        scriptPubKey: Address.p2tr.scriptPubKey(tPub),
       },
     });
   });
@@ -462,7 +468,7 @@ function buildSkeleton(request: RevealTransactionRequest): {
   parentTxs?.forEach((pTx) => {
     vout.push({
       value: pTx.value,
-      scriptPubKey: Address.toScriptPubKey(pTx.destinationAddress),
+      scriptPubKey: ["OP_1", Address.p2tr.decode(pTx.destinationAddress).hex],
     });
   });
 
@@ -471,7 +477,10 @@ function buildSkeleton(request: RevealTransactionRequest): {
     input.inscriptions.forEach((inscription) => {
       vout.push({
         value: input.padding,
-        scriptPubKey: Address.toScriptPubKey(inscription.destinationAddress),
+        scriptPubKey: [
+          "OP_1",
+          Address.p2tr.decode(inscription.destinationAddress).hex,
+        ],
       });
     });
   });
@@ -501,13 +510,14 @@ function getTotalInputAmount(request: RevealTransactionRequest): number {
 /** Computes required padding from inputs. */
 function getRequiredPaddingAmount(request: RevealTransactionRequest): number {
   const totalInscriptions = request.inputs.reduce(
-    (acc, i) => acc + i.inscriptions.length,
+    (acc, i) => acc + i.inscriptions.length * i.padding,
     0,
   );
-  const parentCount = request.parentTxs?.length ?? 0;
-  // For simplicity, assume all inputs have the same padding. If they differ, you can adapt.
-  const perInputPadding = request.inputs[0]?.padding ?? 0;
-  return (totalInscriptions + parentCount) * perInputPadding;
+  let parentPadding = 0;
+  for (const pTx of request.parentTxs ?? []) {
+    parentPadding += pTx.value;
+  }
+  return totalInscriptions + parentPadding;
 }
 
 /**
