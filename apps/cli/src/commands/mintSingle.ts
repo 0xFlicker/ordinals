@@ -100,7 +100,6 @@ export async function mintSingle({
         vout,
         txid,
         amount,
-        address,
         secKey: response.secKey,
         padding: response.padding,
         inscriptions: response.inscriptionsToWrite,

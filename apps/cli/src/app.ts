@@ -13,6 +13,7 @@ import { bootstrap } from "./commands/bootstrap/index.js";
 import { generateReceiverAddress } from "./commands/taproot.js";
 import { findMalformedFunding } from "./commands/rescue/cmd.js";
 import { allocateAirdrop, collectAddresses } from "./commands/rune.js";
+import { mintChildMany } from "./commands/mintChildMany.js";
 const program = new Command();
 
 program
@@ -104,7 +105,7 @@ program
         parentAmount
       ) {
         console.log("Minting child");
-        await mintChild({
+        await mintChildMany({
           file,
           network,
           address,

@@ -152,8 +152,8 @@ export async function mintChild({
   const { fastestFee, halfHourFee } =
     await mempoolClient.fees.getFeesRecommended();
   const revealResponse = generateRevealTransaction({
-    // feeRateRange: feeRate ? [feeRate, feeRate] : [fastestFee, halfHourFee],
-    feeRateRange: [5, 3],
+    feeRateRange: feeRate ? [feeRate, feeRate] : [fastestFee, halfHourFee],
+    // feeRateRange: [5, 1],
     inputs: [
       {
         leaf: response.genesisLeaf,

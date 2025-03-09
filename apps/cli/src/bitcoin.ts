@@ -84,6 +84,39 @@ export async function loadWallet({
   }
 }
 
+export async function sendRawTransaction({
+  network,
+  rawtx,
+  bitcoinDataDir,
+}: {
+  network: BitcoinNetworkNames;
+  rawtx: string;
+  bitcoinDataDir?: string;
+}): Promise<string> {
+  const networkFlag = (() => {
+    switch (network) {
+      case "regtest":
+        return "-regtest";
+      case "testnet":
+        return "-testnet";
+      case "mainnet":
+        return null;
+      default:
+        throw new Error(`Unknown network ${network}`);
+    }
+  })();
+
+  const args = [
+    ...(networkFlag ? [networkFlag] : []),
+    ...(bitcoinDataDir ? ["-datadir=" + bitcoinDataDir] : []),
+    "sendrawtransaction",
+    rawtx,
+  ];
+  // console.log("bitcoin-cli", args.join(" "));
+  const stdout = await spawnAsync("bitcoin-cli", args);
+  return stdout.trim();
+}
+
 export async function sendBitcoin({
   network,
   rpcuser,

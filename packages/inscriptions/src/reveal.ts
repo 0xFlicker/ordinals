@@ -21,7 +21,6 @@ export interface RevealTransactionRequest {
     vout: number;
     txid: string;
     amount: number;
-    address: string;
     secKey: cryptoUtils.SecretKey;
     padding: number;
     inscriptions: WritableInscription[];
@@ -212,7 +211,7 @@ function buildTxAtFeeRate(
     );
     return null;
   }
-  const baseMinerFee = Math.ceil(feeRate * baseVSize);
+  const baseMinerFee = Math.ceil(feeRate * baseVSize * 1.02);
 
   // 4) Check that we have enough input to pay for required padding + base miner fee
   const totalInputAmount = getTotalInputAmount(request);
@@ -272,16 +271,15 @@ function attachDummyWitnesses(
   txData: TxData,
   request: RevealTransactionRequest,
 ) {
-  // For parent txs - single signature witnesse
   request.parentTxs?.forEach((_, i) => {
-    txData.vin[i].witness = ["00".repeat(64)]; // Dummy signature
+    txData.vin[i].witness = ["00".repeat(64)];
   });
 
   // For inscription inputs - signature + script + control block
   let offset = request.parentTxs?.length ?? 0;
   request.inputs.forEach((input, i) => {
     txData.vin[offset + i].witness = [
-      "00".repeat(64), // Dummy signature
+      "00".repeat(64),
       serializedScriptToScriptData(input.script),
       input.cblock,
     ];
@@ -386,7 +384,8 @@ function tryPlatformFeeDistribution(
     tempTxData.vout.splice(-platformOutputs.length);
     return null;
   }
-  const totalFeeNeeded = Math.ceil(feeRate * newVSize);
+  // Add a 2% buffer to ensure we meet relay fees
+  const totalFeeNeeded = Math.ceil(feeRate * newVSize * 1.02);
 
   // If leftover can't cover total fees, revert and return null
   if (leftover < totalFeeNeeded) {
@@ -394,9 +393,25 @@ function tryPlatformFeeDistribution(
     return null;
   }
 
+  // FIX: Recalculate platform outputs with actual available amount
+  const actualAvailableForPlatform = leftover - totalFeeNeeded;
+  const actualPlatformFee = Math.floor(
+    actualAvailableForPlatform * (platformFeePercent / 100),
+  );
+
+  // Update platform output values
+  platformOutputs.forEach((output, i) => {
+    const share = Math.floor(
+      (actualPlatformFee * feeDestinations[i].percentage) / totalPct,
+    );
+    tempTxData.vout[tempTxData.vout.length - platformOutputs.length + i].value =
+      share;
+  });
+
   // Optionally check target platform fee if feeTarget was set
-  const actualPlatformFee = allocatedToPlatform - (totalFeeNeeded - minerFee);
-  if (feeTarget && actualPlatformFee < feeTarget * 0.75) {
+  const actualPlatformFeeWithTarget =
+    actualPlatformFee - (totalFeeNeeded - minerFee);
+  if (feeTarget && actualPlatformFeeWithTarget < feeTarget * 0.75) {
     tempTxData.vout.splice(-platformOutputs.length);
     return null;
   }

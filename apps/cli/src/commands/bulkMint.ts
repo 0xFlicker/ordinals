@@ -79,7 +79,6 @@ export async function bulkMint({
     feeRateRange: [fastestFee, hourFee],
     inputs: [
       {
-        address: address,
         amount: Number(bitcoinToSats(response.amount)),
         cblock: response.genesisCblock,
         leaf: response.genesisLeaf,
