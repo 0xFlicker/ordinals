@@ -18,7 +18,7 @@ import { SecretKey } from "@0xflick/crypto-utils";
 import { IFundingDao, IFundingDocDao } from "../dao/funding.js";
 import { MempoolClient, createLogger } from "../index.js";
 import { ID_Collection } from "@0xflick/ordinals-models";
-import { generateGenesisTransaction } from "@0xflick/inscriptions";
+import { generateFundableGenesisTransaction } from "@0xflick/inscriptions";
 import { NoVoutFound, enqueueCheckTxo } from "./mempool.js";
 
 const logger = createLogger({ name: "watch/genesis" });

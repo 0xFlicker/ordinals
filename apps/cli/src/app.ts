@@ -9,7 +9,6 @@ import { mintChild } from "./commands/mintChild.js";
 import { nonceBitcoin, nonceEthereum } from "./commands/login/nonce.js";
 import { siwe } from "./commands/login/siwe.js";
 import { collectionCreate } from "./commands/collection/create.js";
-import { testOne } from "./commands/test/one.js";
 import { bootstrap } from "./commands/bootstrap/index.js";
 import { generateReceiverAddress } from "./commands/taproot.js";
 import { findMalformedFunding } from "./commands/rescue/cmd.js";
@@ -56,6 +55,7 @@ program
     "Destination parent address",
     "auto",
   )
+  .option("--parent-amount <parent-amount>", "Parent amount")
   .option("-m, --mime-type <mime-type>", "Mime type of file")
   .option("-f, --fee-rate <fee-rate>", "Fee rate in satoshis per vbyte")
   .option("-w, --rpcwallet <wallet>", "Bitcoin Wallet name", "default")
@@ -63,6 +63,11 @@ program
   .option("-p, --rpcpassword <rpcpassword>", "Bitcoin RPC password")
   .option("--no-send", "Don't automatically pay")
   .option("-d, --metadata-file <metadata-file>", "Metadata file")
+  .option(
+    "--tip-destination-address <tip-destination-address>",
+    "Tip destination address",
+  )
+  .option("--tip-amount <tip-amount>", "Tip amount")
   .option("--compress", "Compress the file")
   .description("Mint an ordinal")
   .action(
@@ -83,8 +88,11 @@ program
         parentInscription,
         parentTxid,
         parentIndex,
+        parentAmount,
         parentDestinationAddress,
         parentKey,
+        tipDestinationAddress,
+        tipAmount,
       },
     ) => {
       if (
@@ -92,7 +100,8 @@ program
         parentIndex &&
         parentTxid &&
         parentDestinationAddress &&
-        parentKey
+        parentKey &&
+        parentAmount
       ) {
         console.log("Minting child");
         await mintChild({
@@ -100,19 +109,22 @@ program
           network,
           address,
           mimeType,
-          feeRate,
+          feeRate: Number(feeRate),
           rpcpassword,
           rpcuser,
           rpcwallet,
           noSend: !send,
           metadataFile,
           compress,
-          padding,
+          padding: Number(padding),
           destinationParentAddress: parentDestinationAddress,
           parentInscription,
-          parentIndex,
+          parentIndex: Number(parentIndex),
           parentTxid,
           parentSecKey: parentKey,
+          parentAmount: Number(parentAmount),
+          tipDestinationAddress,
+          tipAmount: Number(tipAmount),
         });
       } else {
         console.log("Minting single");
@@ -260,46 +272,6 @@ collectionCommand
       }),
     });
   });
-
-const testCommand = program.command("test");
-
-testCommand
-  .command("mint-one")
-  .option("-e, --url <url>", "api url", "http://localhost:4000")
-  .option("-c, --chain-id <chain-id>", "Ethereum chain id", Number, 11155111)
-  .option("-n, --network <network>", "Bitcoin network", "regtest")
-  .option("-w, --rpcwallet <wallet>", "Bitcoin Wallet name", "default")
-  .option("-u, --rpcuser <rpcuser>", "Bitcoin RPC username")
-  .option("-p, --rpcpassword <rpcpassword>", "Bitcoin RPC password")
-  .option("--bitcoin-data-dir <bitcoinDataDir>", "Bitcoin data directory")
-  .option("-s, --script-name <script name>", "Script name", "test")
-  .option("--skip-claim", "Skip claiming")
-  .action(
-    async ({
-      url,
-      chainId,
-      network,
-      rpcwallet,
-      rpcuser,
-      rpcpassword,
-      scriptName,
-      bitcoinDataDir,
-      skipClaim,
-    }) => {
-      await testOne({
-        chainId,
-        url,
-        name: "test",
-        network,
-        rpcpassword,
-        rpcuser,
-        rpcwallet,
-        scriptName,
-        bitcoinDataDir,
-        skipClaim,
-      });
-    },
-  );
 
 const recoverCommand = program.command("recover");
 recoverCommand

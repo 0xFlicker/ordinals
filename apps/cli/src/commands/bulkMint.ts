@@ -12,7 +12,7 @@ import {
   loopTilAddressReceivesMoney,
   bitcoinToSats,
 } from "@0xflick/inscriptions";
-import { createMempoolBitcoinClient } from "../mempool";
+import { createMempoolBitcoinClient } from "@0xflick/ordinals-backend";
 
 export async function bulkMint({
   address,

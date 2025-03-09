@@ -5,6 +5,9 @@ import {
   BitcoinNetworkNames,
   waitForInscriptionFunding,
   networkNamesToTapScriptName,
+  generateFundableGenesisTransaction,
+  generateRevealTransaction,
+  satsToBitcoin,
 } from "@0xflick/inscriptions";
 import { lookup } from "mime-types";
 import fs from "fs";
@@ -26,17 +29,20 @@ export async function mintChild({
   metadataFile,
   compress,
   padding = 546,
-  parentInscription,
   destinationParentAddress,
   parentTxid,
   parentIndex,
+  parentInscription,
   parentSecKey,
+  parentAmount,
+  tipDestinationAddress,
+  tipAmount,
 }: {
   address: string;
   file: string;
   mimeType?: string;
   network: BitcoinNetworkNames;
-  feeRate: number;
+  feeRate?: number;
   rpcuser: string;
   rpcpassword: string;
   rpcwallet: string;
@@ -44,10 +50,13 @@ export async function mintChild({
   metadataFile?: string;
   compress?: boolean;
   padding?: number;
+  parentAmount: number;
   parentInscription: string;
   parentTxid: string;
   parentIndex: number;
   parentSecKey: string;
+  tipDestinationAddress?: string;
+  tipAmount?: number;
   destinationParentAddress: string;
 }) {
   if (destinationParentAddress === "auto") {
@@ -68,29 +77,49 @@ export async function mintChild({
     console.log(`cblock: ${cblock}`);
     destinationParentAddress = address;
   }
+
   const content = await fs.promises.readFile(file);
   const metadata = metadataFile
     ? await fs.promises.readFile(metadataFile, "utf8")
     : undefined;
 
-  const privKey = generatePrivKey();
-  const [pTxid, pIndex] = parentInscription.split("i");
-  const response = await generateFundingAddress({
-    address,
-    inscriptions: [
-      {
-        content,
-        mimeType: (mimeType ?? lookup(file)) || "application/octet-stream",
-        ...(metadata ? { metadata: JSON.parse(metadata) } : {}),
-        compress,
+  const parentInscriptions: { txid: string; index: number }[] = [
+    parentInscription.split("i").reduce(
+      (acc, curr, index) => {
+        if (index === 0) {
+          return { txid: curr, index: null };
+        }
+        return { txid: acc.txid, index: Number(curr) };
       },
-    ],
+      { txid: null, index: null },
+    ),
+  ];
+
+  const inscriptions = [
+    {
+      content,
+      mimeType: (mimeType ?? lookup(file)) || "application/octet-stream",
+      ...(metadata ? { metadata: JSON.parse(metadata) } : {}),
+      compress,
+    },
+  ];
+  inscriptions.push(inscriptions[0]);
+  inscriptions.push(inscriptions[0]);
+  inscriptions.push(inscriptions[0]);
+  inscriptions.push(inscriptions[0]);
+  inscriptions.push(inscriptions[0]);
+  inscriptions.push(inscriptions[0]);
+
+  const privKey = generatePrivKey();
+  const response = await generateFundableGenesisTransaction({
+    address,
+    inscriptions,
     padding,
-    tip: 0,
+    tip: tipAmount,
     network,
     privKey,
     feeRate,
-    parentInscriptions: [{ txid: pTxid, index: Number(pIndex) }],
+    parentInscriptions,
   });
   const mempoolClient = createMempoolBitcoinClient({
     network,
@@ -106,6 +135,7 @@ export async function mintChild({
       rpcpassword,
       rpcuser,
       rpcwallet,
+      generate: network === "regtest",
     });
   }
   console.log("Waiting for funding...");
@@ -117,72 +147,72 @@ export async function mintChild({
     await new Promise((resolve) => setTimeout(resolve, 1000));
   } while (funded[0] == null);
   console.log(`Funded!`);
+
   let [txid, vout, amount] = funded;
-  const genesisTx = await generateGenesisTransaction({
-    amount,
-    initCBlock: response.initCBlock,
-    initLeaf: response.initLeaf,
-    initScript: response.initScript,
-    initTapKey: response.initTapKey,
-    inscriptions: response.inscriptionsToWrite,
-    padding: response.padding,
-    secKey: response.secKey,
-    txid,
-    vout,
-  });
-  console.log(`Genesis tx: ${genesisTx}`);
-  const genesisTxId = await broadcastTx(genesisTx, network);
-  console.log(`Genesis tx id: ${genesisTxId}`);
-
-  funded = [null, null, null];
-  console.log("Waiting for inscription...");
-  do {
-    funded = await addressReceivedMoneyInThisTx(
-      response.inscriptionsToWrite[0].inscriptionAddress,
-      network,
-    );
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  } while (funded[0] == null);
-  console.log(`Revealing....`);
-
-  for (let i = 0; i < response.inscriptionsToWrite.length; i++) {
-    const inscription = response.inscriptionsToWrite[i];
-
-    const [txid, vout, amount] = await waitForInscriptionFunding(
-      inscription,
-      network,
-    );
-    const r = await mempoolClient.transactions.getTx({
-      txid: parentTxid,
-    });
-    const { vout: parentVout } = r;
-    const voutAmount = parentVout[parentIndex].value;
-    const destinationParentAddressScript = Address.decode(
-      destinationParentAddress,
-    ).script;
-
-    const revealTxData = generateRevealTransactionData({
-      amount,
-      inscription,
-      address,
-      secKey: response.secKey,
-      txid,
-      vout,
-      parentTxs: [
-        {
-          parentVout: {
-            value: voutAmount,
-            scriptPubKey: destinationParentAddressScript,
-          },
-          secKey: new SecretKey(Buffer.from(parentSecKey, "hex")),
+  const { fastestFee, halfHourFee } =
+    await mempoolClient.fees.getFeesRecommended();
+  const revealResponse = generateRevealTransaction({
+    // feeRateRange: feeRate ? [feeRate, feeRate] : [fastestFee, halfHourFee],
+    feeRateRange: [5, 3],
+    inputs: [
+      {
+        leaf: response.genesisLeaf,
+        tapkey: response.genesisTapKey,
+        cblock: response.genesisCblock,
+        script: response.genesisScript,
+        vout,
+        txid,
+        amount,
+        address,
+        secKey: response.secKey,
+        padding: response.padding,
+        inscriptions: response.inscriptionsToWrite,
+      },
+    ],
+    feeTarget: tipAmount,
+    feeDestinations: [
+      {
+        address: tipDestinationAddress,
+        percentage: 100,
+      },
+    ],
+    parentTxs: [
+      {
+        vin: {
           txid: parentTxid,
-          value: voutAmount,
           vout: parentIndex,
         },
-      ],
-    });
-    // console.log(`Reveal tx: ${Tx.encode(revealTxData).hex}`);
-    const revealTxId = await broadcastTx(Tx.encode(revealTxData).hex, network);
+        value: parentAmount,
+        secKey: new SecretKey(Buffer.from(parentSecKey, "hex")),
+        destinationAddress: destinationParentAddress,
+      },
+    ],
+  });
+  const { hex: revealTx, minerFee, platformFee, underpriced } = revealResponse;
+  // console.log(`Reveal tx: ${revealTx}`);
+  console.log(`Miner fee: ${minerFee}`);
+  console.log(`Platform fee: ${platformFee}`);
+  console.log(`Underpriced: ${!!underpriced}`);
+
+  try {
+    const revealTxId = await broadcastTx(revealTx, network);
     console.log(`Reveal tx id: ${revealTxId}`);
+  } catch (e) {
+    console.error(e);
+    // Decode and print the reveal tx
+    const revealTxSkeleton = Tx.decode(Buffer.from(revealTx, "hex"));
+    console.log(revealTx);
+    console.log(
+      JSON.stringify(
+        revealTxSkeleton,
+        function (this: any, key: string, value: any) {
+          if (typeof value === "bigint") {
+            return satsToBitcoin(value);
+          }
+          return value;
+        },
+        2,
+      ),
+    );
   }
 }

@@ -1,5 +1,11 @@
 import { spawn } from "child_process";
-import { BitcoinNetworkNames } from "@0xflick/inscriptions";
+import { Address, Tap } from "@0xflick/tapscript";
+import { KeyPair } from "@0xflick/crypto-utils";
+import {
+  BitcoinNetworkNames,
+  generatePrivKey,
+  networkNamesToTapScriptName,
+} from "@0xflick/inscriptions";
 
 export class CodeError extends Error {
   constructor(public code: number) {
@@ -86,6 +92,7 @@ export async function sendBitcoin({
   outputs,
   fee_rate,
   bitcoinDataDir,
+  generate,
 }: {
   network: BitcoinNetworkNames;
   rpcuser: string;
@@ -94,6 +101,7 @@ export async function sendBitcoin({
   outputs: [string, string][];
   fee_rate: number;
   bitcoinDataDir?: string;
+  generate?: boolean;
 }): Promise<{
   txid: string;
   complete: boolean;
@@ -123,6 +131,31 @@ export async function sendBitcoin({
   ];
   console.log("bitcoin-cli", args.join(" "));
   const stdout = await spawnAsync("bitcoin-cli", args);
+
+  if (generate) {
+    const privateKey = generatePrivKey();
+    const secKey = new KeyPair(privateKey);
+    const pubkey = secKey.pub.x;
+    const [tpubkey, cblock] = Tap.getPubKey(pubkey);
+    const address = Address.p2tr.encode(
+      tpubkey,
+      networkNamesToTapScriptName(network),
+    );
+    const args = [
+      ...(networkFlag ? [networkFlag] : []),
+      ...(bitcoinDataDir ? ["-datadir=" + bitcoinDataDir] : []),
+      ...(rpcuser ? ["-rpcuser=" + rpcuser] : []),
+      ...(rpcpassword ? ["-rpcpassword=" + rpcpassword] : []),
+      ...(rpcwallet ? ["-rpcwallet=" + rpcwallet] : []),
+      "-named",
+      "generatetoaddress",
+      "address=" + address,
+      "nblocks=1",
+    ];
+    console.log("bitcoin-cli", args.join(" "));
+    await spawnAsync("bitcoin-cli", args);
+  }
+
   return JSON.parse(stdout);
 }
 
