@@ -19,7 +19,7 @@ import { createMempoolBitcoinClient } from "../mempool.js";
 export async function mintChild({
   address,
   network,
-  file,
+  files,
   mimeType,
   feeRate,
   rpcuser,
@@ -39,7 +39,7 @@ export async function mintChild({
   tipAmount,
 }: {
   address: string;
-  file: string;
+  files: string[];
   mimeType?: string;
   network: BitcoinNetworkNames;
   feeRate?: number;
@@ -59,6 +59,25 @@ export async function mintChild({
   tipAmount?: number;
   destinationParentAddress: string;
 }) {
+  if (address === "auto") {
+    const privKey = generatePrivKey();
+    const secKey = new KeyPair(privKey);
+    const pubkey = secKey.pub.x;
+    const [tseckey] = Tap.getSecKey(secKey);
+    const [tpubkey, cblock] = Tap.getPubKey(pubkey);
+    const addr = Address.p2tr.encode(
+      tpubkey,
+      networkNamesToTapScriptName(network),
+    );
+
+    console.log(`\nInscription Address:`);
+    console.log(`Private key: ${privKey}`);
+    console.log(`Address: ${addr}`);
+    console.log(`TapRoot secret key: ${tseckey}`);
+    console.log(`TapRoot public key: ${tpubkey}`);
+    console.log(`Control block: ${cblock}`);
+    address = addr;
+  }
   if (destinationParentAddress === "auto") {
     const privKey = generatePrivKey();
     const secKey = new KeyPair(privKey);
@@ -78,7 +97,6 @@ export async function mintChild({
     destinationParentAddress = address;
   }
 
-  const content = await fs.promises.readFile(file);
   const metadata = metadataFile
     ? await fs.promises.readFile(metadataFile, "utf8")
     : undefined;
@@ -95,20 +113,14 @@ export async function mintChild({
     ),
   ];
 
-  const inscriptions = [
-    {
-      content,
+  const inscriptions = await Promise.all(
+    files.map(async (file) => ({
+      content: await fs.promises.readFile(file),
       mimeType: (mimeType ?? lookup(file)) || "application/octet-stream",
       ...(metadata ? { metadata: JSON.parse(metadata) } : {}),
       compress,
-    },
-  ];
-  inscriptions.push(inscriptions[0]);
-  inscriptions.push(inscriptions[0]);
-  inscriptions.push(inscriptions[0]);
-  inscriptions.push(inscriptions[0]);
-  inscriptions.push(inscriptions[0]);
-  inscriptions.push(inscriptions[0]);
+    })),
+  );
 
   const privKey = generatePrivKey();
   const response = await generateFundableGenesisTransaction({
@@ -163,7 +175,6 @@ export async function mintChild({
         vout,
         txid,
         amount,
-        address,
         secKey: response.secKey,
         padding: response.padding,
         inscriptions: response.inscriptionsToWrite,
@@ -173,7 +184,7 @@ export async function mintChild({
     feeDestinations: [
       {
         address: tipDestinationAddress,
-        percentage: 100,
+        weight: 100,
       },
     ],
     parentTxs: [

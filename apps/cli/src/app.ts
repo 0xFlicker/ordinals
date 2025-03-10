@@ -40,7 +40,7 @@ program
   });
 
 program
-  .command("mint <file>")
+  .command("mint <files...>")
   .option("-n, --network <network>", "Bitcoin network", "regtest")
   .option("-a, --address <address>", "Address to mint to")
   .option("-p, --padding <amount>", "Padding amount", Number, 546)
@@ -73,7 +73,7 @@ program
   .description("Mint an ordinal")
   .action(
     async (
-      file,
+      files,
       {
         network,
         address,
@@ -106,7 +106,7 @@ program
       ) {
         console.log("Minting child");
         await mintChildMany({
-          file,
+          files: typeof files === "string" ? [files] : files,
           network,
           address,
           mimeType,
@@ -130,7 +130,7 @@ program
       } else {
         console.log("Minting single");
         await mintSingle({
-          file,
+          file: typeof files === "string" ? files : files[0],
           network,
           address,
           mimeType,

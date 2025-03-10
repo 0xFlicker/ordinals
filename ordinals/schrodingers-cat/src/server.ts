@@ -49,6 +49,13 @@ app.get("/", async () => {
   }
 });
 
+app.get("/content/index", async () => {
+  const content = await readFile("index.html", "utf8");
+  return new Response(content, {
+    headers: { "Content-Type": "text/html" },
+  });
+});
+
 app.get("/content/*", async ({ req }) => {
   const fileExistsInContent = await fileExists(
     `.${decodeURIComponent(req.path)}`,
@@ -91,6 +98,7 @@ app.get("/r/metadata/:inscriptionId", async ({ req }) => {
     const content = await readFile("./metadata.json", "utf8");
     const metadata = JSON.parse(content);
     const c = cborEncode(metadata);
+    console.log("Returning local metadata");
     return new Response(JSON.stringify(c.toString("hex")), {
       headers: { "Content-Type": "application/json" },
     });
@@ -129,6 +137,13 @@ app.get("/r/*", async ({ req }) => {
   } catch (error) {
     return fallback();
   }
+});
+
+app.get("/src/*", async ({ req }) => {
+  const content = await readFile(`.${req.path}`);
+  return new Response(content, {
+    headers: { "Content-Type": "application/javascript" },
+  });
 });
 
 serve({

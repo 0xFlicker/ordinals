@@ -14,11 +14,11 @@ function hexStringToArrayBuffer(hex: string) {
 
 async function main() {
   // window URL will get us the inscription id via /content/:inscriptionId
-  const inscriptionId = new URL(window.location.href).pathname.split("/").pop();
+  // but fllback to "dev" if no inscription id is found
+  const localUrl = new URL(window.location.href);
+  const inscriptionId = localUrl.pathname.split("/").pop() ?? "dev";
   // Fetch the metadata and decode with CBOR
-  const { tokenId, revealedAt } = await fetch(
-    `/r/metadata/${inscriptionId ? inscriptionId : "0"}`,
-  )
+  const { tokenId, revealedAt } = await fetch(`/r/metadata/${inscriptionId}`)
     .then((r) => r.json())
     .then((r) => window.CBOR.decode(hexStringToArrayBuffer(r)));
 
@@ -28,6 +28,13 @@ async function main() {
     return `/content/assets/${path}.webp`;
   }
   let currentMetadata: IAttributeMetadata | null = null;
+
+  // use sha256(inscriptionId + tokenId) to get the seed
+  const seed = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`${inscriptionId}:${tokenId}`),
+  );
+
   async function renderLayers(boxSeed: Uint8Array, revealSeed?: Uint8Array) {
     const { layers, metadata } = await operations({
       boxSeed,
@@ -101,43 +108,24 @@ async function main() {
     let isRevealed = false;
     const blockheight = await getCurrentBlockHeight();
     if (!blockheight || blockheight < revealedAt) {
-      const remainingBlocks = blockheight ? revealedAt - blockheight : 99999999;
-      // Return prereveal text
-      const ctx = canvas.getContext("2d")!;
-      ctx.fillStyle = "black";
-      ctx.fillRect(0, 0, 720, 720);
-      ctx.fillStyle = "white";
-      ctx.font = "30px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(
-        "Revealing in progress...",
-        canvas.width / 2,
-        canvas.height / 2 - 20,
-      );
-      if (blockheight) {
-        ctx.fillText(
-          `Blocks remaining: ${remainingBlocks}`,
-          canvas.width / 2,
-          canvas.height / 2 + 20,
-        );
-      }
+      await renderLayers(new Uint8Array(seed));
       isRevealed = false;
     } else {
       const hashBuffer = await getRevealedBlockHash();
-      let seedBytes: Uint8Array;
+      let revealSeedBytes: Uint8Array;
       if (hashBuffer) {
         const hashArray = new Uint8Array(hashBuffer);
-        seedBytes = new Uint8Array(hashArray.slice(0, 32));
+        revealSeedBytes = new Uint8Array(hashArray.slice(0, 32));
         isRevealed = true;
       } else {
-        seedBytes = randomUint8ArrayOfLength(32);
+        revealSeedBytes = randomUint8ArrayOfLength(32);
       }
-      await renderLayers(seedBytes);
+      await renderLayers(new Uint8Array(seed), revealSeedBytes);
     }
 
-    // if (!isRevealed) {
-    //   setTimeout(checkAndRenderLayers, 5000);
-    // }
+    if (!isRevealed) {
+      setTimeout(checkAndRenderLayers, 60000);
+    }
   }
   checkAndRenderLayers();
 
@@ -153,17 +141,24 @@ async function main() {
   // Initial canvas resize
   resizeCanvas();
 
-  // on right click, save the image
-  const downloadImage = (e: any) => {
-    e.preventDefault();
-    const data = canvas.toDataURL("image/png");
+  // Download image function
+  const downloadImage = (e?: Event) => {
+    if (e) e.preventDefault();
+    const data = canvas.toDataURL("image/jpeg", 0.9);
     const a = document.createElement("a");
     a.href = data;
-    a.download = `${tokenId}.png`;
+    a.download = `${tokenId}.jpg`;
     a.click();
   };
-  // Desktop
+
+  // Desktop right click
   canvas.addEventListener("contextmenu", downloadImage);
+
+  // Download button click
+  document
+    .getElementById("download-btn")
+    ?.addEventListener("click", downloadImage);
+
   // Mobile long press
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
@@ -191,6 +186,20 @@ async function main() {
       a.href = "data:text/json;charset=utf-8," + encodeURIComponent(data);
       a.download = `${tokenId}.json`;
       a.click();
+    }
+  });
+
+  const menuIcon = document.getElementById("menuIcon");
+  const menuContent = document.getElementById("menuContent");
+
+  menuIcon.addEventListener("click", (e) => {
+    e.stopPropagation();
+    menuContent.classList.toggle("show");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!menuContent.contains(e.target as Node)) {
+      menuContent.classList.remove("show");
     }
   });
 }

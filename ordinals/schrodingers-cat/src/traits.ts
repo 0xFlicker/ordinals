@@ -81,7 +81,7 @@ export function generateTraits({
   let boxType: null | BoxType = !isRevealed
     ? weightSampleFromWeights(weights.openBoxWeights, boxSeedChomper)
     : null;
-  let catColor: null | TAllBaseColors = null;
+  // let catColor: null | TAllBaseColors = null;
   let accentColor: null | TAccentColors = null;
   let catType: null | CatDeadType | "healthy" = null;
   let eyeType: null | AliveEyes | "undead" | "missing" = null;
@@ -99,10 +99,10 @@ export function generateTraits({
     );
 
     if (aliveOrDead === "a") {
-      catColor = weightSampleFromWeights(
-        weights.colorWeights,
-        revealSeedChomper,
-      );
+      // catColor = weightSampleFromWeights(
+      //   weights.colorWeights,
+      //   revealSeedChomper,
+      // );
       accentColor = weightSampleFromWeights(
         weights.accentColorWeights,
         revealSeedChomper,
@@ -183,7 +183,7 @@ export function generateTraits({
         ? [
             {
               trait_type: "Cat Color",
-              value: catColor,
+              value: accentColor,
             },
             {
               trait_type: "Cat Position",
@@ -235,7 +235,6 @@ export function generateTraits({
     boxType,
     aliveOrDead,
     accentColor,
-    catColor,
     catPositionType,
     catSkinType,
     catType,
@@ -264,17 +263,16 @@ export async function operations({
     baseColor,
     accentColor,
     boxType,
-    catColor,
+    catType,
     catPositionType,
     catSkinType,
-    catType,
     eyeType,
   } = generateTraits({
     boxSeed,
     revealSeed,
   });
   // should only be alive or dead
-  const open = boxType !== null ? boxType : null;
+  const open = catType !== null && boxType !== null ? boxType : null;
   return {
     metadata,
     layers: [

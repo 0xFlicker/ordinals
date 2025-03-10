@@ -1,56 +1,28 @@
 import {
   createFilter,
-  FilterOperations,
   cachedDrawImage,
   composeDrawOps,
   composeWithCanvas,
   resolveProperties,
-  chromaKey,
-  hexToVector3,
 } from "@0xflick/assets";
 import type { ILayer, IImageFetcher } from "@0xflick/assets";
 
 import {
   type TAllBaseColors,
   type TBackgroundColors,
-  type BackgroundColors,
-  type TColorizer,
-  type Colors,
   type ApplyFilter,
-  type TBackgroundColorDetails,
-  // black,
-  // brown,
-  // lime,
-  // peach,
-  // pink,
-  // pureGreen,
-  // red,
-  // white,
-  // bumblebee,
-  // butterfly,
-  // dolphin,
-  // elephant,
-  // flamingo,
-  // frog,
-  // ladybug,
-  // lion,
-  // night,
-  // peacock,
-  // polarBear,
-  // shark,
   accentColorDetails,
-  backgroundColorDetails,
   baseColorDetails,
   TBoxColors,
   boxColorDetails,
   TAccentColors,
+  backgroundColorDetails,
 } from "./colors.js";
 import {
   AliveEyes,
   BackgroundType,
   BoxType,
   CatAliveType,
-  CatDeadType,
   CatPositionType,
   Layers,
 } from "./types.js";
@@ -113,11 +85,12 @@ export async function makeBackgroundLayer(
   imageFetcher: IImageFetcher,
 ) {
   return {
-    draw: composeDrawOps(),
-    // await composeWithCanvas(
-    //   cachedDrawImage(resolveProperties(`bg-${layerName}`), imageFetcher),
-    // ),
-    // ...applyColorFilters({ colors: backgroundColorDetails, color }),
+    draw: composeDrawOps(
+      await composeWithCanvas(
+        cachedDrawImage(resolveProperties(`bg-${layerName}`), imageFetcher),
+      ),
+      ...applyColorFilters({ colors: backgroundColorDetails, color }),
+    ),
     zIndex: Layers.background,
   };
 }
@@ -126,7 +99,6 @@ export async function makeBoxLayer(
   { color, open }: { color: TBoxColors; open?: BoxType },
   imageFetcher: IImageFetcher,
 ) {
-  const baseBox = !!open ? "open" : "closed";
   const ops: ILayer["draw"][] = [];
   ops.push(
     await composeWithCanvas(
@@ -137,9 +109,11 @@ export async function makeBoxLayer(
   if (open) {
     ops.push(
       await composeWithCanvas(
-        cachedDrawImage(resolveProperties(`${baseBox}`), imageFetcher),
+        cachedDrawImage(resolveProperties("open"), imageFetcher),
         ...applyColorFilters({ colors: boxColorDetails, color }),
       ),
+    );
+    ops.push(
       await composeWithCanvas(
         cachedDrawImage(resolveProperties(`open-${open}`), imageFetcher),
         ...applyColorFilters({ colors: boxColorDetails, color }),

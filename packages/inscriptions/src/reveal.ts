@@ -36,7 +36,7 @@ export interface RevealTransactionRequest {
   // If you leave this empty, the fee will be paid to the miners
   feeDestinations?: {
     address: string;
-    percentage: number; // Percentage of available fee (0-100)
+    weight: number;
   }[];
 
   readonly feeRateRange: [number, number]; // sats/vbyte [highest, lowest]
@@ -180,25 +180,48 @@ export function generateRevealTransactionDataIteratively(
   throw new CannotFitInscriptionsError();
 }
 
-/**
- * Tries to build a valid transaction at a given feeRate.
- * Returns TxData if successful, or null if no valid distribution found.
- */
+export class TransactionTooLargeError extends Error {
+  constructor() {
+    super("Transaction size exceeds system limits");
+    this.name = "TransactionTooLargeError";
+  }
+}
+
 function buildTxAtFeeRate(
   request: RevealTransactionRequest,
   feeRate: number,
   platformFeeRange: [number, number],
   withRealSignatures = false,
 ): { txData: TxData; platformFee: number; minerFee: number } | null {
-  // 1) Build base skeleton: mandatory inputs/outputs for padding and inscriptions
+  // Build initial skeleton to get accurate size estimate
   const { txSkeleton, witnessSigners } = buildSkeleton(request);
+  attachDummyWitnesses(txSkeleton, request);
 
-  // 2) Attach dummy witnesses for size estimation
-  if (!withRealSignatures) {
-    attachDummyWitnesses(txSkeleton, request);
-  } else {
-    signAllVin(txSkeleton, witnessSigners);
+  // Add dummy outputs for size estimation (one for each potential fee destination)
+  const dummyOutputs = (request.feeDestinations || []).map(() => ({
+    value: 1000,
+    scriptPubKey: ["OP_1", "0".repeat(64)], // dummy P2TR output
+  }));
+  txSkeleton.vout.push(...dummyOutputs);
+
+  let totalSize;
+  try {
+    totalSize = Tx.util.getTxSize(txSkeleton).vsize;
+  } catch (e) {
+    return null;
   }
+
+  // Most systems have a 1MB (1,048,576 bytes) limit
+  // Using vsize * 4 since witness data is discounted
+  if (totalSize * 4 > 1000000) {
+    throw new TransactionTooLargeError();
+  }
+
+  // Remove the dummy outputs before proceeding
+  txSkeleton.vout.splice(-dummyOutputs.length);
+
+  // Continue with the rest of the original function...
+  // ... existing buildTxAtFeeRate code ...
 
   // 3) Estimate base size and compute minimal miner fee
   let baseVSize = 0;
@@ -337,7 +360,7 @@ function tryPlatformFeeDistribution(
   witnessSigners: Array<() => TxData["vin"][number]["witness"]>,
   leftover: number,
   minerFee: number,
-  feeDestinations: { address: string; percentage: number }[],
+  feeDestinations: { address: string; weight: number }[],
   feeRate: number,
   platformFeePercent: number,
   feeTarget?: number,
@@ -351,15 +374,13 @@ function tryPlatformFeeDistribution(
     vout: [...skeleton.vout], // shallow copy
   };
 
-  const totalPct = feeDestinations.reduce((s, d) => s + d.percentage, 0);
+  const totalWeight = feeDestinations.reduce((s, d) => s + d.weight, 0);
   const allocatedToPlatform =
     (leftover - minerFee) * (platformFeePercent / 100);
 
   // Build platform outputs
   const platformOutputs = feeDestinations.map((dest) => {
-    const share = Math.floor(
-      (allocatedToPlatform * dest.percentage) / totalPct,
-    );
+    const share = Math.floor((allocatedToPlatform * dest.weight) / totalWeight);
     return {
       value: share,
       scriptPubKey: Address.p2tr.scriptPubKey(
@@ -402,7 +423,7 @@ function tryPlatformFeeDistribution(
   // Update platform output values
   platformOutputs.forEach((output, i) => {
     const share = Math.floor(
-      (actualPlatformFee * feeDestinations[i].percentage) / totalPct,
+      (actualPlatformFee * feeDestinations[i].weight) / totalWeight,
     );
     tempTxData.vout[tempTxData.vout.length - platformOutputs.length + i].value =
       share;
