@@ -158,7 +158,7 @@ describe("Bitcoin Inscription Transactions", () => {
         feeDestinations: [
           {
             address: TEST_ADDRESS,
-            percentage: 100,
+            weight: 100,
           },
         ],
         feeTarget: 20000,
@@ -269,7 +269,7 @@ describe("Bitcoin Inscription Transactions", () => {
               feeDestinations: [
                 {
                   address: TEST_ADDRESS,
-                  percentage: 100,
+                  weight: 100,
                 },
               ],
               feeTarget: revealTip,
