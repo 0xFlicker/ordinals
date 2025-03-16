@@ -30,7 +30,7 @@ You will need a local bitcoin regtest, electrum compatible server, and mempool A
 
 Generate an RPC user and password:
 
-````bash
+```bash
 # Generate RPC credentials
 export RPC_USER="bitcoinrpc"
 export RPC_PASS=$(openssl rand -base64 32)
@@ -159,7 +159,6 @@ docker compose -f regtest.yml up -d
 
 Congratulations! You've got a local regtest bitcoin network running with mempool and electrs.
 
-
 If you have not already, generate a bitcoin wallet:
 
 ```bash
@@ -205,7 +204,6 @@ cd apps/cli
 yarn cli mint --rpcuser $RPC_USER --rpcpassword $RPC_PASS --rpcwallet mywallet --network regtest --padding 543 --fee-rate 1 --address $(bitcoin-cli -regtest --rpcwallet=mywallet -named getnewaddress -addresstype bech32m) ./ordinals/axolotl-valley/content/1.png
 ```
 
-
 ```bash
 privKey: 8771198ba3264d518054897bb0dd35e3f3ceaa21ebc707aa8a9e1469b29d21f0
 Reveal tx id: 4ca6a1a916904c48ed904e14e943ad62c9bb0b3c29d1c0073fc6ba8abd81e703
@@ -219,7 +217,6 @@ yarn cli receive --network regtest
 privKey: d5eac4c869a74abdea6f71ad1ed1a6723d5638734d76747de4359a77ac7f5ae7
 address: bcrt1p2vf2d4hq53p83rc5kwgexftxtxug36pj6vvvhgapvupe5gkan8kqemxjkg
 ```
-
 
 ```
 bitcoin-cli -regtest --rpcwallet=mywallet -named sendtoaddress address="bcrt1prp4leq2ec6p6ex2ddfesqs54s3jjxsmh7vt2f3nlkuza7umd7zkqqc0dhj"
@@ -235,5 +232,3 @@ address: bcrt1pekgsd92rsd9kum8up4encglqtkdpfzrz39pck0dh5wnajvswdw4qm58089
 ```
 yarn cli mint --rpcuser $RPC_USER --rpcpassword $RPC_PASS --rpcwallet mywallet --network regtest --padding 546 --fee-rate 1 --address bcrt1pfy4khs4h9vllxkjrjvrdp07js09t3r9ldmwhpj59cdf768zvp0csqhc9nz --parent-inscription 4ca6a1a916904c48ed904e14e943ad62c9bb0b3c29d1c0073fc6ba8abd81e703i0 --parent-key d5eac4c869a74abdea6f71ad1ed1a6723d5638734d76747de4359a77ac7f5ae7 --parent-txid 4ca6a1a916904c48ed904e14e943ad62c9bb0b3c29d1c0073fc6ba8abd81e703 --parent-index 0 --parent-amount 546 --parent-destination-address bcrt1pekgsd92rsd9kum8up4encglqtkdpfzrz39pck0dh5wnajvswdw4qm58089 package.json
 ```
-
-````
