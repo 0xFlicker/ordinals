@@ -4,6 +4,7 @@ import type {
 } from "@0xflick/inscriptions";
 import { BitcoinNetworkNames } from "../bitcoin.js";
 import { ID_AddressInscription } from "../addressInscription.js";
+import { ID_Collection } from "../collection.js";
 
 export {
   WritableInscription,
@@ -14,6 +15,7 @@ export {
 
 export interface IInscriptionDocCommon {
   id: ID_AddressInscription;
+  collectionId?: ID_Collection;
   network: BitcoinNetworkNames;
   fundingAddress: string;
   fundingAmountBtc: string;

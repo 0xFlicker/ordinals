@@ -20,7 +20,7 @@ type Collection {
   name: String!
   totalCount: Int!
   pendingCount: Int!
-  maxSupply: Int!
+  maxSupply: Int
   parentInscription: CollectionParentInscription
   metadata: [KeyValue!]!
   updateMetadata(metadata: [KeyValueInput!]!): Collection!
@@ -34,7 +34,7 @@ input CollectionParentInscriptionInput {
 
 input CollectionInput {
   name: String!
-  maxSupply: Int!
+  maxSupply: Int
   parentInscription: CollectionParentInscriptionInput
   meta: String
 }

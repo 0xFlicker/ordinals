@@ -1,9 +1,11 @@
 import { createS3Client } from "@0xflick/ordinals-backend";
 import type { S3Client } from "@aws-sdk/client-s3";
+import { KMSClient } from "@aws-sdk/client-kms";
 import { IConfigContext } from "./config.js";
 
 export interface IAwsContext {
   s3Client: S3Client;
+  kmsClient: KMSClient;
 }
 
 export function createAwsContext({
@@ -22,7 +24,16 @@ export function createAwsContext({
       : {}),
   });
 
+  const kmsClient = new KMSClient({
+    region,
+    ...(deploymentS3 === "localstack" ||
+    (typeof deploymentS3 === "undefined" && endpoint?.startsWith("http:"))
+      ? { endpoint }
+      : {}),
+  });
+
   return {
     s3Client,
+    kmsClient,
   };
 }

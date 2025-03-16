@@ -8,20 +8,31 @@ import type {
   InscriptionId,
   TInscriptionDoc,
 } from "@0xflick/ordinals-models";
-import type { IFundingDocDao } from "../dao/index.js";
+import {
+  decryptEnvelope,
+  deserializeEnvelope,
+  encryptEnvelope,
+  serializeEnvelope,
+} from "../utils/enevlope.js";
+import { KMSClient } from "@aws-sdk/client-kms";
 
-export class FundingDocDao implements IFundingDocDao {
+export class FundingDocDao {
   private readonly s3Client: S3Client;
   private readonly bucket: string;
+  private readonly kmsClient: KMSClient;
 
-  constructor(s3Client: S3Client, bucket: string) {
+  constructor(s3Client: S3Client, bucket: string, kmsClient: KMSClient) {
     this.s3Client = s3Client;
     this.bucket = bucket;
+    this.kmsClient = kmsClient;
   }
   public transactionKey({
     fundingAddress,
     id,
-  }: Parameters<IFundingDocDao["transactionKey"]>[0]) {
+  }: {
+    fundingAddress: string;
+    id: string;
+  }) {
     return `address/${fundingAddress}/inscriptions/${id}/transaction.json`;
   }
   public transactionContentKey({
@@ -33,8 +44,19 @@ export class FundingDocDao implements IFundingDocDao {
       .toString()
       .padStart(4, "0")}.json`;
   }
-  public async updateOrSaveInscriptionTransaction(item: TInscriptionDoc) {
+  public async updateOrSaveInscriptionTransaction(
+    item: TInscriptionDoc,
+    secKeyEnvelopeKeyId: string,
+  ) {
     const { fundingAddress } = item;
+    // replace secKey with encrypted envelope
+    const { base64DataKey, base64Ciphertext, base64AuthTag, base64Iv } =
+      await encryptEnvelope({
+        plaintext: item.secKey,
+        kmsClient: this.kmsClient,
+        keyId: secKeyEnvelopeKeyId,
+      });
+
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucket,
@@ -42,7 +64,15 @@ export class FundingDocDao implements IFundingDocDao {
           fundingAddress,
           id: item.id,
         }),
-        Body: JSON.stringify(item),
+        Body: JSON.stringify({
+          ...item,
+          secKey: serializeEnvelope({
+            base64AuthTag,
+            base64Ciphertext,
+            base64DataKey,
+            base64Iv,
+          }),
+        }),
         ContentType: "application/json",
       }),
     );
@@ -77,9 +107,10 @@ export class FundingDocDao implements IFundingDocDao {
     return JSON.parse(data);
   }
 
-  async getInscriptionTransaction(
-    request: Parameters<IFundingDocDao["getInscriptionTransaction"]>[0],
-  ): Promise<TInscriptionDoc> {
+  async getInscriptionTransaction(request: {
+    fundingAddress: string;
+    id: string;
+  }): Promise<TInscriptionDoc> {
     const response = await this.s3Client.send(
       new GetObjectCommand({
         Bucket: this.bucket,
@@ -89,7 +120,20 @@ export class FundingDocDao implements IFundingDocDao {
     if (!response.Body) {
       throw new Error("No body returned from S3");
     }
-    const data = await response.Body.transformToString();
-    return JSON.parse(data);
+    const data = JSON.parse(await response.Body.transformToString());
+    // decrypt secKey
+    const { base64DataKey, base64Ciphertext, base64AuthTag, base64Iv } =
+      deserializeEnvelope(data.secKey);
+
+    return {
+      ...data,
+      secKey: await decryptEnvelope({
+        base64DataKey,
+        base64Ciphertext,
+        base64AuthTag,
+        base64Iv,
+        kmsClient: this.kmsClient,
+      }),
+    };
   }
 }

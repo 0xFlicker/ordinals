@@ -19,6 +19,7 @@ import { CollectionModel } from "./models.js";
 import { CollectionError } from "./errors.js";
 import { Context } from "../../context/index.js";
 import {
+  DISALLOWED_META_KEYS,
   createDynamoDbFundingDao,
   createLogger,
   createMempoolBitcoinClient,
@@ -26,6 +27,10 @@ import {
   updateCollectionFunding,
 } from "@0xflick/ordinals-backend";
 import { InscriptionFundingModel } from "../inscriptionFunding/models.js";
+import { v4 as uuid } from "uuid";
+import { DbContext } from "../../context/db.js";
+import { InputMaybe } from "../../generated-types/graphql.js";
+import { KMSClient } from "@aws-sdk/client-kms";
 
 const logger = createLogger({
   name: "graphql-collections-controllers",
@@ -170,14 +175,20 @@ export async function getCollectionWithParentInscription(
 
 export async function updateCollectionParentInscription({
   parentInscriptionFileName,
+  parentInscriptionSecKeyEnvelopeKeyId,
+  fundingSecKeyEnvelopeKeyId,
   s3Client,
   uploadBucketName,
   inscriptionBucketName,
   bitcoinNetwork,
   tipDestination,
+  kmsClient,
 }: {
   parentInscriptionFileName: string;
+  parentInscriptionSecKeyEnvelopeKeyId: string;
+  fundingSecKeyEnvelopeKeyId: string;
   s3Client: S3Client;
+  kmsClient: KMSClient;
   uploadBucketName: string;
   inscriptionBucketName: string;
   bitcoinNetwork: BitcoinNetworkNames;
@@ -201,15 +212,7 @@ export async function updateCollectionParentInscription({
       parentInscriptionVout?: number;
       parentInscriptionSecKey: string;
     },
-    {
-      collectionId: ID_Collection;
-      network: BitcoinNetworkNames;
-      parentInscriptionId?: string;
-      parentInscriptionAddress?: string;
-      parentInscriptionFileName: string;
-      parentInscriptionContentType: string;
-      parentInscriptionContentExists: boolean;
-    }
+    TCollectionModel<TCollectionParentInscription>
   >();
   const fundingDocDao = createStorageFundingDocDao({
     bucketName: inscriptionBucketName,
@@ -223,6 +226,8 @@ export async function updateCollectionParentInscription({
     document,
   } = await updateCollectionFunding({
     collectionId: toCollectionId(collectionId),
+    fundingSecKeyEnvelopeKeyId,
+    parentInscriptionSecKeyEnvelopeKeyId,
     parentInscriptionFileName,
     parentInscriptionContentType: contentType,
     network: bitcoinNetwork,
@@ -234,6 +239,7 @@ export async function updateCollectionParentInscription({
       network: bitcoinNetwork,
     }).fees,
     tipDestination,
+    kmsClient,
   });
   const collectionFundingDao = createDynamoDbFundingDao<
     {
@@ -271,4 +277,125 @@ export async function updateCollectionParentInscription({
   });
 
   return inscriptionFundingModel;
+}
+
+export async function createCollection({
+  name,
+  maxSupply,
+  meta,
+  parentInscription,
+  context,
+}: {
+  name: string;
+  maxSupply?: InputMaybe<number>;
+  meta?: InputMaybe<string>;
+  parentInscription?: InputMaybe<{
+    parentInscriptionId?: InputMaybe<string>;
+    parentInscriptionFileName?: InputMaybe<string>;
+    parentInscriptionContentType?: InputMaybe<string>;
+  }>;
+  context: DbContext & IAwsContext & IConfigContext;
+}) {
+  const { fundingDao } = context;
+
+  const collections = await fundingDao.getCollectionByName(name);
+  if (collections.length > 0) {
+    throw new CollectionError("COLLECTION_ALREADY_EXISTS", name);
+  }
+
+  let metadata: Record<string, unknown> = {};
+  try {
+    if (meta) {
+      metadata = JSON.parse(meta);
+    }
+  } catch (e) {
+    logger.warn({ meta }, "Unable to parse metadata");
+    throw new CollectionError("INVALID_METADATA", "Unable to parse metadata");
+  }
+
+  for (const key of Object.keys(metadata)) {
+    if (DISALLOWED_META_KEYS.includes(key)) {
+      throw new CollectionError("INVALID_METADATA", `Reserved key: ${key}`);
+    }
+    if (typeof metadata[key] !== "string") {
+      throw new CollectionError(
+        "INVALID_METADATA",
+        `key: ${key} is not a string`,
+      );
+    }
+  }
+
+  const {
+    parentInscriptionId,
+    parentInscriptionFileName: inputParentInscriptionFileName,
+    parentInscriptionContentType,
+  } = parentInscription ?? {};
+
+  const id = toCollectionId(uuid());
+  const parentInscriptionFileName = `${id}/${inputParentInscriptionFileName?.replace(
+    /(^\.\.|\/.\.)/g,
+    "",
+  )}`;
+
+  const model: TCollectionModel<{
+    parentInscriptionId?: string;
+    parentInscriptionFileName?: string;
+    parentInscriptionContentType?: string;
+  }> = {
+    id,
+    name,
+    totalCount: 0,
+    pendingCount: 0,
+    type: "collection",
+    meta: {
+      ...metadata,
+      ...(parentInscriptionId ? { parentInscriptionId } : {}),
+      ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
+      ...(parentInscriptionContentType ? { parentInscriptionContentType } : {}),
+    },
+  };
+
+  let modelParentInscription: TCollectionParentInscription | undefined;
+
+  if (
+    parentInscription &&
+    !parentInscriptionId &&
+    parentInscriptionFileName &&
+    parentInscriptionContentType
+  ) {
+    logger.info(
+      {
+        fileName: parentInscriptionFileName,
+        contentType: parentInscriptionContentType,
+        collectionId: id,
+      },
+      "Creating parent inscription",
+    );
+
+    const [uploadUrl, multipartUploadId] = await Promise.all([
+      getS3UploadUrl({
+        fileName: parentInscriptionFileName,
+        contentType: parentInscriptionContentType,
+        context,
+        metadata: { "collection-id": id },
+      }),
+      getMultiPartUploadID({
+        fileName: parentInscriptionFileName,
+        contentType: parentInscriptionContentType,
+        context,
+        metadata: { "collection-id": id },
+      }),
+    ]);
+
+    modelParentInscription = {
+      ...(parentInscriptionId ? { parentInscriptionId } : {}),
+      ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
+      ...(parentInscriptionContentType ? { parentInscriptionContentType } : {}),
+      uploadUrl,
+      multipartUploadId,
+    };
+  }
+
+  await fundingDao.createCollection(model);
+  return new CollectionModel(model, modelParentInscription);
 }

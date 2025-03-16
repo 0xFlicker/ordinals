@@ -76,6 +76,13 @@ export function generateRevealTransactionDataIteratively(
   underpriced?: boolean;
   minerFee: number;
 } {
+  // Validate that all inputs have at least one inscription
+  if (request.inputs.some((input) => !input.inscriptions?.length)) {
+    throw new CannotFitInscriptionsError(
+      "All inputs must have at least one inscription",
+    );
+  }
+
   const [highestFeeRate, lowestFeeRate] = request.feeRateRange;
 
   // PHASE 1: Quick check at highestFeeRate
@@ -193,15 +200,32 @@ function buildTxAtFeeRate(
   platformFeeRange: [number, number],
   withRealSignatures = false,
 ): { txData: TxData; platformFee: number; minerFee: number } | null {
-  // Build initial skeleton to get accurate size estimate
   const { txSkeleton, witnessSigners } = buildSkeleton(request);
+
+  // Validate that all required outputs are present
+  const expectedOutputCount =
+    (request.parentTxs?.length || 0) +
+    request.inputs.reduce((sum, input) => sum + input.inscriptions.length, 0);
+
+  if (txSkeleton.vout.length !== expectedOutputCount) {
+    throw new CannotFitInscriptionsError(
+      "Failed to create all required inscription outputs",
+    );
+  }
+
+  // Build initial skeleton to get accurate size estimate
   attachDummyWitnesses(txSkeleton, request);
 
   // Add dummy outputs for size estimation (one for each potential fee destination)
-  const dummyOutputs = (request.feeDestinations || []).map(() => ({
+  const dummyOutputs = request.feeDestinations?.map(() => ({
     value: 1000,
     scriptPubKey: ["OP_1", "0".repeat(64)], // dummy P2TR output
-  }));
+  })) || [
+    {
+      value: 1000,
+      scriptPubKey: ["OP_1", "0".repeat(64)], // dummy P2TR output
+    },
+  ];
   txSkeleton.vout.push(...dummyOutputs);
 
   let totalSize;
@@ -220,8 +244,12 @@ function buildTxAtFeeRate(
   // Remove the dummy outputs before proceeding
   txSkeleton.vout.splice(-dummyOutputs.length);
 
-  // Continue with the rest of the original function...
-  // ... existing buildTxAtFeeRate code ...
+  // If using real signatures, sign the transaction
+  if (withRealSignatures) {
+    signAllVin(txSkeleton, witnessSigners);
+  }
+
+  // Continue with fee calculations...
 
   // 3) Estimate base size and compute minimal miner fee
   let baseVSize = 0;
@@ -234,7 +262,7 @@ function buildTxAtFeeRate(
     );
     return null;
   }
-  const baseMinerFee = Math.ceil(feeRate * baseVSize * 1.02);
+  const baseMinerFee = Math.ceil(feeRate * baseVSize);
 
   // 4) Check that we have enough input to pay for required padding + base miner fee
   const totalInputAmount = getTotalInputAmount(request);
@@ -243,10 +271,29 @@ function buildTxAtFeeRate(
     return null;
   }
 
-  // 5) If no feeDestinations, return
+  // 5) If no feeDestinations, verify we can cover miner fee
   const leftoverForFees = totalInputAmount - requiredPadding;
   if (!request.feeDestinations || request.feeDestinations.length === 0) {
-    return { txData: txSkeleton, platformFee: 0, minerFee: baseMinerFee };
+    // Verify the transaction with real signatures if requested
+    if (withRealSignatures) {
+      signAllVin(txSkeleton, witnessSigners);
+    }
+
+    // Verify final size and fee
+    let finalVSize = 0;
+    try {
+      finalVSize = Tx.util.getTxSize(txSkeleton).vsize;
+    } catch {
+      return null;
+    }
+    const finalMinerFee = Math.ceil(feeRate * finalVSize);
+
+    // Ensure we can cover the final miner fee
+    if (leftoverForFees < finalMinerFee) {
+      return null;
+    }
+
+    return { txData: txSkeleton, platformFee: 0, minerFee: finalMinerFee };
   }
 
   // 6) Try platform-fee distributions
@@ -446,40 +493,45 @@ export function buildSkeleton(request: RevealTransactionRequest): {
   witnessSigners: Array<() => TxData["vin"][number]["witness"]>;
 } {
   const { inputs, parentTxs } = request;
+
   const witnessSigners: Array<() => TxData["vin"][number]["witness"]> = [];
   const vin: TxTemplate["vin"] = [];
+  const vout: TxTemplate["vout"] = [];
 
-  // Parent TXs
-  parentTxs?.forEach((pTx, i) => {
-    const pubKey = pTx.secKey.pub.x;
+  for (let i = 0; i < (parentTxs?.length ?? 0); i++) {
+    const parentTx = parentTxs![i];
+    const pubKey = parentTx.secKey.pub.x;
     const [tPub] = Tap.getPubKey(pubKey);
     witnessSigners.push(() => {
-      const tapSecKey = Tap.getSecKey(pTx.secKey)[0];
+      const tapSecKey = Tap.getSecKey(parentTx.secKey)[0];
       const sig = Signer.taproot.sign(tapSecKey, txSkeleton, i);
       Signer.taproot.verifyTx(txSkeleton, i, { pubkey: tPub });
       return [sig];
     });
     vin.push({
-      ...pTx.vin,
+      ...parentTx.vin,
       prevout: {
-        value: pTx.value,
+        value: parentTx.value,
         scriptPubKey: Address.p2tr.scriptPubKey(tPub),
       },
     });
-  });
+    vout.push({
+      value: parentTx.value,
+      scriptPubKey: [
+        "OP_1",
+        Address.p2tr.decode(parentTx.destinationAddress).hex,
+      ],
+    });
+  }
 
   // Inputs & Inscriptions
   let indexOffset = parentTxs?.length ?? 0;
-  inputs.forEach((input, i) => {
+  for (let i = indexOffset; i < inputs.length + indexOffset; i++) {
+    const input = inputs[i - indexOffset];
     witnessSigners.push(() => {
-      const sig = Signer.taproot.sign(
-        input.secKey.raw,
-        txSkeleton,
-        indexOffset + i,
-        {
-          extension: input.leaf,
-        },
-      );
+      const sig = Signer.taproot.sign(input.secKey.raw, txSkeleton, i, {
+        extension: input.leaf,
+      });
       return [
         sig.hex,
         serializedScriptToScriptData(input.script),
@@ -495,22 +547,8 @@ export function buildSkeleton(request: RevealTransactionRequest): {
         scriptPubKey: ["OP_1", input.tapkey],
       },
     });
-  });
 
-  // Build base outputs
-  const vout: TxTemplate["vout"] = [];
-
-  // Parent outputs
-  parentTxs?.forEach((pTx) => {
-    vout.push({
-      value: pTx.value,
-      scriptPubKey: ["OP_1", Address.p2tr.decode(pTx.destinationAddress).hex],
-    });
-  });
-
-  // Inscription outputs
-  inputs.forEach((input) => {
-    input.inscriptions.forEach((inscription) => {
+    for (const inscription of input.inscriptions) {
       vout.push({
         value: input.padding,
         scriptPubKey: [
@@ -518,8 +556,8 @@ export function buildSkeleton(request: RevealTransactionRequest): {
           Address.p2tr.decode(inscription.destinationAddress).hex,
         ],
       });
-    });
-  });
+    }
+  }
 
   const txSkeleton: TxData = Tx.create({ vin, vout });
   return { txSkeleton, witnessSigners };

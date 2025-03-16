@@ -15,8 +15,12 @@ import {
   EMPTY,
 } from "rxjs";
 import { SecretKey } from "@0xflick/crypto-utils";
-import { IFundingDao, IFundingDocDao } from "../dao/funding.js";
-import { MempoolClient, createLogger } from "../index.js";
+import {
+  FundingDao,
+  FundingDocDao,
+  MempoolClient,
+  createLogger,
+} from "../index.js";
 import { ID_Collection } from "@0xflick/ordinals-models";
 import { generateFundableGenesisTransaction } from "@0xflick/inscriptions";
 import { NoVoutFound, enqueueCheckTxo } from "./mempool.js";
@@ -49,8 +53,8 @@ export function watchForFunded(
     pollFundingsInterval = 60000,
   }: {
     collectionId: ID_Collection;
-    fundingDao: IFundingDao;
-    fundingDocDao: IFundingDocDao;
+    fundingDao: FundingDao;
+    fundingDocDao: FundingDocDao;
     mempoolBitcoinClient: MempoolClient["bitcoin"];
     pollFundingsInterval?: number;
   },

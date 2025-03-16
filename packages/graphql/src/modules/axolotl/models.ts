@@ -8,8 +8,8 @@ import {
 } from "@0xflick/ordinals-models";
 import { InscriptionFundingModel } from "../inscriptionFunding/models.js";
 import {
-  IFundingDao,
-  IFundingDocDao,
+  FundingDao,
+  FundingDocDao,
   createDynamoDbFundingDao,
   createInscriptionTransaction,
   createLogger,
@@ -52,7 +52,7 @@ export interface IAxolotlCollectionIncrementalRevealMeta {
   config?: string;
 }
 
-export type TAxolotlFundingDao = IFundingDao<
+export type TAxolotlFundingDao = FundingDao<
   IAxolotlMeta,
   IAxolotlCollectionIncrementalRevealMeta
 >;
@@ -250,7 +250,7 @@ export class AxolotlModel implements IAxolotlMeta {
   }: {
     collectionId: ID_Collection;
     incrementingRevealDao: TAxolotlFundingDao;
-    fundingDocDao: IFundingDocDao;
+    fundingDocDao: FundingDocDao;
     destinationAddress: string;
     network: BitcoinNetworkNames;
     mempool: MempoolModel;

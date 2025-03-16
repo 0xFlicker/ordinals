@@ -82,23 +82,6 @@ export const resolvers: InscriptionFundingModule.Resolvers = {
       const funding = await fundingDao.getFunding(p.id);
       return toGraphqlFundingStatus(funding.fundingStatus);
     },
-    fundingTxId: async (p, _, { fundingDao }) => {
-      const funding = await fundingDao.getFunding(p.id);
-      return funding.fundingTxid ?? null;
-    },
-    fundingTxUrl: async (p, _, { fundingDao }) => {
-      const funding = await fundingDao.getFunding(p.id);
-      if (!funding.fundingTxid) {
-        return null;
-      }
-      return getUrl({
-        network: funding.network,
-        id: funding.fundingTxid,
-        bitcoinRegtestMempoolEndpoint: "http://localhost",
-        bitcoinTestnetMempoolEndpoint: "https://mempool.space",
-        bitcoinMainnetMempoolEndpoint: "https://mempool.space",
-      });
-    },
     fundingGenesisTxId: async (p, _, { fundingDao }) => {
       const funding = await fundingDao.getFunding(p.id);
       return funding.genesisTxid ?? null;

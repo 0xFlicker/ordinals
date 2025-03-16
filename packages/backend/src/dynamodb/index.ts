@@ -5,3 +5,4 @@ export * from "./funding-update.js";
 export * from "./incrementingReveal.js";
 export * from "./openEdition.js";
 export * from "./claims.js";
+export * from "./wallet.js";

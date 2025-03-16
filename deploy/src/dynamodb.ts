@@ -64,6 +64,7 @@ function compileFundingPoller() {
 export interface IProps {}
 
 export class DynamoDB extends Construct {
+  public readonly walletTable: dynamodb.Table;
   public readonly rbacTable: dynamodb.Table;
   public readonly userNonceTable: dynamodb.Table;
   public readonly fundingTable: dynamodb.Table;
@@ -72,6 +73,25 @@ export class DynamoDB extends Construct {
 
   constructor(scope: Construct, id: string, _: IProps) {
     super(scope, id);
+
+    const walletTable = new dynamodb.Table(this, "WalletTable", {
+      partitionKey: {
+        name: "pk",
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: "sk",
+        type: dynamodb.AttributeType.STRING,
+      },
+      tableClass: dynamodb.TableClass.STANDARD,
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    });
+    this.walletTable = walletTable;
+
+    new cdk.CfnOutput(this, "WalletTableName", {
+      exportName: "WalletTableName",
+      value: walletTable.tableName,
+    });
 
     const rbacTable = new dynamodb.Table(this, "RbacTable", {
       partitionKey: {

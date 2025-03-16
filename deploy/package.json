@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "aws_docker_login": "aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws",
+    "deploy:local:bootstrap": "DEPLOYMENT=localstack ORIGIN=http://localhost:3000 AWS_REGION=us-east-1 cdklocal bootstrap",
     "deploy:local": "DEPLOYMENT=localstack ORIGIN=http://localhost:3000 AWS_REGION=us-east-1 cdklocal deploy --outputs-file outputs.json ordinals && node ./scripts/generateTableNamesEnv.mjs",
     "deploy": "DEPLOYMENT=aws AWS_REGION=us-east-1 cdk deploy"
   },

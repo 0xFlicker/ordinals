@@ -1,7 +1,6 @@
 // I don't think this does anything. Probably was trying to work on a tx unsticker
 import { catchError, from, mergeMap, tap, filter, map, EMPTY } from "rxjs";
-import { IFundingDao } from "../dao/funding.js";
-import { MempoolClient, createLogger } from "../index.js";
+import { FundingDao, MempoolClient, createLogger } from "../index.js";
 import { BitcoinNetworkNames, ID_Collection } from "@0xflick/ordinals-models";
 import { Address } from "@0xflick/tapscript";
 import { NoVoutFound, enqueueCheckTxo } from "./mempool.js";
@@ -24,7 +23,7 @@ export function checkFunding({
   network = "testnet",
 }: {
   collectionId: ID_Collection;
-  fundingDao: IFundingDao;
+  fundingDao: FundingDao;
   mempoolBitcoinClient: MempoolClient["bitcoin"];
   concurrency: number;
   network?: BitcoinNetworkNames;

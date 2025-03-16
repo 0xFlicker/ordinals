@@ -143,7 +143,7 @@ export type BlockchainNetwork =
 export type Collection = {
   __typename?: 'Collection';
   id: Scalars['ID']['output'];
-  maxSupply: Scalars['Int']['output'];
+  maxSupply?: Maybe<Scalars['Int']['output']>;
   metadata: Array<KeyValue>;
   name: Scalars['String']['output'];
   parentInscription?: Maybe<CollectionParentInscription>;
@@ -158,7 +158,7 @@ export type CollectionUpdateMetadataArgs = {
 };
 
 export type CollectionInput = {
-  maxSupply: Scalars['Int']['input'];
+  maxSupply?: InputMaybe<Scalars['Int']['input']>;
   meta?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   parentInscription?: InputMaybe<CollectionParentInscriptionInput>;
@@ -177,6 +177,18 @@ export type CollectionParentInscriptionInput = {
   parentInscriptionContentType?: InputMaybe<Scalars['String']['input']>;
   parentInscriptionFileName?: InputMaybe<Scalars['String']['input']>;
   parentInscriptionId?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateInscriptionProblem = {
+  __typename?: 'CreateInscriptionProblem';
+  code?: Maybe<Scalars['Int']['output']>;
+  message: Scalars['String']['output'];
+};
+
+export type CreateInscriptionResponse = {
+  __typename?: 'CreateInscriptionResponse';
+  data?: Maybe<InscriptionFunding>;
+  problems?: Maybe<Array<CreateInscriptionProblem>>;
 };
 
 export type FeeEstimate = {
@@ -208,9 +220,18 @@ export type InscriptionData = {
 };
 
 export type InscriptionDataInput = {
-  base64Content?: InputMaybe<Scalars['String']['input']>;
+  inlineFile?: InputMaybe<InscriptionFileInlineInput>;
+  metaJson?: InputMaybe<Scalars['String']['input']>;
+  uploadedFile?: InputMaybe<InscriptionFileUploadedInput>;
+};
+
+export type InscriptionFileInlineInput = {
+  base64Content: Scalars['String']['input'];
   contentType: Scalars['String']['input'];
-  textContent?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type InscriptionFileUploadedInput = {
+  id: Scalars['String']['input'];
 };
 
 export type InscriptionFunding = {
@@ -225,8 +246,6 @@ export type InscriptionFunding = {
   fundingGenesisTxUrl?: Maybe<Scalars['String']['output']>;
   fundingRevealTxIds?: Maybe<Array<Scalars['String']['output']>>;
   fundingRevealTxUrls?: Maybe<Array<Scalars['String']['output']>>;
-  fundingTxId?: Maybe<Scalars['String']['output']>;
-  fundingTxUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   inscriptionContent: InscriptionData;
   inscriptionContents: Array<InscriptionData>;
@@ -264,12 +283,48 @@ export type InscriptionFundingsResult = {
   problems?: Maybe<Array<InscriptionFundingProblem>>;
 };
 
-export type InscriptionRequest = {
+export type InscriptionProblem = {
+  __typename?: 'InscriptionProblem';
+  code?: Maybe<Scalars['Int']['output']>;
+  fileName: Scalars['String']['output'];
+  message?: Maybe<Scalars['String']['output']>;
+};
+
+export type InscriptionRequestInput = {
   destinationAddress: Scalars['String']['input'];
   feeLevel?: InputMaybe<FeeLevel>;
   feePerByte?: InputMaybe<Scalars['Int']['input']>;
   files: Array<InscriptionDataInput>;
   network: BitcoinNetwork;
+  parentInscriptionId?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type InscriptionUploadData = {
+  __typename?: 'InscriptionUploadData';
+  files: Array<InscriptionUploadFileData>;
+};
+
+export type InscriptionUploadFileData = {
+  __typename?: 'InscriptionUploadFileData';
+  fileName: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  multipartUploadId?: Maybe<Scalars['String']['output']>;
+  uploadUrl?: Maybe<Scalars['String']['output']>;
+};
+
+export type InscriptionUploadFileRequest = {
+  contentType: Scalars['String']['input'];
+  fileName: Scalars['String']['input'];
+};
+
+export type InscriptionUploadRequest = {
+  files: Array<InscriptionUploadFileRequest>;
+};
+
+export type InscriptionUploadResponse = {
+  __typename?: 'InscriptionUploadResponse';
+  data?: Maybe<InscriptionUploadData>;
+  problems?: Maybe<Array<InscriptionProblem>>;
 };
 
 export type KeyValue = {
@@ -289,6 +344,7 @@ export type Mutation = {
   collection: Collection;
   createCollection: Collection;
   createCollectionParentInscription: InscriptionFunding;
+  createInscriptionRequest: CreateInscriptionResponse;
   createRole: Role;
   deleteCollection: Scalars['Boolean']['output'];
   nonceBitcoin: Nonce;
@@ -300,6 +356,7 @@ export type Mutation = {
   signOutEthereum: Scalars['Boolean']['output'];
   siwb: Web3LoginUser;
   siwe: Web3LoginUser;
+  uploadInscription: InscriptionUploadResponse;
 };
 
 
@@ -321,6 +378,11 @@ export type MutationCreateCollectionArgs = {
 export type MutationCreateCollectionParentInscriptionArgs = {
   bitcoinNetwork: BitcoinNetwork;
   collectionId: Scalars['ID']['input'];
+};
+
+
+export type MutationCreateInscriptionRequestArgs = {
+  input: InscriptionRequestInput;
 };
 
 
@@ -370,6 +432,11 @@ export type MutationSiwbArgs = {
 export type MutationSiweArgs = {
   address: Scalars['ID']['input'];
   jwe: Scalars['String']['input'];
+};
+
+
+export type MutationUploadInscriptionArgs = {
+  input: InscriptionUploadRequest;
 };
 
 export type Nonce = {
@@ -692,17 +759,27 @@ export type ResolversTypes = {
   CollectionInput: CollectionInput;
   CollectionParentInscription: ResolverTypeWrapper<CollectionParentInscription>;
   CollectionParentInscriptionInput: CollectionParentInscriptionInput;
+  CreateInscriptionProblem: ResolverTypeWrapper<CreateInscriptionProblem>;
+  CreateInscriptionResponse: ResolverTypeWrapper<Omit<CreateInscriptionResponse, 'data'> & { data?: Maybe<ResolversTypes['InscriptionFunding']> }>;
   FeeEstimate: ResolverTypeWrapper<FeeEstimate>;
   FeeLevel: FeeLevel;
   FundingStatus: FundingStatus;
   ID: ResolverTypeWrapper<Scalars['ID']['output']>;
   InscriptionData: ResolverTypeWrapper<InscriptionData>;
   InscriptionDataInput: InscriptionDataInput;
+  InscriptionFileInlineInput: InscriptionFileInlineInput;
+  InscriptionFileUploadedInput: InscriptionFileUploadedInput;
   InscriptionFunding: ResolverTypeWrapper<InscriptionFundingModel>;
   InscriptionFundingProblem: ResolverTypeWrapper<InscriptionFundingProblem>;
   InscriptionFundingQuery: InscriptionFundingQuery;
   InscriptionFundingsResult: ResolverTypeWrapper<Omit<InscriptionFundingsResult, 'fundings'> & { fundings?: Maybe<Array<ResolversTypes['InscriptionFunding']>> }>;
-  InscriptionRequest: InscriptionRequest;
+  InscriptionProblem: ResolverTypeWrapper<InscriptionProblem>;
+  InscriptionRequestInput: InscriptionRequestInput;
+  InscriptionUploadData: ResolverTypeWrapper<InscriptionUploadData>;
+  InscriptionUploadFileData: ResolverTypeWrapper<InscriptionUploadFileData>;
+  InscriptionUploadFileRequest: InscriptionUploadFileRequest;
+  InscriptionUploadRequest: InscriptionUploadRequest;
+  InscriptionUploadResponse: ResolverTypeWrapper<InscriptionUploadResponse>;
   Int: ResolverTypeWrapper<Scalars['Int']['output']>;
   KeyValue: ResolverTypeWrapper<KeyValue>;
   KeyValueInput: KeyValueInput;
@@ -747,15 +824,25 @@ export type ResolversParentTypes = {
   CollectionInput: CollectionInput;
   CollectionParentInscription: CollectionParentInscription;
   CollectionParentInscriptionInput: CollectionParentInscriptionInput;
+  CreateInscriptionProblem: CreateInscriptionProblem;
+  CreateInscriptionResponse: Omit<CreateInscriptionResponse, 'data'> & { data?: Maybe<ResolversParentTypes['InscriptionFunding']> };
   FeeEstimate: FeeEstimate;
   ID: Scalars['ID']['output'];
   InscriptionData: InscriptionData;
   InscriptionDataInput: InscriptionDataInput;
+  InscriptionFileInlineInput: InscriptionFileInlineInput;
+  InscriptionFileUploadedInput: InscriptionFileUploadedInput;
   InscriptionFunding: InscriptionFundingModel;
   InscriptionFundingProblem: InscriptionFundingProblem;
   InscriptionFundingQuery: InscriptionFundingQuery;
   InscriptionFundingsResult: Omit<InscriptionFundingsResult, 'fundings'> & { fundings?: Maybe<Array<ResolversParentTypes['InscriptionFunding']>> };
-  InscriptionRequest: InscriptionRequest;
+  InscriptionProblem: InscriptionProblem;
+  InscriptionRequestInput: InscriptionRequestInput;
+  InscriptionUploadData: InscriptionUploadData;
+  InscriptionUploadFileData: InscriptionUploadFileData;
+  InscriptionUploadFileRequest: InscriptionUploadFileRequest;
+  InscriptionUploadRequest: InscriptionUploadRequest;
+  InscriptionUploadResponse: InscriptionUploadResponse;
   Int: Scalars['Int']['output'];
   KeyValue: KeyValue;
   KeyValueInput: KeyValueInput;
@@ -858,7 +945,7 @@ export type BitcoinScriptItemResolvers<ContextType = Context, ParentType extends
 
 export type CollectionResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Collection'] = ResolversParentTypes['Collection']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  maxSupply?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  maxSupply?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   metadata?: Resolver<Array<ResolversTypes['KeyValue']>, ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   parentInscription?: Resolver<Maybe<ResolversTypes['CollectionParentInscription']>, ParentType, ContextType>;
@@ -874,6 +961,18 @@ export type CollectionParentInscriptionResolvers<ContextType = Context, ParentTy
   parentInscriptionFileName?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   parentInscriptionId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   uploadUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CreateInscriptionProblemResolvers<ContextType = Context, ParentType extends ResolversParentTypes['CreateInscriptionProblem'] = ResolversParentTypes['CreateInscriptionProblem']> = {
+  code?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  message?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CreateInscriptionResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['CreateInscriptionResponse'] = ResolversParentTypes['CreateInscriptionResponse']> = {
+  data?: Resolver<Maybe<ResolversTypes['InscriptionFunding']>, ParentType, ContextType>;
+  problems?: Resolver<Maybe<Array<ResolversTypes['CreateInscriptionProblem']>>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -903,8 +1002,6 @@ export type InscriptionFundingResolvers<ContextType = Context, ParentType extend
   fundingGenesisTxUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   fundingRevealTxIds?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
   fundingRevealTxUrls?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
-  fundingTxId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  fundingTxUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   inscriptionContent?: Resolver<ResolversTypes['InscriptionData'], ParentType, ContextType, RequireFields<InscriptionFundingInscriptionContentArgs, 'index'>>;
   inscriptionContents?: Resolver<Array<ResolversTypes['InscriptionData']>, ParentType, ContextType>;
@@ -931,6 +1028,32 @@ export type InscriptionFundingsResultResolvers<ContextType = Context, ParentType
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type InscriptionProblemResolvers<ContextType = Context, ParentType extends ResolversParentTypes['InscriptionProblem'] = ResolversParentTypes['InscriptionProblem']> = {
+  code?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  fileName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  message?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type InscriptionUploadDataResolvers<ContextType = Context, ParentType extends ResolversParentTypes['InscriptionUploadData'] = ResolversParentTypes['InscriptionUploadData']> = {
+  files?: Resolver<Array<ResolversTypes['InscriptionUploadFileData']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type InscriptionUploadFileDataResolvers<ContextType = Context, ParentType extends ResolversParentTypes['InscriptionUploadFileData'] = ResolversParentTypes['InscriptionUploadFileData']> = {
+  fileName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  multipartUploadId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  uploadUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type InscriptionUploadResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['InscriptionUploadResponse'] = ResolversParentTypes['InscriptionUploadResponse']> = {
+  data?: Resolver<Maybe<ResolversTypes['InscriptionUploadData']>, ParentType, ContextType>;
+  problems?: Resolver<Maybe<Array<ResolversTypes['InscriptionProblem']>>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type KeyValueResolvers<ContextType = Context, ParentType extends ResolversParentTypes['KeyValue'] = ResolversParentTypes['KeyValue']> = {
   key?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   value?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -942,6 +1065,7 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
   collection?: Resolver<ResolversTypes['Collection'], ParentType, ContextType, RequireFields<MutationCollectionArgs, 'id'>>;
   createCollection?: Resolver<ResolversTypes['Collection'], ParentType, ContextType, RequireFields<MutationCreateCollectionArgs, 'input'>>;
   createCollectionParentInscription?: Resolver<ResolversTypes['InscriptionFunding'], ParentType, ContextType, RequireFields<MutationCreateCollectionParentInscriptionArgs, 'bitcoinNetwork' | 'collectionId'>>;
+  createInscriptionRequest?: Resolver<ResolversTypes['CreateInscriptionResponse'], ParentType, ContextType, RequireFields<MutationCreateInscriptionRequestArgs, 'input'>>;
   createRole?: Resolver<ResolversTypes['Role'], ParentType, ContextType, RequireFields<MutationCreateRoleArgs, 'name'>>;
   deleteCollection?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationDeleteCollectionArgs, 'id'>>;
   nonceBitcoin?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceBitcoinArgs, 'address'>>;
@@ -953,6 +1077,7 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
   signOutEthereum?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   siwb?: Resolver<ResolversTypes['Web3LoginUser'], ParentType, ContextType, RequireFields<MutationSiwbArgs, 'address' | 'jwe'>>;
   siwe?: Resolver<ResolversTypes['Web3LoginUser'], ParentType, ContextType, RequireFields<MutationSiweArgs, 'address' | 'jwe'>>;
+  uploadInscription?: Resolver<ResolversTypes['InscriptionUploadResponse'], ParentType, ContextType, RequireFields<MutationUploadInscriptionArgs, 'input'>>;
 };
 
 export type NonceResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Nonce'] = ResolversParentTypes['Nonce']> = {
@@ -1065,11 +1190,17 @@ export type Resolvers<ContextType = Context> = {
   BitcoinScriptItem?: BitcoinScriptItemResolvers<ContextType>;
   Collection?: CollectionResolvers<ContextType>;
   CollectionParentInscription?: CollectionParentInscriptionResolvers<ContextType>;
+  CreateInscriptionProblem?: CreateInscriptionProblemResolvers<ContextType>;
+  CreateInscriptionResponse?: CreateInscriptionResponseResolvers<ContextType>;
   FeeEstimate?: FeeEstimateResolvers<ContextType>;
   InscriptionData?: InscriptionDataResolvers<ContextType>;
   InscriptionFunding?: InscriptionFundingResolvers<ContextType>;
   InscriptionFundingProblem?: InscriptionFundingProblemResolvers<ContextType>;
   InscriptionFundingsResult?: InscriptionFundingsResultResolvers<ContextType>;
+  InscriptionProblem?: InscriptionProblemResolvers<ContextType>;
+  InscriptionUploadData?: InscriptionUploadDataResolvers<ContextType>;
+  InscriptionUploadFileData?: InscriptionUploadFileDataResolvers<ContextType>;
+  InscriptionUploadResponse?: InscriptionUploadResponseResolvers<ContextType>;
   KeyValue?: KeyValueResolvers<ContextType>;
   Mutation?: MutationResolvers<ContextType>;
   Nonce?: NonceResolvers<ContextType>;

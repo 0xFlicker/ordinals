@@ -43,6 +43,7 @@ export class BackendStack extends cdk.Stack {
       openEditionClaimsTable,
       rbacTable,
       userNonceTable,
+      walletTable,
     } = new DynamoDB(this, "DynamoDB", {});
     // new InscriptionsBus(this, "NftMetadataBus", {
     //   lambdas: false,
@@ -56,6 +57,7 @@ export class BackendStack extends cdk.Stack {
         openEditionClaimsTable,
         rbacTable,
         userNonceTable,
+        walletTable,
         inscriptionBucket,
         uploadBucket,
       });

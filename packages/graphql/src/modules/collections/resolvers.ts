@@ -12,8 +12,6 @@ import { verifyAuthorizedUser } from "../auth/controller.js";
 import {
   EActions,
   EResource,
-  TAllowedAction,
-  createMatcher,
   defaultAdminStrategyAll,
   isActionOnResource,
 } from "@0xflick/ordinals-rbac-models";
@@ -21,12 +19,10 @@ import { DISALLOWED_META_KEYS } from "@0xflick/ordinals-backend";
 import { createLogger } from "@0xflick/ordinals-backend";
 import {
   getCollectionWithParentInscription,
-  getMultiPartUploadID,
-  getS3UploadUrl,
   getSignedMultipartUploadUrl,
   updateCollectionParentInscription,
+  createCollection,
 } from "./controllers.js";
-import { startS3Polling } from "./poll.js";
 import ordinals from "@0xflick/ordinals-config";
 import { toBitcoinNetworkName } from "../bitcoin/transforms.js";
 
@@ -65,119 +61,17 @@ export const resolvers: CollectionsModule.Resolvers = {
       context,
       info,
     ) => {
-      const { fundingDao, requireMutation, userRolesDao } = context;
+      const { requireMutation, kmsClient } = context;
       requireMutation(info);
-
       await verifyAuthorizedUser(context, canPerformCreateCollection);
 
-      const collections = await fundingDao.getCollectionByName(name);
-      if (collections.length > 0) {
-        throw new CollectionError("COLLECTION_ALREADY_EXISTS", name);
-      }
-      let metadata: Record<string, unknown> = {};
-      try {
-        if (meta) {
-          metadata = JSON.parse(meta);
-        }
-      } catch (e) {
-        logger.warn({ meta }, "Unable to parse metadata");
-        throw new CollectionError(
-          "INVALID_METADATA",
-          "Unable to parse metadata",
-        );
-      }
-
-      for (const key of Object.keys(metadata)) {
-        // disallow reservered names for metadata
-        if (DISALLOWED_META_KEYS.includes(key)) {
-          throw new CollectionError("INVALID_METADATA", `Reserved key: ${key}`);
-        }
-        // only strings are allowed for metadata
-        if (typeof metadata[key] !== "string") {
-          throw new CollectionError(
-            "INVALID_METADATA",
-            `key: ${key} is not a string`,
-          );
-        }
-      }
-      const {
-        parentInscriptionId,
-        parentInscriptionFileName: inputParentInscriptionFileName,
-        parentInscriptionContentType,
-      } = parentInscription ?? {};
-      const id = toCollectionId(uuid());
-      // remove any leading or trailing dots
-      const parentInscriptionFileName = `${id}/${inputParentInscriptionFileName?.replace(
-        /(^\.\.|\/.\.)/g,
-        "",
-      )}`;
-      const model: TCollectionModel<{
-        parentInscriptionId?: string;
-        parentInscriptionFileName?: string;
-        parentInscriptionContentType?: string;
-      }> = {
-        id,
+      return createCollection({
         name,
-        totalCount: 0,
         maxSupply,
-        pendingCount: 0,
-        type: "collection",
-        meta: {
-          ...metadata,
-          ...(parentInscriptionId ? { parentInscriptionId } : {}),
-          ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
-          ...(parentInscriptionContentType
-            ? { parentInscriptionContentType }
-            : {}),
-        },
-      };
-      let modelParentInscription: TCollectionParentInscription | undefined;
-
-      // If the user is requesting a parent inscription and not providing a parent inscription id, we need to create a new S3 upload url
-      if (
-        parentInscription &&
-        !parentInscriptionId &&
-        parentInscriptionFileName &&
-        parentInscriptionContentType
-      ) {
-        logger.info(
-          {
-            fileName: parentInscriptionFileName,
-            contentType: parentInscriptionContentType,
-            collectionId: id,
-          },
-          "Creating parent inscription",
-        );
-        const [uploadUrl, multipartUploadId] = await Promise.all([
-          getS3UploadUrl({
-            fileName: parentInscriptionFileName,
-            contentType: parentInscriptionContentType,
-            context,
-            metadata: {
-              "collection-id": id,
-            },
-          }),
-          getMultiPartUploadID({
-            fileName: parentInscriptionFileName,
-            contentType: parentInscriptionContentType,
-            context,
-            metadata: {
-              "collection-id": id,
-            },
-          }),
-        ]);
-        modelParentInscription = {
-          ...(parentInscriptionId ? { parentInscriptionId } : {}),
-          ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
-          ...(parentInscriptionContentType
-            ? { parentInscriptionContentType }
-            : {}),
-          uploadUrl,
-          multipartUploadId,
-        };
-      }
-      await fundingDao.createCollection(model);
-      return new CollectionModel(model, modelParentInscription);
+        meta,
+        parentInscription,
+        context,
+      });
     },
     deleteCollection: async (_parent, { id }, context, info) => {
       const { fundingDao, requireMutation } = context;
@@ -197,12 +91,21 @@ export const resolvers: CollectionsModule.Resolvers = {
         typedFundingDao,
         s3Client,
         inscriptionBucket,
-        defaultTipDestination,
+        defaultTipDestinationForNetwork,
+        kmsClient,
+        parentInscriptionSecKeyEnvelopeKeyId,
+        fundingSecKeyEnvelopeKeyId,
       },
     ) => {
       const fundingDao = typedFundingDao<
         {},
-        { parentInscriptionFileName?: string }
+        {
+          parentInscriptionFileName?: string;
+          parentInscriptionId?: string;
+          parentInscriptionAddress: string;
+          parentInscriptionContentExists: boolean;
+          parentInscriptionAddressId: string;
+        }
       >();
       const collection = await fundingDao.getCollection(
         toCollectionId(collectionId),
@@ -217,13 +120,21 @@ export const resolvers: CollectionsModule.Resolvers = {
           collectionId,
         );
       }
+      if (!collection) {
+        throw new CollectionError("COLLECTION_NOT_FOUND", collectionId);
+      }
       const inscriptionFunding = await updateCollectionParentInscription({
         parentInscriptionFileName,
         s3Client,
         uploadBucketName: uploadBucket,
         inscriptionBucketName: inscriptionBucket,
         bitcoinNetwork: toBitcoinNetworkName(bitcoinNetwork),
-        tipDestination: defaultTipDestination,
+        tipDestination: defaultTipDestinationForNetwork(
+          toBitcoinNetworkName(bitcoinNetwork),
+        ),
+        kmsClient,
+        fundingSecKeyEnvelopeKeyId,
+        parentInscriptionSecKeyEnvelopeKeyId,
       });
       if (!inscriptionFunding) {
         throw new CollectionError(

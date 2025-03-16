@@ -11,16 +11,76 @@ enum FeeLevel {
   HIGH
 }
 
-input InscriptionDataInput {
-  textContent: String
-  base64Content: String
-  contentType: String!
+input InscriptionFileUploadedInput {
+  id: String!
 }
 
-input InscriptionRequest {
+input InscriptionFileInlineInput {
+  contentType: String!
+  base64Content: String!
+}
+
+input InscriptionDataInput {
+  uploadedFile: InscriptionFileUploadedInput
+  inlineFile: InscriptionFileInlineInput
+  metaJson: String
+}
+
+input InscriptionRequestInput {
   files: [InscriptionDataInput!]!
   destinationAddress: String!
   network: BitcoinNetwork!
   feeLevel: FeeLevel
   feePerByte: Int
+  parentInscriptionId: String
+}
+
+input InscriptionUploadFileRequest {
+  fileName: String!
+  contentType: String!
+}
+
+input InscriptionUploadRequest {
+  files: [InscriptionUploadFileRequest!]!
+}
+
+type InscriptionUploadFileData {
+  id: String!
+  fileName: String!
+  uploadUrl: String
+  multipartUploadId: String
+}
+
+type InscriptionUploadData {
+  files: [InscriptionUploadFileData!]!
+}
+
+type InscriptionProblem {
+  fileName: String!
+  message: String
+  code: Int
+}
+
+type InscriptionUploadResponse {
+  data: InscriptionUploadData
+  problems: [InscriptionProblem!]
+}
+
+type CreateInscriptionProblem {
+  message: String!
+  code: Int
+}
+
+type CreateInscriptionResponse {
+  data: InscriptionFunding
+  problems: [CreateInscriptionProblem!]
+}
+
+type Mutation {
+  createInscriptionRequest(
+    input: InscriptionRequestInput!
+  ): CreateInscriptionResponse!
+  uploadInscription(
+    input: InscriptionUploadRequest!
+  ): InscriptionUploadResponse!
 }

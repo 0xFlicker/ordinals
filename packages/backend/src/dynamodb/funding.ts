@@ -22,7 +22,6 @@ import {
   TPresaleStatus,
   BitcoinNetworkNames,
 } from "@0xflick/ordinals-models";
-import { IFundingDao } from "../dao/funding.js";
 import {
   DeleteCommand,
   GetCommand,
@@ -83,8 +82,7 @@ function excludePrimaryKeys<T extends Record<string, any>>(
 export class FundingDao<
   ItemMeta extends Record<string, any> = {},
   CollectionMeta extends Record<string, any> = {},
-> implements IFundingDao<ItemMeta, CollectionMeta>
-{
+> {
   public static TABLE_NAME = "Funding";
 
   private client: DynamoDBDocumentClient;
@@ -1098,7 +1096,7 @@ export class FundingDao<
       sk: "collection",
       collectionId: id,
       collectionName: name,
-      maxSupply,
+      maxSupply: maxSupply ?? 1,
       pendingCount,
       totalCount,
       ...(meta

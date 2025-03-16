@@ -1,6 +1,6 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { InscriptionFundingModel } from "./models.js";
-import { IFundingDao, IFundingDocDao } from "@0xflick/ordinals-backend";
+import { FundingDao, FundingDocDao } from "@0xflick/ordinals-backend";
 import { BitcoinNetworkNames } from "@0xflick/ordinals-models";
 
 export async function getUrl({
@@ -36,8 +36,8 @@ export async function getFundingModel({
   s3Client,
 }: {
   id: string;
-  fundingDao: IFundingDao;
-  fundingDocDao: IFundingDocDao;
+  fundingDao: FundingDao;
+  fundingDocDao: FundingDocDao;
   inscriptionBucket: string;
   s3Client: S3Client;
 }) {

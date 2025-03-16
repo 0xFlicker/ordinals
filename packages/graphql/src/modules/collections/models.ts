@@ -8,7 +8,7 @@ export class CollectionModel {
   public id: ID_Collection;
   public name: string;
   public totalCount: number;
-  public maxSupply: number;
+  public maxSupply?: number;
   public pendingCount: number;
   public meta: Record<string, any>;
   public parentInscription?: TCollectionParentInscription;

@@ -14,6 +14,7 @@ import * as apigw2 from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { textFromSecret } from "./utils/files.js";
 import { copyFileSync } from "fs";
+import { Envelope } from "./envelope.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -114,6 +115,7 @@ interface GraphqlProps {
   readonly fundingTable: dynamodb.ITable;
   readonly claimsTable: dynamodb.ITable;
   readonly openEditionClaimsTable: dynamodb.ITable;
+  readonly walletTable: dynamodb.ITable;
   readonly inscriptionBucket: s3.IBucket;
   readonly uploadBucket: s3.IBucket;
 }
@@ -132,11 +134,24 @@ export class Graphql extends Construct {
       userNonceTable,
       inscriptionBucket,
       uploadBucket,
+      walletTable,
     }: GraphqlProps,
   ) {
     super(scope, id);
 
     const graphqlCodeDir = compileGraphql();
+
+    const parentInscriptionSecKeyEnvelope = new Envelope(
+      this,
+      "ParentInscriptionSecKeyEnvelope",
+      {
+        description: "Key for envelope encryption of bitcoin taproot secKeys",
+      },
+    );
+
+    const fundingSecKeyEnvelope = new Envelope(this, "FundingSecKeyEnvelope", {
+      description: "Key for envelope encryption of bitcoin taproot secKeys",
+    });
 
     const graphqlLambda = new lambda.Function(this, "GraphqlHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -152,12 +167,16 @@ export class Graphql extends Construct {
           funding: fundingTable.tableName,
           claims: claimsTable.tableName,
           openEditionClaims: openEditionClaimsTable.tableName,
+          wallet: walletTable.tableName,
         }),
         INSCRIPTION_BUCKET: inscriptionBucket.bucketName,
         UPLOAD_BUCKET: uploadBucket.bucketName,
         FUNDING_TABLE_STREAM_ARN: fundingTable.tableStreamArn ?? "null",
         FUNDING_STREAM_REGION: "us-east-1",
         ...withSecretEnv(`${domainName}/.env.graphql`),
+        PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID:
+          parentInscriptionSecKeyEnvelope.key.keyId,
+        FUNDING_SEC_KEY_ENVELOPE_KEY_ID: fundingSecKeyEnvelope.key.keyId,
       },
     });
 
@@ -166,8 +185,13 @@ export class Graphql extends Construct {
     fundingTable.grantReadWriteData(graphqlLambda);
     claimsTable.grantReadWriteData(graphqlLambda);
     openEditionClaimsTable.grantReadWriteData(graphqlLambda);
+    walletTable.grantReadWriteData(graphqlLambda);
+
     inscriptionBucket.grantReadWrite(graphqlLambda);
     uploadBucket.grantReadWrite(graphqlLambda);
+
+    parentInscriptionSecKeyEnvelope.key.grantEncryptDecrypt(graphqlLambda);
+    fundingSecKeyEnvelope.key.grantEncryptDecrypt(graphqlLambda);
 
     const s3CollectionMetaUpdateCodeDir = compileS3CollectionMetaUpdate();
     const s3CollectionMetaUpdateLambda = new lambda.Function(
@@ -177,6 +201,23 @@ export class Graphql extends Construct {
         runtime: lambda.Runtime.NODEJS_20_X,
         code: lambda.Code.fromAsset(s3CollectionMetaUpdateCodeDir),
         handler: "index.handler",
+        timeout: cdk.Duration.seconds(30),
+        memorySize: 512,
+        environment: {
+          LOG_LEVEL: "debug",
+          TABLE_NAMES: JSON.stringify({
+            rbac: rbacTable.tableName,
+            userNonce: userNonceTable.tableName,
+            funding: fundingTable.tableName,
+            claims: claimsTable.tableName,
+            openEditionClaims: openEditionClaimsTable.tableName,
+            wallet: walletTable.tableName,
+          }),
+          INSCRIPTION_BUCKET: inscriptionBucket.bucketName,
+          UPLOAD_BUCKET: uploadBucket.bucketName,
+          FUNDING_TABLE_STREAM_ARN: fundingTable.tableStreamArn ?? "null",
+          FUNDING_STREAM_REGION: "us-east-1",
+        },
       },
     );
 
@@ -185,6 +226,7 @@ export class Graphql extends Construct {
     fundingTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
     claimsTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
     openEditionClaimsTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
+    walletTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
     uploadBucket.grantRead(s3CollectionMetaUpdateLambda);
     uploadBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED_PUT,

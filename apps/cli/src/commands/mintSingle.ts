@@ -5,10 +5,12 @@ import {
   broadcastTx,
   generateRevealTransaction,
   BitcoinNetworkNames,
+  satsToBitcoin,
 } from "@0xflick/inscriptions";
 import { lookup } from "mime-types";
+import { Tx } from "@0xflick/tapscript";
 import fs from "fs";
-import { sendBitcoin } from "../bitcoin.js";
+import { sendBitcoin, sendRawTransaction } from "../bitcoin.js";
 import { createMempoolBitcoinClient } from "@0xflick/ordinals-backend";
 
 export async function mintSingle({
@@ -56,7 +58,7 @@ export async function mintSingle({
       },
     ],
     padding,
-    tip: 0,
+    tip: 5000,
     network,
     privKey,
     feeRate,
@@ -89,26 +91,66 @@ export async function mintSingle({
   });
   const { fastestFee, halfHourFee } =
     await mempoolClient.fees.getFeesRecommended();
+  const inputs = [
+    {
+      leaf: response.genesisLeaf,
+      tapkey: response.genesisTapKey,
+      cblock: response.genesisCblock,
+      script: response.genesisScript,
+      vout,
+      txid,
+      amount,
+      secKey: response.secKey,
+      padding: response.padding,
+      inscriptions: response.inscriptionsToWrite,
+    },
+  ];
   const revealTx = generateRevealTransaction({
     feeRateRange: feeRate ? [feeRate, feeRate] : [fastestFee, halfHourFee],
-    inputs: [
-      {
-        leaf: response.genesisLeaf,
-        tapkey: response.genesisTapKey,
-        cblock: response.genesisCblock,
-        script: response.genesisScript,
-        vout,
-        txid,
-        amount,
-        secKey: response.secKey,
-        padding: response.padding,
-        inscriptions: response.inscriptionsToWrite,
-      },
-    ],
+    inputs,
+    // feeDestinations: [
+    //   {
+    //     address:
+    //       "bcrt1pu66t68enskhna2d8nhz29armn06uursdk578g3mlzqvyncqy2q3s965a5p",
+    //     weight: 100,
+    //   },
+    // ],
   });
   console.log(`Reveal miner fee: ${revealTx.minerFee}`);
   console.log(`Reveal platform fee: ${revealTx.platformFee}`);
   console.log(`Reveal underpriced: ${!!revealTx.underpriced}`);
-  const revealTxId = await broadcastTx(revealTx.hex, network);
-  console.log(`Reveal tx id: ${revealTxId}`);
+  try {
+    const revealTxId = await broadcastTx(revealTx.hex, network);
+    console.log(`Reveal tx id: ${revealTxId}`);
+  } catch (e) {
+    console.error(e);
+    // Decode and print the reveal tx
+    const revealTxSkeleton = Tx.decode(Buffer.from(revealTx.hex, "hex"));
+
+    await fs.promises.writeFile(
+      "reveal.json",
+      JSON.stringify(
+        {
+          ...revealTxSkeleton,
+          hex: revealTx.hex,
+          inputs,
+          funded,
+          response,
+        },
+        function (this: any, key: string, value: any) {
+          if (typeof value === "bigint") {
+            return satsToBitcoin(value);
+          }
+          return value;
+        },
+        2,
+      ),
+    );
+
+    const revealTxId = await sendRawTransaction({
+      network,
+      rawtx: revealTx.hex,
+    });
+    console.log(`Reveal tx id: ${revealTxId}`);
+  }
 }

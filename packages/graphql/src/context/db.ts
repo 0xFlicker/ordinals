@@ -1,6 +1,5 @@
 import {
   createDynamoDbFundingDao,
-  IFundingDao,
   getDb,
   createDynamoDbClaimsDao,
   ClaimsDao,

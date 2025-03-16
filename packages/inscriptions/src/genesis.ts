@@ -245,16 +245,23 @@ export async function generateFundableGenesisTransaction(
   ];
 
   // 10) Measure its size so we know how many sats we need to cover (dust + any overhead)
-  const { vsize } = Tx.util.getTxSize(partialTxData);
+  const { size } = Tx.util.getTxSize(partialTxData);
   // We do collect a small miner fee from the user just to get it confirmed in a block
   // but "fee=0" inside the actual output. So your minimal "miner" cost is:
-  const feeSize = Math.ceil(feeRate * vsize);
+  const feeSize = Math.ceil(feeRate * size);
 
   // 11) The total needed from the user is basically
   // "padding * #inscriptions + tip + minimal-miner-fee-for-confirmation"
   // (You can tweak as needed.)
   const totalInscriptions = inscriptions.length;
-  const required = tip + feeSize + padding * totalInscriptions;
+  const required =
+    Math.max(tip, Math.ceil(feeSize * 0.05)) +
+    feeSize +
+    padding * totalInscriptions +
+    // output signatures
+    totalInscriptions * 32 +
+    // 1 input signature
+    64;
 
   const overhead = required - feeSize;
 

@@ -16,8 +16,7 @@ import {
   concatMap,
   EMPTY,
 } from "rxjs";
-import { IFundingDao } from "../dao/funding.js";
-import { MempoolClient, createLogger } from "../index.js";
+import { FundingDao, MempoolClient, createLogger } from "../index.js";
 import { BitcoinNetworkNames, ID_Collection } from "@0xflick/ordinals-models";
 import { Address } from "@0xflick/tapscript";
 import { NoVoutFound, enqueueCheckTxo } from "./mempool.js";
@@ -49,7 +48,7 @@ export async function pollForFundings({
   network = "testnet",
 }: {
   fundings: TPollFunding[];
-  fundingDao: IFundingDao;
+  fundingDao: FundingDao;
   mempoolBitcoinClient: MempoolClient["bitcoin"];
   pollInterval?: number;
   network?: BitcoinNetworkNames;
@@ -72,7 +71,7 @@ export function watchForFundings(
     network = "testnet",
   }: {
     collectionId: ID_Collection;
-    fundingDao: IFundingDao;
+    fundingDao: FundingDao;
     mempoolBitcoinClient: MempoolClient["bitcoin"];
     pollInterval?: number;
     network?: BitcoinNetworkNames;

@@ -239,10 +239,6 @@ export class InscriptionFundingModel {
     return this.fetchInscription().then((d) => d.overhead);
   }
 
-  public get privateKey() {
-    return this.fetchInscription().then((d) => d.secKey);
-  }
-
   public get padding() {
     return this.fetchInscription().then((d) => d.padding);
   }

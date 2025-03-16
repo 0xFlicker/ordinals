@@ -1,8 +1,8 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { AxolotlModule } from "./generated-types/module-types.js";
 import {
-  IFundingDao,
-  IFundingDocDao,
+  FundingDao,
+  FundingDocDao,
   MempoolClient,
   createInscriptionTransaction,
 } from "@0xflick/ordinals-backend";
@@ -90,8 +90,8 @@ async function createTranscriptionFunding({
   feeLevel?: InputMaybe<FeeLevel>;
   feePerByte?: InputMaybe<number>;
   network: BitcoinNetworkNames;
-  fundingDao: IFundingDao;
-  fundingDocDao: IFundingDocDao;
+  fundingDao: FundingDao;
+  fundingDocDao: FundingDocDao;
   inscriptionBucket: string;
   s3Client: S3Client;
   tip: number;

@@ -18,6 +18,8 @@ for (const [key, value] of Object.entries(outputs["ordinals"])) {
     tableNames.claims = value;
   } else if (key.startsWith("DynamoDBOpenEditionClaimsTableName")) {
     tableNames.openEditionClaims = value;
+  } else if (key.startsWith("DynamoDBWalletTableName")) {
+    tableNames.wallet = value;
   } else if (key.startsWith("StorageinscriptionsBucketName")) {
     inscriptionBucketName = value;
   } else if (key.startsWith("DynamoDBFundingTableStreamArn")) {

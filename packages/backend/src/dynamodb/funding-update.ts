@@ -7,6 +7,8 @@ import {
 } from "@0xflick/inscriptions";
 import {
   ID_Collection,
+  TCollectionModel,
+  TCollectionParentInscription,
   TInscriptionDoc,
   hashAddress,
   toAddressInscriptionId,
@@ -14,12 +16,14 @@ import {
 import { Address, Tap } from "@0xflick/tapscript";
 import {
   FundingDao,
-  IFundingDocDao,
+  FundingDocDao,
   MempoolClient,
   createInscriptionTransaction,
 } from "../index.js";
 import { KeyPair, SecretKey } from "@0xflick/crypto-utils";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { encryptEnvelope, serializeEnvelope } from "../utils/enevlope.js";
+import { KMSClient } from "@aws-sdk/client-kms";
 
 function generateAddressFromKeyPair({
   secKey,
@@ -39,17 +43,22 @@ function generateAddressFromKeyPair({
 
 export async function updateCollectionFunding({
   collectionId,
+  parentInscriptionSecKeyEnvelopeKeyId,
+  fundingSecKeyEnvelopeKeyId,
   parentInscriptionFileName,
   parentInscriptionContentType,
   network,
   uploadBucket,
   feeClient,
   tipDestination,
+  kmsClient,
   s3Client,
   metadata,
   fundingDocDao,
   fundingDao,
 }: {
+  parentInscriptionSecKeyEnvelopeKeyId: string;
+  fundingSecKeyEnvelopeKeyId: string;
   collectionId: ID_Collection;
   parentInscriptionFileName: string;
   parentInscriptionContentType: string;
@@ -58,22 +67,16 @@ export async function updateCollectionFunding({
   uploadBucket: string;
   metadata?: InscriptionContent["metadata"];
   feeClient: MempoolClient["bitcoin"]["fees"];
+  kmsClient: KMSClient;
   s3Client: S3Client;
-  fundingDocDao: IFundingDocDao;
+  fundingDocDao: FundingDocDao;
   fundingDao: FundingDao<
     {
       parentInscriptionTxid?: string;
       parentInscriptionVout?: number;
       parentInscriptionSecKey: string;
     },
-    {
-      collectionId: ID_Collection;
-      network: BitcoinNetworkNames;
-      parentInscriptionId?: string;
-      parentInscriptionAddress?: string;
-      parentInscriptionFileName: string;
-      parentInscriptionContentType: string;
-    }
+    TCollectionModel<TCollectionParentInscription>
   >;
 }) {
   // Generate a new private key. This will be used to custody the parent
@@ -132,6 +135,7 @@ export async function updateCollectionFunding({
 
   const doc: TInscriptionDoc = {
     id,
+    collectionId,
     fundingAddress,
     fundingAmountBtc,
     initCBlock,
@@ -149,23 +153,34 @@ export async function updateCollectionFunding({
   };
 
   await Promise.all([
-    fundingDocDao.updateOrSaveInscriptionTransaction(doc),
-    fundingDao.createFunding({
-      address: fundingAddress,
-      network,
-      id,
-      destinationAddress: parentInscriptionAddress,
-      fundingStatus: "funding",
-      timesChecked: 0,
-      fundingAmountBtc,
-      fundingAmountSat: Number(bitcoinToSats(fundingAmountBtc)),
-      tipAmountSat: 0,
-      meta: {
-        parentInscriptionSecKey: privateKey,
-      },
-      type: "address-inscription",
-      createdAt: new Date(),
-    }),
+    fundingDocDao.updateOrSaveInscriptionTransaction(
+      doc,
+      fundingSecKeyEnvelopeKeyId,
+    ),
+    encryptEnvelope({
+      plaintext: privateKey,
+      kmsClient,
+      keyId: parentInscriptionSecKeyEnvelopeKeyId,
+    })
+      .then(serializeEnvelope)
+      .then((parentInscriptionSecKey) =>
+        fundingDao.createFunding({
+          address: fundingAddress,
+          network,
+          id,
+          destinationAddress: parentInscriptionAddress,
+          fundingStatus: "funding",
+          timesChecked: 0,
+          fundingAmountBtc,
+          fundingAmountSat: Number(bitcoinToSats(fundingAmountBtc)),
+          tipAmountSat: 0,
+          meta: {
+            parentInscriptionSecKey,
+          },
+          type: "address-inscription",
+          createdAt: new Date(),
+        }),
+      ),
     ...writableInscriptions.map((f, index) =>
       fundingDocDao.saveInscriptionContent({
         id: {

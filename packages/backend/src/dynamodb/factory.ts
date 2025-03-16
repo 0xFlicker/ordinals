@@ -1,10 +1,10 @@
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
-import type { IFundingDao } from "../dao/funding.js";
 import { tableNames } from "../utils/config.js";
 import { getDb } from "./create.js";
 import { FundingDao } from "./funding.js";
 import { ClaimsDao } from "./claims.js";
 import { OpenEditionClaimsDao } from "./openEdition.js";
+import { WalletDAO } from "./wallet.js";
 
 export function createDynamoDbFundingDao<
   ItemMeta extends Record<string, any> = {},
@@ -36,4 +36,16 @@ export function createDynamoDbOpenEditionClaimsDao({
   OpenEditionClaimsDao.TABLE_NAME =
     openEditionClaimsTableName ?? OpenEditionClaimsDao.TABLE_NAME;
   return new OpenEditionClaimsDao(db);
+}
+
+export function createDynamoDbWalletDao({
+  db,
+  walletTableName,
+}: {
+  db: DynamoDBDocumentClient;
+  walletTableName?: string;
+}) {
+  WalletDAO.TABLE_NAME =
+    walletTableName ?? tableNames.get().wallet ?? WalletDAO.TABLE_NAME;
+  return new WalletDAO(db);
 }

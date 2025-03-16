@@ -5,9 +5,11 @@ export function toCollectionId(id: string): ID_Collection {
 }
 
 export type TCollectionParentInscription = {
-  parentInscriptionId?: string;
   parentInscriptionFileName?: string;
-  parentInscriptionContentType?: string;
+  parentInscriptionId?: string;
+  parentInscriptionAddress?: string;
+  parentInscriptionContentExists?: boolean;
+  parentInscriptionFundingId?: string;
   uploadUrl?: string;
   multipartUploadId?: string;
 };
@@ -15,7 +17,7 @@ export type TCollectionParentInscription = {
 export type TCollectionModel<T = Record<string, any>> = {
   id: ID_Collection;
   name: string;
-  maxSupply: number;
+  maxSupply?: number;
   pendingCount: number;
   totalCount: number;
   meta?: T;

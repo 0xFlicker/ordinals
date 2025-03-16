@@ -18,8 +18,6 @@ type InscriptionFunding {
   qrSrc: String!
 
   status: FundingStatus!
-  fundingTxId: String
-  fundingTxUrl: String
   fundingGenesisTxId: String
   fundingGenesisTxUrl: String
   fundingRevealTxIds: [String!]

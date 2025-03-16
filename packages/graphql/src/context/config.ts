@@ -11,7 +11,7 @@ import {
   mainnetMempoolAuth,
   testnetMempoolAuth,
 } from "@0xflick/ordinals-backend";
-import { lazySingleton } from "@0xflick/ordinals-models";
+import { BitcoinNetworkNames, lazySingleton } from "@0xflick/ordinals-models";
 
 export const axolotlInscriptionTip = lazySingleton(() => {
   const envNum = Number(process.env.AXOLOTL_INSCRIPTION_TIP);
@@ -95,12 +95,35 @@ export const sepoliaRpcUrl = lazySingleton(() => {
   return process.env.SEPOLIA_RPC_URL;
 });
 
-export const defaultTipDestination = lazySingleton(() => {
-  if (!process.env.DEFAULT_TIP_DESTINATION) {
-    throw new Error("DEFAULT_TIP_DESTINATION not set");
+export const regtestDefaultTipDestination = lazySingleton(() => {
+  if (!process.env.REGTEST_DEFAULT_TIP_DESTINATION) {
+    throw new Error("REGTEST_DEFAULT_TIP_DESTINATION not set");
   }
-  return process.env.DEFAULT_TIP_DESTINATION;
+  return process.env.REGTEST_DEFAULT_TIP_DESTINATION;
 });
+
+export const parentInscriptionSecKeyEnvelopeKeyId = lazySingleton(() => {
+  if (!process.env.PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID) {
+    throw new Error("PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID not set");
+  }
+  return process.env.PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID;
+});
+
+export const fundingSecKeyEnvelopeKeyId = lazySingleton(() => {
+  if (!process.env.FUNDING_SEC_KEY_ENVELOPE_KEY_ID) {
+    throw new Error("FUNDING_SEC_KEY_ENVELOPE_KEY_ID not set");
+  }
+  return process.env.FUNDING_SEC_KEY_ENVELOPE_KEY_ID;
+});
+
+export const defaultTipDestinationForNetwork = (
+  network: BitcoinNetworkNames,
+) => {
+  if (network === "regtest") {
+    return regtestDefaultTipDestination.get();
+  }
+  throw new Error(`Default tip destination not set for network: ${network}`);
+};
 
 export interface IConfigContext {
   awsEndpoint?: string;
@@ -108,8 +131,10 @@ export interface IConfigContext {
   deploymentS3?: string;
   inscriptionBucket: string;
   uploadBucket: string;
+  parentInscriptionSecKeyEnvelopeKeyId: string;
+  fundingSecKeyEnvelopeKeyId: string;
   inscriptionTip: number;
-  defaultTipDestination: string;
+  regtestDefaultTipDestination: string;
   axolotlInscriptionTip: number;
   axolotlInscriptionTipDestination: string;
   axolotlAllowanceContractAddress: `0x${string}`;
@@ -127,6 +152,7 @@ export interface IConfigContext {
   sepoliaEnsUniversalResolverAddress: string;
   sepoliaEnsAdmin: string;
   sepoliaRpcUrl: string;
+  defaultTipDestinationForNetwork: (network: BitcoinNetworkNames) => string;
 }
 export function createConfigContext(): IConfigContext {
   return {
@@ -148,8 +174,14 @@ export function createConfigContext(): IConfigContext {
     get inscriptionTip() {
       return inscriptionTip.get();
     },
-    get defaultTipDestination() {
-      return defaultTipDestination.get();
+    get parentInscriptionSecKeyEnvelopeKeyId() {
+      return parentInscriptionSecKeyEnvelopeKeyId.get();
+    },
+    get fundingSecKeyEnvelopeKeyId() {
+      return fundingSecKeyEnvelopeKeyId.get();
+    },
+    get regtestDefaultTipDestination() {
+      return regtestDefaultTipDestination.get();
     },
     get axolotlAllowanceChainId() {
       return axolotlAllowanceChainId.get();
@@ -202,5 +234,6 @@ export function createConfigContext(): IConfigContext {
     get sepoliaRpcUrl() {
       return sepoliaRpcUrl.get();
     },
+    defaultTipDestinationForNetwork,
   };
 }

@@ -14,6 +14,7 @@ import { generateReceiverAddress } from "./commands/taproot.js";
 import { findMalformedFunding } from "./commands/rescue/cmd.js";
 import { allocateAirdrop, collectAddresses } from "./commands/rune.js";
 import { mintChildMany } from "./commands/mintChildMany.js";
+import { deployOpLockCat } from "./commands/op-lock-cat/deploy.js";
 const program = new Command();
 
 program
@@ -305,5 +306,32 @@ runeCommand
   .action(async (addressesFile, outputFile) => {
     await allocateAirdrop(addressesFile, outputFile);
   });
+
+const deployCommand = program.command("deploy");
+deployCommand
+  .command("op-lock-cat <destination-address>")
+  .option("-n, --network <network>", "Bitcoin network", "regtest")
+  .option("-u, --rpcuser <rpcuser>", "Bitcoin RPC username")
+  .option("-p, --rpcpassword <rpcpassword>", "Bitcoin RPC password")
+  .option("-w, --rpcwallet <rpcwallet>", "Bitcoin Wallet name", "default")
+  .option("-f, --fee-rate <fee-rate>", "Fee rate in satoshis per vbyte", Number)
+  .option("--no-send", "Don't automatically pay")
+  .description("Deploy op-lock-cat")
+  .action(
+    async (
+      destinationAddress,
+      { network, rpcuser, rpcpassword, rpcwallet, feeRate, noSend },
+    ) => {
+      await deployOpLockCat({
+        destinationAddress,
+        network,
+        rpcuser,
+        rpcpassword,
+        rpcwallet,
+        feeRate,
+        noSend,
+      });
+    },
+  );
 
 program.parse(process.argv);
