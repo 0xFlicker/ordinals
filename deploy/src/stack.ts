@@ -10,6 +10,7 @@ import { DynamoDB } from "./dynamodb.js";
 import { Www } from "./distribution.js";
 import { Graphql } from "./graphql.js";
 import { Frame } from "./frame.js";
+import { Envelope } from "./envelope.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 interface IProps extends cdk.StackProps {
@@ -44,10 +45,23 @@ export class BackendStack extends cdk.Stack {
       rbacTable,
       userNonceTable,
       walletTable,
+      uploadsTable,
     } = new DynamoDB(this, "DynamoDB", {});
     // new InscriptionsBus(this, "NftMetadataBus", {
     //   lambdas: false,
     // });
+
+    const parentInscriptionSecKeyEnvelope = new Envelope(
+      this,
+      "ParentInscriptionSecKeyEnvelope",
+      {
+        description: "Key for envelope encryption of bitcoin taproot secKeys",
+      },
+    );
+
+    const fundingSecKeyEnvelope = new Envelope(this, "FundingSecKeyEnvelope", {
+      description: "Key for envelope encryption of bitcoin taproot secKeys",
+    });
 
     if (process.env.DEPLOYMENT !== "localstack") {
       const { api: graphqlApi } = new Graphql(this, "Graphql", {
@@ -60,6 +74,9 @@ export class BackendStack extends cdk.Stack {
         walletTable,
         inscriptionBucket,
         uploadBucket,
+        fundingSecKeyEnvelope,
+        parentInscriptionSecKeyEnvelope,
+        uploadsTable,
       });
       const graphqlApiUrl = cdk.Fn.select(
         1,

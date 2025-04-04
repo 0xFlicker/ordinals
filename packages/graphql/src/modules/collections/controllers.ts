@@ -19,7 +19,7 @@ import { CollectionModel } from "./models.js";
 import { CollectionError } from "./errors.js";
 import { Context } from "../../context/index.js";
 import {
-  DISALLOWED_META_KEYS,
+  UploadsDAO,
   createDynamoDbFundingDao,
   createLogger,
   createMempoolBitcoinClient,
@@ -37,24 +37,24 @@ const logger = createLogger({
 });
 
 export async function getS3UploadUrl({
-  fileName,
+  key,
   contentType,
   context,
   metadata,
 }: {
-  fileName: string;
+  key: string;
   contentType: string;
   context: IAwsContext & IConfigContext;
   metadata?: Record<string, string>;
 }) {
   const { s3Client, uploadBucket } = context;
   logger.info(
-    { uploadBucket, fileName, contentType, metadata },
+    { uploadBucket, key, contentType, metadata },
     "Getting S3 upload url",
   );
   const command = new PutObjectCommand({
     Bucket: uploadBucket,
-    Key: fileName,
+    Key: key,
     ContentType: contentType,
     ...(metadata ? { Metadata: metadata } : {}),
   });
@@ -67,22 +67,22 @@ export async function getS3UploadUrl({
 }
 
 export async function getSignedMultipartUploadUrl({
-  fileName,
-  multipartUploadId,
+  key,
+  multiPartUploadId,
   partNumber,
   context,
 }: {
-  fileName: string;
-  multipartUploadId: string;
+  key: string;
+  multiPartUploadId: string;
   partNumber: number;
   context: IAwsContext & IConfigContext;
 }) {
   const { s3Client, uploadBucket } = context;
   const command = new UploadPartCommand({
     Bucket: uploadBucket,
-    Key: fileName,
+    Key: key,
     PartNumber: partNumber,
-    UploadId: multipartUploadId,
+    UploadId: multiPartUploadId,
   });
   const signedUrl = await getSignedUrl(s3Client, command, {
     expiresIn: 3600,
@@ -91,12 +91,12 @@ export async function getSignedMultipartUploadUrl({
 }
 
 export async function getMultiPartUploadID({
-  fileName,
+  key,
   contentType,
   context,
   metadata,
 }: {
-  fileName: string;
+  key: string;
   contentType: string;
   context: IAwsContext & IConfigContext;
   metadata?: Record<string, string>;
@@ -104,7 +104,7 @@ export async function getMultiPartUploadID({
   const { s3Client, uploadBucket } = context;
   const command = new CreateMultipartUploadCommand({
     Bucket: uploadBucket,
-    Key: fileName,
+    Key: key,
     ContentType: contentType,
     ...(metadata ? { Metadata: metadata } : {}),
   });
@@ -137,7 +137,7 @@ export async function getCollectionWithParentInscription(
   ) {
     const [uploadUrl, multipartUploadId] = await Promise.all([
       getS3UploadUrl({
-        fileName: model.meta.parentInscriptionFileName,
+        key: model.meta.parentInscriptionFileName,
         contentType: model.meta.parentInscriptionContentType,
         context,
         metadata: {
@@ -145,7 +145,7 @@ export async function getCollectionWithParentInscription(
         },
       }),
       getMultiPartUploadID({
-        fileName: model.meta.parentInscriptionFileName,
+        key: model.meta.parentInscriptionFileName,
         contentType: model.meta.parentInscriptionContentType,
         context,
         metadata: {
@@ -174,7 +174,7 @@ export async function getCollectionWithParentInscription(
 }
 
 export async function updateCollectionParentInscription({
-  parentInscriptionFileName,
+  parentInscriptionUploadId,
   parentInscriptionSecKeyEnvelopeKeyId,
   fundingSecKeyEnvelopeKeyId,
   s3Client,
@@ -183,8 +183,9 @@ export async function updateCollectionParentInscription({
   bitcoinNetwork,
   tipDestination,
   kmsClient,
+  uploadsDao,
 }: {
-  parentInscriptionFileName: string;
+  parentInscriptionUploadId: string;
   parentInscriptionSecKeyEnvelopeKeyId: string;
   fundingSecKeyEnvelopeKeyId: string;
   s3Client: S3Client;
@@ -193,11 +194,14 @@ export async function updateCollectionParentInscription({
   inscriptionBucketName: string;
   bitcoinNetwork: BitcoinNetworkNames;
   tipDestination: string;
+  uploadsDao: UploadsDAO;
 }) {
+  const { key } = await uploadsDao.getUpload(parentInscriptionUploadId);
+
   const response = await s3Client.send(
     new HeadObjectCommand({
       Bucket: uploadBucketName,
-      Key: parentInscriptionFileName,
+      Key: key,
     }),
   );
   const { "collection-id": collectionId, "content-type": contentType } =
@@ -228,11 +232,12 @@ export async function updateCollectionParentInscription({
     collectionId: toCollectionId(collectionId),
     fundingSecKeyEnvelopeKeyId,
     parentInscriptionSecKeyEnvelopeKeyId,
-    parentInscriptionFileName,
+    parentInscriptionUploadId,
     parentInscriptionContentType: contentType,
     network: bitcoinNetwork,
     uploadBucket: uploadBucketName,
     s3Client,
+    uploadsDao,
     fundingDocDao,
     fundingDao,
     feeClient: createMempoolBitcoinClient({
@@ -281,22 +286,22 @@ export async function updateCollectionParentInscription({
 
 export async function createCollection({
   name,
-  maxSupply,
   meta,
   parentInscription,
   context,
 }: {
   name: string;
-  maxSupply?: InputMaybe<number>;
   meta?: InputMaybe<string>;
   parentInscription?: InputMaybe<{
     parentInscriptionId?: InputMaybe<string>;
+    parentInscriptionAddress?: InputMaybe<string>;
     parentInscriptionFileName?: InputMaybe<string>;
+    parentInscriptionUploadId?: InputMaybe<string>;
     parentInscriptionContentType?: InputMaybe<string>;
   }>;
   context: DbContext & IAwsContext & IConfigContext;
 }) {
-  const { fundingDao } = context;
+  const { fundingDao, uploadsDao } = context;
 
   const collections = await fundingDao.getCollectionByName(name);
   if (collections.length > 0) {
@@ -313,34 +318,39 @@ export async function createCollection({
     throw new CollectionError("INVALID_METADATA", "Unable to parse metadata");
   }
 
-  for (const key of Object.keys(metadata)) {
-    if (DISALLOWED_META_KEYS.includes(key)) {
-      throw new CollectionError("INVALID_METADATA", `Reserved key: ${key}`);
-    }
-    if (typeof metadata[key] !== "string") {
-      throw new CollectionError(
-        "INVALID_METADATA",
-        `key: ${key} is not a string`,
-      );
-    }
-  }
-
   const {
     parentInscriptionId,
-    parentInscriptionFileName: inputParentInscriptionFileName,
+    parentInscriptionUploadId,
+    parentInscriptionAddress,
+    parentInscriptionFileName,
     parentInscriptionContentType,
   } = parentInscription ?? {};
 
   const id = toCollectionId(uuid());
-  const parentInscriptionFileName = `${id}/${inputParentInscriptionFileName?.replace(
-    /(^\.\.|\/.\.)/g,
-    "",
-  )}`;
+
+  if (!parentInscriptionFileName) {
+    throw new CollectionError("PARENT_INSCRIPTION_FILE_NAME_REQUIRED");
+  }
+
+  if (!parentInscriptionUploadId) {
+    throw new CollectionError("PARENT_INSCRIPTION_UPLOAD_ID_REQUIRED");
+  }
+
+  const uploadId = uuid();
+  const multiPartUploadId = uuid();
+
+  await uploadsDao.createUpload({
+    uploadId,
+    multiPartUploadId,
+    fileName: parentInscriptionFileName,
+  });
 
   const model: TCollectionModel<{
     parentInscriptionId?: string;
     parentInscriptionFileName?: string;
     parentInscriptionContentType?: string;
+    parentInscriptionAddress?: string;
+    parentInscriptionUploadId?: string;
   }> = {
     id,
     name,
@@ -350,6 +360,8 @@ export async function createCollection({
     meta: {
       ...metadata,
       ...(parentInscriptionId ? { parentInscriptionId } : {}),
+      ...(parentInscriptionAddress ? { parentInscriptionAddress } : {}),
+      ...(parentInscriptionUploadId ? { parentInscriptionUploadId } : {}),
       ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
       ...(parentInscriptionContentType ? { parentInscriptionContentType } : {}),
     },
@@ -374,13 +386,13 @@ export async function createCollection({
 
     const [uploadUrl, multipartUploadId] = await Promise.all([
       getS3UploadUrl({
-        fileName: parentInscriptionFileName,
+        key: parentInscriptionUploadId,
         contentType: parentInscriptionContentType,
         context,
         metadata: { "collection-id": id },
       }),
       getMultiPartUploadID({
-        fileName: parentInscriptionFileName,
+        key: parentInscriptionUploadId,
         contentType: parentInscriptionContentType,
         context,
         metadata: { "collection-id": id },
@@ -389,8 +401,10 @@ export async function createCollection({
 
     modelParentInscription = {
       ...(parentInscriptionId ? { parentInscriptionId } : {}),
-      ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
+      ...(parentInscriptionUploadId ? { parentInscriptionUploadId } : {}),
       ...(parentInscriptionContentType ? { parentInscriptionContentType } : {}),
+      ...(parentInscriptionAddress ? { parentInscriptionAddress } : {}),
+      ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
       uploadUrl,
       multipartUploadId,
     };

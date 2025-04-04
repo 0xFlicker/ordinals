@@ -15,7 +15,6 @@ import {
   defaultAdminStrategyAll,
   isActionOnResource,
 } from "@0xflick/ordinals-rbac-models";
-import { DISALLOWED_META_KEYS } from "@0xflick/ordinals-backend";
 import { createLogger } from "@0xflick/ordinals-backend";
 import {
   getCollectionWithParentInscription,
@@ -57,17 +56,16 @@ export const resolvers: CollectionsModule.Resolvers = {
   Mutation: {
     createCollection: async (
       _parent,
-      { input: { name, maxSupply, meta, parentInscription } },
+      { input: { name, meta, parentInscription } },
       context,
       info,
     ) => {
-      const { requireMutation, kmsClient } = context;
+      const { requireMutation } = context;
       requireMutation(info);
       await verifyAuthorizedUser(context, canPerformCreateCollection);
 
       return createCollection({
         name,
-        maxSupply,
         meta,
         parentInscription,
         context,
@@ -95,11 +93,13 @@ export const resolvers: CollectionsModule.Resolvers = {
         kmsClient,
         parentInscriptionSecKeyEnvelopeKeyId,
         fundingSecKeyEnvelopeKeyId,
+        uploadsDao,
       },
     ) => {
       const fundingDao = typedFundingDao<
         {},
         {
+          parentInscriptionUploadId?: string;
           parentInscriptionFileName?: string;
           parentInscriptionId?: string;
           parentInscriptionAddress: string;
@@ -113,8 +113,8 @@ export const resolvers: CollectionsModule.Resolvers = {
       if (!collection) {
         throw new CollectionError("COLLECTION_NOT_FOUND", collectionId);
       }
-      const { parentInscriptionFileName } = collection.meta ?? {};
-      if (!parentInscriptionFileName) {
+      const { parentInscriptionUploadId } = collection.meta ?? {};
+      if (!parentInscriptionUploadId) {
         throw new CollectionError(
           "COLLECTION_PARENT_INSCRIPTION_NOT_FOUND",
           collectionId,
@@ -124,7 +124,8 @@ export const resolvers: CollectionsModule.Resolvers = {
         throw new CollectionError("COLLECTION_NOT_FOUND", collectionId);
       }
       const inscriptionFunding = await updateCollectionParentInscription({
-        parentInscriptionFileName,
+        parentInscriptionUploadId,
+        uploadsDao,
         s3Client,
         uploadBucketName: uploadBucket,
         inscriptionBucketName: inscriptionBucket,
@@ -153,18 +154,6 @@ export const resolvers: CollectionsModule.Resolvers = {
     },
     collection: async (_parent, { id }, context) => {
       return getCollectionWithParentInscription(toCollectionId(id), context);
-    },
-    signMultipartUpload: async (
-      _parent,
-      { multipartUploadId, partNumber, fileName },
-      context,
-    ) => {
-      return getSignedMultipartUploadUrl({
-        fileName,
-        multipartUploadId,
-        partNumber,
-        context,
-      });
     },
   },
   Collection: {

@@ -1,0 +1,32 @@
+mutation RequestInscriptionUpload($input: InscriptionUploadRequest!) {
+  uploadInscription(input: $input) {
+    problems {
+      message
+    }
+    data {
+      files {
+        id
+        fileName
+        uploadUrl
+        multipartUploadId
+      }
+    }
+  }
+}
+
+mutation RequestInscriptionFunding($input: InscriptionRequestInput!) {
+  createInscriptionRequest(input: $input) {
+    problems {
+      message
+    }
+    data {
+      id
+      fundingAmountBtc
+      fundingAddress
+      destinationAddress
+      network
+      qrValue
+      qrSrc
+    }
+  }
+}

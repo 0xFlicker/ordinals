@@ -11,6 +11,7 @@ export namespace InscriptionRequestModule {
     CreateInscriptionProblem: 'message' | 'code';
     CreateInscriptionResponse: 'data' | 'problems';
     Mutation: 'createInscriptionRequest' | 'uploadInscription';
+    Query: 'signMultipartUpload';
   };
   
   interface DefinedEnumValues {
@@ -43,6 +44,7 @@ export namespace InscriptionRequestModule {
   export type CreateInscriptionResponse = Pick<Types.CreateInscriptionResponse, DefinedFields['CreateInscriptionResponse']>;
   export type InscriptionFunding = Types.InscriptionFunding;
   export type Mutation = Pick<Types.Mutation, DefinedFields['Mutation']>;
+  export type Query = Pick<Types.Query, DefinedFields['Query']>;
   
   export type InscriptionDataResolvers = Pick<Types.InscriptionDataResolvers, DefinedFields['InscriptionData'] | '__isTypeOf'>;
   export type InscriptionUploadFileDataResolvers = Pick<Types.InscriptionUploadFileDataResolvers, DefinedFields['InscriptionUploadFileData'] | '__isTypeOf'>;
@@ -52,6 +54,7 @@ export namespace InscriptionRequestModule {
   export type CreateInscriptionProblemResolvers = Pick<Types.CreateInscriptionProblemResolvers, DefinedFields['CreateInscriptionProblem'] | '__isTypeOf'>;
   export type CreateInscriptionResponseResolvers = Pick<Types.CreateInscriptionResponseResolvers, DefinedFields['CreateInscriptionResponse'] | '__isTypeOf'>;
   export type MutationResolvers = Pick<Types.MutationResolvers, DefinedFields['Mutation']>;
+  export type QueryResolvers = Pick<Types.QueryResolvers, DefinedFields['Query']>;
   
   export interface Resolvers {
     InscriptionData?: InscriptionDataResolvers;
@@ -62,6 +65,7 @@ export namespace InscriptionRequestModule {
     CreateInscriptionProblem?: CreateInscriptionProblemResolvers;
     CreateInscriptionResponse?: CreateInscriptionResponseResolvers;
     Mutation?: MutationResolvers;
+    Query?: QueryResolvers;
   };
   
   export interface MiddlewareMap {
@@ -110,6 +114,10 @@ export namespace InscriptionRequestModule {
       '*'?: gm.Middleware[];
       createInscriptionRequest?: gm.Middleware[];
       uploadInscription?: gm.Middleware[];
+    };
+    Query?: {
+      '*'?: gm.Middleware[];
+      signMultipartUpload?: gm.Middleware[];
     };
   };
 }

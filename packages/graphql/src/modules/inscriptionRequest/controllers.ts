@@ -44,12 +44,12 @@ export async function getS3UploadUrl({
 
 export async function getSignedMultipartUploadUrl({
   key,
-  multipartUploadId,
+  multiPartUploadId,
   partNumber,
   context,
 }: {
   key: string;
-  multipartUploadId: string;
+  multiPartUploadId: string;
   partNumber: number;
   context: IAwsContext & IConfigContext;
 }) {
@@ -58,7 +58,7 @@ export async function getSignedMultipartUploadUrl({
     Bucket: uploadBucket,
     Key: key,
     PartNumber: partNumber,
-    UploadId: multipartUploadId,
+    UploadId: multiPartUploadId,
   });
   const signedUrl = await getSignedUrl(s3Client, command, {
     expiresIn: 120,

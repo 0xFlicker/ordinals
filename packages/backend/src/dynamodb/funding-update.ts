@@ -18,6 +18,7 @@ import {
   FundingDao,
   FundingDocDao,
   MempoolClient,
+  UploadsDAO,
   createInscriptionTransaction,
 } from "../index.js";
 import { KeyPair, SecretKey } from "@0xflick/crypto-utils";
@@ -45,7 +46,7 @@ export async function updateCollectionFunding({
   collectionId,
   parentInscriptionSecKeyEnvelopeKeyId,
   fundingSecKeyEnvelopeKeyId,
-  parentInscriptionFileName,
+  parentInscriptionUploadId,
   parentInscriptionContentType,
   network,
   uploadBucket,
@@ -53,6 +54,7 @@ export async function updateCollectionFunding({
   tipDestination,
   kmsClient,
   s3Client,
+  uploadsDao,
   metadata,
   fundingDocDao,
   fundingDao,
@@ -60,7 +62,7 @@ export async function updateCollectionFunding({
   parentInscriptionSecKeyEnvelopeKeyId: string;
   fundingSecKeyEnvelopeKeyId: string;
   collectionId: ID_Collection;
-  parentInscriptionFileName: string;
+  parentInscriptionUploadId: string;
   parentInscriptionContentType: string;
   tipDestination: string;
   network: BitcoinNetworkNames;
@@ -69,6 +71,7 @@ export async function updateCollectionFunding({
   feeClient: MempoolClient["bitcoin"]["fees"];
   kmsClient: KMSClient;
   s3Client: S3Client;
+  uploadsDao: UploadsDAO;
   fundingDocDao: FundingDocDao;
   fundingDao: FundingDao<
     {
@@ -87,12 +90,14 @@ export async function updateCollectionFunding({
     network,
   });
 
+  const { key } = await uploadsDao.getUpload(parentInscriptionUploadId);
+
   const [content] = await Promise.all([
     s3Client
       .send(
         new GetObjectCommand({
           Bucket: uploadBucket,
-          Key: parentInscriptionFileName,
+          Key: key,
         }),
       )
       .then((res) => res.Body?.transformToByteArray()),

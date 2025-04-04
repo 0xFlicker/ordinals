@@ -247,6 +247,7 @@ export class AxolotlModel implements IAxolotlMeta {
     count,
     scriptUrl,
     revealDelta,
+    fundingSecKeyEnvelopeKeyId,
   }: {
     collectionId: ID_Collection;
     incrementingRevealDao: TAxolotlFundingDao;
@@ -263,6 +264,7 @@ export class AxolotlModel implements IAxolotlMeta {
     count: number;
     scriptUrl: string;
     revealDelta: number;
+    fundingSecKeyEnvelopeKeyId: string;
   }) {
     const tipHeight = await mempool.tipHeight();
     const revealedAt = tipHeight + revealDelta;
@@ -384,7 +386,10 @@ export class AxolotlModel implements IAxolotlMeta {
       s3Client,
     });
     await Promise.all([
-      fundingDocDao.updateOrSaveInscriptionTransaction(doc),
+      fundingDocDao.updateOrSaveInscriptionTransaction(
+        doc,
+        fundingSecKeyEnvelopeKeyId,
+      ),
       incrementingRevealDao.createFunding(addressModel),
       ...writableInscriptions.map((f, index) =>
         fundingDocDao.saveInscriptionContent({

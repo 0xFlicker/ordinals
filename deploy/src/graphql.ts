@@ -116,8 +116,11 @@ interface GraphqlProps {
   readonly claimsTable: dynamodb.ITable;
   readonly openEditionClaimsTable: dynamodb.ITable;
   readonly walletTable: dynamodb.ITable;
+  readonly uploadsTable: dynamodb.ITable;
   readonly inscriptionBucket: s3.IBucket;
   readonly uploadBucket: s3.IBucket;
+  readonly fundingSecKeyEnvelope: Envelope;
+  readonly parentInscriptionSecKeyEnvelope: Envelope;
 }
 
 export class Graphql extends Construct {
@@ -135,23 +138,14 @@ export class Graphql extends Construct {
       inscriptionBucket,
       uploadBucket,
       walletTable,
+      uploadsTable,
+      fundingSecKeyEnvelope,
+      parentInscriptionSecKeyEnvelope,
     }: GraphqlProps,
   ) {
     super(scope, id);
 
     const graphqlCodeDir = compileGraphql();
-
-    const parentInscriptionSecKeyEnvelope = new Envelope(
-      this,
-      "ParentInscriptionSecKeyEnvelope",
-      {
-        description: "Key for envelope encryption of bitcoin taproot secKeys",
-      },
-    );
-
-    const fundingSecKeyEnvelope = new Envelope(this, "FundingSecKeyEnvelope", {
-      description: "Key for envelope encryption of bitcoin taproot secKeys",
-    });
 
     const graphqlLambda = new lambda.Function(this, "GraphqlHandler", {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -168,6 +162,7 @@ export class Graphql extends Construct {
           claims: claimsTable.tableName,
           openEditionClaims: openEditionClaimsTable.tableName,
           wallet: walletTable.tableName,
+          uploads: uploadsTable.tableName,
         }),
         INSCRIPTION_BUCKET: inscriptionBucket.bucketName,
         UPLOAD_BUCKET: uploadBucket.bucketName,
@@ -186,6 +181,7 @@ export class Graphql extends Construct {
     claimsTable.grantReadWriteData(graphqlLambda);
     openEditionClaimsTable.grantReadWriteData(graphqlLambda);
     walletTable.grantReadWriteData(graphqlLambda);
+    uploadsTable.grantReadWriteData(graphqlLambda);
 
     inscriptionBucket.grantReadWrite(graphqlLambda);
     uploadBucket.grantReadWrite(graphqlLambda);
@@ -217,6 +213,9 @@ export class Graphql extends Construct {
           UPLOAD_BUCKET: uploadBucket.bucketName,
           FUNDING_TABLE_STREAM_ARN: fundingTable.tableStreamArn ?? "null",
           FUNDING_STREAM_REGION: "us-east-1",
+          PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID:
+            parentInscriptionSecKeyEnvelope.key.keyId,
+          FUNDING_SEC_KEY_ENVELOPE_KEY_ID: fundingSecKeyEnvelope.key.keyId,
         },
       },
     );

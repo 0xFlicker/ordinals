@@ -3,18 +3,31 @@ import { InscriptionRequestModule } from "./generated-types/module-types.js";
 import { InscriptionFundingModel } from "../inscriptionFunding/models.js";
 import {
   InscriptionContent,
+  bitcoinToSats,
   generateFundableGenesisTransaction,
   generatePrivKey,
   generateRevealTransaction,
   isValidTaprootAddress,
 } from "@0xflick/inscriptions";
 import { InscriptionRequestError } from "./errors.js";
-import { toBitcoinNetworkName } from "@0xflick/ordinals-models";
-import { toFeeLevel } from "modules/bitcoin/transforms.js";
+import {
+  TInscriptionDoc,
+  hashAddress,
+  toAddressInscriptionId,
+  toBitcoinNetworkName,
+} from "@0xflick/ordinals-models";
 import { estimateFeesWithMempool } from "../bitcoin/fees.js";
-import { MempoolModel } from "modules/bitcoin/models.js";
-import { createInscriptionTransaction } from "@0xflick/ordinals-backend";
-import { getMultiPartUploadID, getS3UploadUrl } from "./controllers.js";
+import { MempoolModel } from "../../modules/bitcoin/models.js";
+import {
+  createInscriptionTransaction,
+  encryptEnvelope,
+  serializeEnvelope,
+} from "@0xflick/ordinals-backend";
+import {
+  getMultiPartUploadID,
+  getS3UploadUrl,
+  getSignedMultipartUploadUrl,
+} from "./controllers.js";
 import { InscriptionProblem } from "../../generated-types/graphql.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 
@@ -23,11 +36,15 @@ const resolvers: InscriptionRequestModule.Resolvers = {
     createInscriptionRequest: async (_, { input }, context, info) => {
       const {
         fundingDao,
+        fundingDocDao,
+        kmsClient,
+        inscriptionBucket,
         s3Client,
         uploadBucket,
         createMempoolBitcoinClient,
         defaultTipDestinationForNetwork,
         inscriptionTip,
+        fundingSecKeyEnvelopeKeyId,
       } = context;
       const {
         files,
@@ -82,15 +99,10 @@ const resolvers: InscriptionRequestModule.Resolvers = {
           throw new InscriptionRequestError("INVALID_FILE");
         }),
       );
-      // for (const file of files) {
-      //   if (file.uploadedFile) {
-      //     const inscription = await uploadInscription(file.uploadedFile);
-      //   }
-      // }
       const tipDestination = defaultTipDestinationForNetwork(
         toBitcoinNetworkName(network),
       );
-      await createInscriptionTransaction({
+      const inscriptionTransaction = await createInscriptionTransaction({
         address: destinationAddress,
         feeRate,
         network: toBitcoinNetworkName(network),
@@ -98,9 +110,82 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         inscriptions,
         tipAmountDestination: tipDestination,
       });
-      // const inscriptionRequest = await fundingDao.createFunding({
-      //   address: destinationAddress,
-      // });
+      const id = toAddressInscriptionId(
+        hashAddress(inscriptionTransaction.fundingAddress),
+      );
+      const doc: TInscriptionDoc = {
+        id,
+        fundingAddress: inscriptionTransaction.fundingAddress,
+        fundingAmountBtc: inscriptionTransaction.fundingAmountBtc,
+        initCBlock: inscriptionTransaction.initCBlock,
+        initLeaf: inscriptionTransaction.initLeaf,
+        initScript: inscriptionTransaction.initScript,
+        initTapKey: inscriptionTransaction.initTapKey,
+        network: toBitcoinNetworkName(network),
+        overhead: inscriptionTransaction.overhead,
+        padding: inscriptionTransaction.padding,
+        secKey: inscriptionTransaction.secKey,
+        totalFee: inscriptionTransaction.totalFee,
+        writableInscriptions: inscriptionTransaction.writableInscriptions,
+        tip: inscriptionTip,
+        tipAmountDestination: tipDestination,
+      };
+      const inscriptionFundingModel = new InscriptionFundingModel({
+        id,
+        bucket: inscriptionBucket,
+        document: doc,
+        fundingAddress: inscriptionTransaction.fundingAddress,
+        destinationAddress,
+        s3Client,
+      });
+      await Promise.all([
+        fundingDocDao.updateOrSaveInscriptionTransaction(
+          doc,
+          fundingSecKeyEnvelopeKeyId,
+        ),
+        encryptEnvelope({
+          plaintext: inscriptionTransaction.secKey,
+          kmsClient,
+          keyId: fundingSecKeyEnvelopeKeyId,
+        })
+          .then(serializeEnvelope)
+          .then((inscriptionSecKey) =>
+            fundingDao.createFunding({
+              address: inscriptionTransaction.fundingAddress,
+              network: toBitcoinNetworkName(network),
+              id,
+              destinationAddress,
+              fundingStatus: "funding",
+              timesChecked: 0,
+              fundingAmountBtc: inscriptionTransaction.fundingAmountBtc,
+              fundingAmountSat: Number(
+                bitcoinToSats(inscriptionTransaction.fundingAmountBtc),
+              ),
+              tipAmountSat: inscriptionTip,
+              tipAmountDestination: tipDestination,
+              meta: {
+                inscriptionSecKey,
+              },
+              type: "address-inscription",
+              createdAt: new Date(),
+            }),
+          ),
+        ...inscriptionTransaction.writableInscriptions.map((f, index) =>
+          fundingDocDao.saveInscriptionContent({
+            id: {
+              fundingAddress: inscriptionTransaction.fundingAddress,
+              id,
+              inscriptionIndex: index,
+            },
+            content: f.file!.content,
+            mimetype: f.file!.mimetype,
+            compress: f.file!.compress,
+          }),
+        ),
+      ]);
+      return {
+        data: inscriptionFundingModel,
+      };
     },
     uploadInscription: async (_, { input }, context, info) => {
       const { files } = input;
@@ -179,6 +264,18 @@ const resolvers: InscriptionRequestModule.Resolvers = {
           ],
         };
       }
+    },
+  },
+  Query: {
+    signMultipartUpload: async (_parent, { uploadId, partNumber }, context) => {
+      const { uploadsDao } = context;
+      const { key, multiPartUploadId } = await uploadsDao.getUpload(uploadId);
+      return getSignedMultipartUploadUrl({
+        key,
+        multiPartUploadId,
+        partNumber,
+        context,
+      });
     },
   },
 };

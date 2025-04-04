@@ -4,9 +4,8 @@ import { gql } from '@apollo/client';
 import * as Apollo from '@apollo/client';
 const defaultOptions = {} as const;
 export type SignMultipartUploadQueryVariables = Types.Exact<{
-  multipartUploadId: Types.Scalars['String']['input'];
+  uploadId: Types.Scalars['String']['input'];
   partNumber: Types.Scalars['Int']['input'];
-  fileName: Types.Scalars['String']['input'];
 }>;
 
 
@@ -14,12 +13,8 @@ export type SignMultipartUploadQuery = { __typename?: 'Query', signMultipartUplo
 
 
 export const SignMultipartUploadDocument = gql`
-    query SignMultipartUpload($multipartUploadId: String!, $partNumber: Int!, $fileName: String!) {
-  signMultipartUpload(
-    multipartUploadId: $multipartUploadId
-    partNumber: $partNumber
-    fileName: $fileName
-  )
+    query SignMultipartUpload($uploadId: String!, $partNumber: Int!) {
+  signMultipartUpload(uploadId: $uploadId, partNumber: $partNumber)
 }
     `;
 
@@ -35,9 +30,8 @@ export const SignMultipartUploadDocument = gql`
  * @example
  * const { data, loading, error } = useSignMultipartUploadQuery({
  *   variables: {
- *      multipartUploadId: // value for 'multipartUploadId'
+ *      uploadId: // value for 'uploadId'
  *      partNumber: // value for 'partNumber'
- *      fileName: // value for 'fileName'
  *   },
  * });
  */

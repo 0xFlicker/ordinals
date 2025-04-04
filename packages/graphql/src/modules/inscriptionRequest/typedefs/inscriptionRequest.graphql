@@ -84,3 +84,7 @@ type Mutation {
     input: InscriptionUploadRequest!
   ): InscriptionUploadResponse!
 }
+
+type Query {
+  signMultipartUpload(uploadId: String!, partNumber: Int!): String!
+}

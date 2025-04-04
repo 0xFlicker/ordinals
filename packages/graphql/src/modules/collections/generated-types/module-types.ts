@@ -7,13 +7,13 @@ export namespace CollectionsModule {
     CollectionParentInscription: 'parentInscriptionId' | 'parentInscriptionFileName' | 'parentInscriptionContentType' | 'uploadUrl' | 'multipartUploadId';
     Collection: 'id' | 'name' | 'totalCount' | 'pendingCount' | 'maxSupply' | 'parentInscription' | 'metadata' | 'updateMetadata';
     Mutation: 'createCollection' | 'deleteCollection' | 'collection' | 'createCollectionParentInscription';
-    Query: 'collections' | 'collection' | 'signMultipartUpload';
+    Query: 'collections' | 'collection';
   };
   
   interface DefinedInputFields {
     KeyValueInput: 'key' | 'value';
     CollectionParentInscriptionInput: 'parentInscriptionId' | 'parentInscriptionFileName' | 'parentInscriptionContentType';
-    CollectionInput: 'name' | 'maxSupply' | 'parentInscription' | 'meta';
+    CollectionInput: 'name' | 'parentInscription' | 'meta';
   };
   
   export type KeyValue = Pick<Types.KeyValue, DefinedFields['KeyValue']>;
@@ -80,7 +80,6 @@ export namespace CollectionsModule {
       '*'?: gm.Middleware[];
       collections?: gm.Middleware[];
       collection?: gm.Middleware[];
-      signMultipartUpload?: gm.Middleware[];
     };
   };
 }

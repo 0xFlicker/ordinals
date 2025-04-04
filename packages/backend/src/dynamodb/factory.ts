@@ -5,6 +5,7 @@ import { FundingDao } from "./funding.js";
 import { ClaimsDao } from "./claims.js";
 import { OpenEditionClaimsDao } from "./openEdition.js";
 import { WalletDAO } from "./wallet.js";
+import { UploadsDAO } from "./uploads.js";
 
 export function createDynamoDbFundingDao<
   ItemMeta extends Record<string, any> = {},
@@ -48,4 +49,16 @@ export function createDynamoDbWalletDao({
   WalletDAO.TABLE_NAME =
     walletTableName ?? tableNames.get().wallet ?? WalletDAO.TABLE_NAME;
   return new WalletDAO(db);
+}
+
+export function createDynamoDbUploadsDao({
+  db,
+  uploadsTableName,
+}: {
+  db: DynamoDBDocumentClient;
+  uploadsTableName?: string;
+}) {
+  UploadsDAO.TABLE_NAME =
+    uploadsTableName ?? tableNames.get().uploads ?? UploadsDAO.TABLE_NAME;
+  return new UploadsDAO(db);
 }

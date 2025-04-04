@@ -12,7 +12,7 @@ import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
 import { AutoConnect } from "@/features/web3";
 import Dropzone from "react-dropzone";
 import { useCreateCollectionWithUpload } from "@/features/collections/hooks/useCreateCollectionWithUpload";
-import { useSignMultipartUpload } from "@/features/collections/hooks/useSignMultipartUpload";
+import { useSignMultipartUpload } from "@/features/inscribe/hooks/useSignMultipartUpload";
 import { useCreateCollectionParentInscription } from "@/features/collections/hooks/useCreateCollectionParentInscription";
 import { BitcoinNetwork } from "@/graphql/types";
 import { useRouter } from "next/navigation";
@@ -52,7 +52,6 @@ export const CollectionCreate: FC<{
       variables: {
         input: {
           name,
-          maxSupply,
           meta: JSON.stringify({
             description,
           }),
@@ -96,7 +95,6 @@ export const CollectionCreate: FC<{
     file,
     createCollectionWithUpload,
     name,
-    maxSupply,
     description,
     createCollectionParentInscription,
     router,

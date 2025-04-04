@@ -71,111 +71,6 @@ function getConfig(config?: {
   };
 }
 
-async function createTranscriptionFunding({
-  address,
-  inscriptions,
-  feeLevel,
-  feePerByte,
-  network,
-  fundingDao,
-  fundingDocDao,
-  s3Client,
-  inscriptionBucket,
-  createMempoolBitcoinClient,
-  tip,
-  tipDestination,
-}: {
-  address: string;
-  inscriptions: InscriptionContent[];
-  feeLevel?: InputMaybe<FeeLevel>;
-  feePerByte?: InputMaybe<number>;
-  network: BitcoinNetworkNames;
-  fundingDao: FundingDao;
-  fundingDocDao: FundingDocDao;
-  inscriptionBucket: string;
-  s3Client: S3Client;
-  tip: number;
-  tipDestination: string;
-  createMempoolBitcoinClient: (opts: {
-    network: BitcoinNetworkNames;
-  }) => MempoolClient["bitcoin"];
-}) {
-  const finalFee = await estimateFeesWithMempool({
-    mempoolBitcoinClient: new MempoolModel(
-      createMempoolBitcoinClient({
-        network,
-      }),
-    ),
-    feePerByte,
-    feeLevel,
-  });
-
-  const {
-    fundingAddress,
-    fundingAmountBtc,
-    initCBlock,
-    initLeaf,
-    initScript,
-    initTapKey,
-    overhead,
-    padding,
-    secKey,
-    totalFee,
-    writableInscriptions,
-    files,
-  } = await createInscriptionTransaction({
-    address,
-    feeRate: finalFee,
-    network,
-    tip,
-    inscriptions,
-    tipAmountDestination: tipDestination,
-  });
-
-  const addressModel = new AddressInscriptionModel({
-    createdAt: new Date(),
-    address: fundingAddress,
-    destinationAddress: address,
-    network,
-    fundingStatus: "funding",
-    timesChecked: 0,
-    fundingAmountBtc,
-    fundingAmountSat: Number(bitcoinToSats(fundingAmountBtc)),
-    revealTxids: [],
-    meta: {},
-  });
-  const doc: TInscriptionDoc = {
-    id: addressModel.id,
-    fundingAddress,
-    fundingAmountBtc,
-    initCBlock,
-    initLeaf,
-    initScript,
-    initTapKey,
-    network,
-    overhead,
-    padding,
-    secKey,
-    totalFee,
-    writableInscriptions,
-    tip,
-    tipAmountDestination: tipDestination,
-  };
-  const inscriptionFundingModel = new InscriptionFundingModel({
-    id: addressModel.id,
-    bucket: inscriptionBucket,
-    document: doc,
-    fundingAddress,
-    destinationAddress: address,
-    s3Client,
-  });
-  await Promise.all([
-    fundingDocDao.updateOrSaveInscriptionTransaction(doc),
-    fundingDao.createFunding(addressModel),
-    ...files.map((f) => fundingDocDao.saveInscriptionContent(f)),
-  ]);
-  return inscriptionFundingModel;
-}
 export const resolvers: AxolotlModule.Resolvers = {
   Mutation: {
     // axolotlFundingClaimRequest: async (
@@ -395,6 +290,7 @@ export const resolvers: AxolotlModule.Resolvers = {
             count: requests.length,
             revealDelta,
             scriptUrl,
+            fundingSecKeyEnvelopeKeyId: context.fundingSecKeyEnvelopeKeyId,
           });
 
           return axolotlModel;

@@ -70,6 +70,7 @@ export class DynamoDB extends Construct {
   public readonly fundingTable: dynamodb.Table;
   public readonly claimsTable: dynamodb.Table;
   public readonly openEditionClaimsTable: dynamodb.Table;
+  public readonly uploadsTable: dynamodb.Table;
 
   constructor(scope: Construct, id: string, _: IProps) {
     super(scope, id);
@@ -444,5 +445,18 @@ export class DynamoDB extends Construct {
       schedule: events.Schedule.rate(cdk.Duration.minutes(1)),
     });
     rule.addTarget(new targets.LambdaFunction(fundingPollLambda));
+
+    const uploadsTable = new dynamodb.Table(this, "Uploads", {
+      partitionKey: {
+        name: "pk",
+        type: dynamodb.AttributeType.STRING,
+      },
+    });
+
+    this.uploadsTable = uploadsTable;
+    new cdk.CfnOutput(this, "UploadsTableName", {
+      exportName: "UploadsTableName",
+      value: uploadsTable.tableName,
+    });
   }
 }

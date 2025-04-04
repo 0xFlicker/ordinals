@@ -143,7 +143,7 @@ export type BlockchainNetwork =
 export type Collection = {
   __typename?: 'Collection';
   id: Scalars['ID']['output'];
-  maxSupply?: Maybe<Scalars['Int']['output']>;
+  maxSupply: Scalars['Int']['output'];
   metadata: Array<KeyValue>;
   name: Scalars['String']['output'];
   parentInscription?: Maybe<CollectionParentInscription>;
@@ -158,7 +158,6 @@ export type CollectionUpdateMetadataArgs = {
 };
 
 export type CollectionInput = {
-  maxSupply?: InputMaybe<Scalars['Int']['input']>;
   meta?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   parentInscription?: InputMaybe<CollectionParentInscriptionInput>;
@@ -608,9 +607,8 @@ export type QueryRoleArgs = {
 
 
 export type QuerySignMultipartUploadArgs = {
-  fileName: Scalars['String']['input'];
-  multipartUploadId: Scalars['String']['input'];
   partNumber: Scalars['Int']['input'];
+  uploadId: Scalars['String']['input'];
 };
 
 
@@ -945,7 +943,7 @@ export type BitcoinScriptItemResolvers<ContextType = Context, ParentType extends
 
 export type CollectionResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Collection'] = ResolversParentTypes['Collection']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  maxSupply?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  maxSupply?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   metadata?: Resolver<Array<ResolversTypes['KeyValue']>, ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   parentInscription?: Resolver<Maybe<ResolversTypes['CollectionParentInscription']>, ParentType, ContextType>;
@@ -1144,7 +1142,7 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   role?: Resolver<Maybe<ResolversTypes['Role']>, ParentType, ContextType, RequireFields<QueryRoleArgs, 'id'>>;
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   self?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
-  signMultipartUpload?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<QuerySignMultipartUploadArgs, 'fileName' | 'multipartUploadId' | 'partNumber'>>;
+  signMultipartUpload?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<QuerySignMultipartUploadArgs, 'partNumber' | 'uploadId'>>;
   userByAddress?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<QueryUserByAddressArgs, 'address'>>;
 };
 

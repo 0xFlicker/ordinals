@@ -11,3 +11,16 @@ export const toGraphqlBitcoinNetwork = (
       return BitcoinNetwork.Testnet;
   }
 };
+
+export const fromGraphqlBitcoinNetwork = (
+  network: BitcoinNetwork
+): BitcoinNetworkType => {
+  switch (network) {
+    case BitcoinNetwork.Mainnet:
+      return BitcoinNetworkType.Mainnet;
+    case BitcoinNetwork.Testnet:
+      return BitcoinNetworkType.Testnet;
+    default:
+      throw new Error("Invalid Bitcoin network");
+  }
+};

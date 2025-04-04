@@ -5,6 +5,7 @@ export function toCollectionId(id: string): ID_Collection {
 }
 
 export type TCollectionParentInscription = {
+  parentInscriptionUploadId?: string;
   parentInscriptionFileName?: string;
   parentInscriptionId?: string;
   parentInscriptionAddress?: string;

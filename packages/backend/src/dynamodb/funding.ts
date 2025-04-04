@@ -79,6 +79,27 @@ function excludePrimaryKeys<T extends Record<string, any>>(
   return rest;
 }
 
+function mapMetaKeys<T extends Record<string, any>>(
+  meta: T,
+): Record<string, any> {
+  // Return a shallow copy of the meta object with all keys converted to `meta_<key>`
+  return Object.fromEntries(
+    Object.entries(meta).map(([key, value]) => [`meta_${key}`, value]),
+  );
+}
+
+function unmapMetaKeys<T extends Record<string, any>>(
+  meta: T,
+): Record<string, any> {
+  // Return a shallow copy of the meta object with all keys converted from `meta_<key>`
+  return Object.fromEntries(
+    Object.entries(meta).map(([key, value]) => [
+      key.startsWith("meta_") ? key.replace("meta_", "") : key,
+      value,
+    ]),
+  );
+}
+
 export class FundingDao<
   ItemMeta extends Record<string, any> = {},
   CollectionMeta extends Record<string, any> = {},
@@ -1073,12 +1094,14 @@ export class FundingDao<
       ...(typeof revealTxids !== "undefined" && { revealTxids }),
       ...(typeof meta !== "undefined"
         ? // remove undefined values
-          Array.from(Object.entries(meta)).reduce((memo, [key, value]) => {
-            if (typeof value !== "undefined") {
-              (memo[key] as any) = value;
-            }
-            return memo;
-          }, {} as T)
+          (mapMetaKeys<T>(
+            Array.from(Object.entries(meta)).reduce((memo, [key, value]) => {
+              if (typeof value !== "undefined") {
+                (memo[key] as any) = value;
+              }
+              return memo;
+            }, {} as T),
+          ) as T)
         : ({} as T)),
     };
   }
@@ -1101,12 +1124,14 @@ export class FundingDao<
       totalCount,
       ...(meta
         ? // remove undefined values
-          Array.from(Object.entries(meta)).reduce((memo, [key, value]) => {
-            if (typeof value !== "undefined") {
-              (memo[key] as any) = value;
-            }
-            return memo;
-          }, {} as T)
+          (mapMetaKeys(
+            Array.from(Object.entries(meta)).reduce((memo, [key, value]) => {
+              if (typeof value !== "undefined") {
+                (memo[key] as any) = value;
+              }
+              return memo;
+            }, {} as T),
+          ) as T)
         : ({} as T)),
     };
   }
@@ -1125,7 +1150,7 @@ export class FundingDao<
       name: collectionName,
       totalCount: totalCount,
       pendingCount: pendingCount,
-      meta: excludePrimaryKeys(meta) as T,
+      meta: unmapMetaKeys(excludePrimaryKeys(meta)) as T,
       type: "collection",
     };
   }
@@ -1231,7 +1256,7 @@ export class FundingDao<
       ...(typeof tipAmountDestination !== "undefined" && {
         tipAmountDestination,
       }),
-      meta: excludePrimaryKeys(meta) as T,
+      meta: unmapMetaKeys(excludePrimaryKeys(meta)) as T,
     };
   }
 

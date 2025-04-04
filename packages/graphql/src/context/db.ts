@@ -6,6 +6,8 @@ import {
   OpenEditionClaimsDao,
   createDynamoDbOpenEditionClaimsDao,
   FundingDao,
+  UploadsDAO,
+  createDynamoDbUploadsDao,
 } from "@0xflick/ordinals-backend";
 import {
   RolePermissionsDAO,
@@ -31,6 +33,7 @@ export interface DbContext {
   userDao: UserDAO;
   claimsDao: ClaimsDao;
   openEditionClaimsDao: OpenEditionClaimsDao;
+  uploadsDao: UploadsDAO;
 }
 
 export function createDbContext(config: IConfigContext) {
@@ -66,6 +69,10 @@ export function createDbContext(config: IConfigContext) {
     openEditionClaimsDao: createDynamoDbOpenEditionClaimsDao({
       db,
       openEditionClaimsTableName: config.tableNames.openEditionClaims,
+    }),
+    uploadsDao: createDynamoDbUploadsDao({
+      db,
+      uploadsTableName: config.tableNames.uploads,
     }),
   };
   return context;

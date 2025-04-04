@@ -1,0 +1,3 @@
+query SignMultipartUpload($uploadId: String!, $partNumber: Int!) {
+  signMultipartUpload(uploadId: $uploadId, partNumber: $partNumber)
+}

@@ -7,6 +7,8 @@ const tableNames = {};
 let inscriptionBucketName;
 let uploadBucketName;
 let fundingTableStreamArn;
+let parentInscriptionSecKeyEnvelopeKeyId;
+let fundingSecKeyEnvelopeKeyId;
 for (const [key, value] of Object.entries(outputs["ordinals"])) {
   if (key.startsWith("DynamoDBRbacTableName")) {
     tableNames.rbac = value;
@@ -20,12 +22,18 @@ for (const [key, value] of Object.entries(outputs["ordinals"])) {
     tableNames.openEditionClaims = value;
   } else if (key.startsWith("DynamoDBWalletTableName")) {
     tableNames.wallet = value;
+  } else if (key.startsWith("DynamoDBUploadsTableName")) {
+    tableNames.uploads = value;
   } else if (key.startsWith("StorageinscriptionsBucketName")) {
     inscriptionBucketName = value;
   } else if (key.startsWith("DynamoDBFundingTableStreamArn")) {
     fundingTableStreamArn = value;
   } else if (key.startsWith("UploadBucketuploadsBucketName")) {
     uploadBucketName = value;
+  } else if (key.startsWith("ParentInscriptionSecKeyEnvelopeKeyId")) {
+    parentInscriptionSecKeyEnvelopeKeyId = value;
+  } else if (key.startsWith("FundingSecKeyEnvelopeKeyId")) {
+    fundingSecKeyEnvelopeKeyId = value;
   }
 }
 
@@ -53,6 +61,8 @@ for (const envPath of envPaths) {
     let foundInscriptionBucket = false;
     let foundFundingTableStreamArn = false;
     let foundUploadBucket = false;
+    let foundParentInscriptionSecKeyEnvelopeKeyId = false;
+    let foundFundingSecKeyEnvelopeKeyId = false;
     for (const line of lines) {
       if (line.startsWith("TABLE_NAMES=")) {
         newLines.push(`TABLE_NAMES=${JSON.stringify(tableNames)}`);
@@ -66,6 +76,18 @@ for (const envPath of envPaths) {
       } else if (line.startsWith("UPLOAD_BUCKET=")) {
         newLines.push(`UPLOAD_BUCKET=${uploadBucketName}`);
         foundUploadBucket = true;
+      } else if (
+        line.startsWith("PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID=")
+      ) {
+        newLines.push(
+          `PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID=${parentInscriptionSecKeyEnvelopeKeyId}`,
+        );
+        foundParentInscriptionSecKeyEnvelopeKeyId = true;
+      } else if (line.startsWith("FUNDING_SEC_KEY_ENVELOPE_KEY_ID=")) {
+        newLines.push(
+          `FUNDING_SEC_KEY_ENVELOPE_KEY_ID=${fundingSecKeyEnvelopeKeyId}`,
+        );
+        foundFundingSecKeyEnvelopeKeyId = true;
       } else {
         newLines.push(line);
       }
@@ -81,6 +103,16 @@ for (const envPath of envPaths) {
     }
     if (!foundUploadBucket) {
       newLines.push(`UPLOAD_BUCKET=${uploadBucketName}`);
+    }
+    if (!foundParentInscriptionSecKeyEnvelopeKeyId) {
+      newLines.push(
+        `PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID=${parentInscriptionSecKeyEnvelopeKeyId}`,
+      );
+    }
+    if (!foundFundingSecKeyEnvelopeKeyId) {
+      newLines.push(
+        `FUNDING_SEC_KEY_ENVELOPE_KEY_ID=${fundingSecKeyEnvelopeKeyId}`,
+      );
     }
     await fs.promises.writeFile(envPath, newLines.join("\n"));
     console.log(`Updated ${envPath}`);
