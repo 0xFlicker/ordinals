@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
-    "module": "ES2022",
-    "lib": ["es2018"],
+    "target": "ES2022",
+    "module": "NodeNext",
+    "lib": ["ES2022"],
     "noEmit": true,
     "declaration": true,
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "moduleResolution": "Node16",
+    "moduleResolution": "NodeNext",
     "noImplicitThis": true,
     "alwaysStrict": true,
     "noUnusedLocals": false,

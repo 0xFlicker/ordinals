@@ -9,7 +9,7 @@ export default function Page({
   return (
     <MintRoute
       initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-      initialBitcoinPurpose={AddressPurpose.Payment}
+      initialBitcoinPurpose={[AddressPurpose.Payment]}
       collectionId={collectionId}
       destinationAddress={destinationAddress}
     />

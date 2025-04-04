@@ -9,6 +9,7 @@ export function createS3Client(options?: S3ClientConfig) {
       region: deployment.region,
       ...(deployment.endpoint?.startsWith("http:") && {
         forcePathStyle: true,
+        defaultsMode: "legacy",
       }),
     },
   );

@@ -103,7 +103,7 @@ export const SwitchableNetwork: FC<
   PropsWithChildren<{
     title: string;
     initialBitcoinNetwork: BitcoinNetwork["type"];
-    initialBitcoinPurpose: AddressPurpose;
+    initialBitcoinPurpose: AddressPurpose[];
     ethereumAutoConnect?: boolean;
   }>
 > = ({

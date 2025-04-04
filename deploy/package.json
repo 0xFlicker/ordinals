@@ -18,7 +18,10 @@
     "handlebars": "^4.7.8"
   },
   "devDependencies": {
-    "@types/node": "^20.3.1",
-    "cdk-nextjs-standalone": "^4.0.0-beta.25"
+    "@types/node": "^22.14.0",
+    "cdk-nextjs-standalone": "^4.0.0-beta.25",
+    "dtrace-provider": "^0.8.8",
+    "esbuild": "^0.25.2",
+    "typescript": "^5.8.2"
   }
 }

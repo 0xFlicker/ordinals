@@ -11,7 +11,7 @@ export const MintRoute: FC<{
   collectionId: string;
   destinationAddress: string;
   initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose;
+  initialBitcoinPurpose: AddressPurpose[];
 }> = ({
   collectionId,
   destinationAddress,

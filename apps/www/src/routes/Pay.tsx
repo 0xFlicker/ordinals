@@ -10,7 +10,7 @@ import { AutoConnect } from "@/features/web3";
 export const PayRoute: FC<{
   fundingId: string;
   initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose;
+  initialBitcoinPurpose: AddressPurpose[];
 }> = ({ fundingId, initialBitcoinNetwork, initialBitcoinPurpose }) => {
   return (
     <DefaultProvider>

@@ -9,7 +9,7 @@ export default function Page({
   return (
     <StatusRoute
       initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-      initialBitcoinPurpose={AddressPurpose.Payment}
+      initialBitcoinPurpose={[AddressPurpose.Payment]}
       fundingId={fundingId}
     />
   );

@@ -13,7 +13,7 @@ export const MultiChainProvider: FC<
   PropsWithChildren<{
     autoLogin?: boolean;
     bitcoinNetwork: BitcoinNetwork["type"];
-    bitcoinPurpose: AddressPurpose;
+    bitcoinPurpose: AddressPurpose[];
     ethereumAutoConnect?: boolean;
   }>
 > = ({

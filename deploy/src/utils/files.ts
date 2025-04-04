@@ -16,6 +16,7 @@ export function jsonFromNodeModules(file: string) {
 }
 
 export function textFromSecret(file: string) {
+  console.log(`${__dirname}/../../../secrets/${file}`);
   const { stdout, stderr } = spawnSync("sops", ["--decrypt", file], {
     cwd: path.join(__dirname, "../../../secrets"),
     encoding: "utf8",

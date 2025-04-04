@@ -79,7 +79,7 @@ export default function Profile() {
       <SwitchableNetwork
         title="profile"
         initialBitcoinNetwork={BitcoinNetworkType.Testnet}
-        initialBitcoinPurpose={AddressPurpose.Ordinals}
+        initialBitcoinPurpose={[AddressPurpose.Ordinals, AddressPurpose.Payment]}
       >
         <Grid2 container spacing={2} maxWidth="lg">
           <Grid2 xs={12} alignContent="center">

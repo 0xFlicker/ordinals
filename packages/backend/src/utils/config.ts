@@ -5,12 +5,16 @@ const deploymentName = config.deployment.name;
 
 export const awsEndpoint = lazySingleton(() => {
   return process.env.AWS_ENDPOINT_URL ?? deploymentName === "localstack"
-    ? "http://localhost.localstack.cloud:4566"
+    ? "http://localhost:4566"
     : undefined;
 });
 
 export const deploymentS3 = lazySingleton(() => {
-  return process.env.DEPLOYMENT_S3 || "localstack";
+  return process.env.DEPLOYMENT_S3 || deploymentName;
+});
+
+export const deploymentKMS = lazySingleton(() => {
+  return process.env.DEPLOYMENT_KMS || deploymentName;
 });
 
 export const awsRegion = lazySingleton(() => {

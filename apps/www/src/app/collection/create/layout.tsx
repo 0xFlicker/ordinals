@@ -19,7 +19,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Context
           initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-          initialBitcoinPurpose={AddressPurpose.Ordinals}
+          initialBitcoinPurpose={[AddressPurpose.Ordinals, AddressPurpose.Payment]}
         >
           {children}
         </Context>

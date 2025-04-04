@@ -5,7 +5,7 @@ export default function Page() {
   return (
     <AdminRoute
       initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-      initialBitcoinPurpose={AddressPurpose.Ordinals}
+      initialBitcoinPurpose={[AddressPurpose.Ordinals, AddressPurpose.Payment]}
     />
   );
 }

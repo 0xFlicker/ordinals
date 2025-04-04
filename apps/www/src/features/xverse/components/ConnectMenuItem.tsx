@@ -4,9 +4,10 @@ import ListItemText from "@mui/material/ListItemText";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
 
-import { FC, useCallback } from "react";
+import { FC, useCallback, useState } from "react";
 import { useXverse } from "../Context";
 import {
+  BitcoinNonceMutation,
   useBitcoinNonceMutation,
   useSiwbMutation,
 } from "../graphql/nonce.generated";
@@ -14,6 +15,7 @@ import { BitcoinSwitchNetworks } from "./BitcoinSwitchNetworks";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { createJweRequest } from "@0xflick/ordinals-rbac-models";
+import { BitcoinNetworkType } from "sats-connect";
 
 export enum EFlow {
   Idle = "idle",
@@ -48,8 +50,9 @@ export const ConnectMenuItem: FC<{
     connect: xverseConnect,
     isConnected,
     isConnecting,
-    address,
+    state: { ordinalsAddress, paymentAddress },
     sign,
+    network,
   } = useXverse();
   const [
     fetchNonce,
@@ -81,6 +84,9 @@ export const ConnectMenuItem: FC<{
         const signature = await sign({
           messageToSign,
           address: ordinalsAddress,
+          network: {
+            type: network,
+          },
         });
         if (!signature) {
           return onUpdateFlow?.({ flow: EFlow.SignatureDeclined });
@@ -120,7 +126,7 @@ export const ConnectMenuItem: FC<{
       <ListItemText
         primary={
           <Typography textAlign="right" noWrap>
-            {!isConnected || isConnecting ? "connect" : address}
+            {!isConnected || isConnecting ? "connect" : ordinalsAddress}
           </Typography>
         }
       />

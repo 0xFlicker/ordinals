@@ -9,7 +9,7 @@ import { AutoConnect } from "@/features/web3";
 
 export const AdminRoute: FC<{
   initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose;
+  initialBitcoinPurpose: AddressPurpose[];
 }> = ({ initialBitcoinNetwork, initialBitcoinPurpose }) => {
   return (
     <DefaultProvider>

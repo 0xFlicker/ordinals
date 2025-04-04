@@ -7,7 +7,7 @@ import {
 
 export interface INetworkTarget {
   network: BitcoinNetwork["type"];
-  purpose: AddressPurpose;
+  purpose: AddressPurpose[];
 }
 
 export enum AsyncStatus {
@@ -27,13 +27,12 @@ export interface XverseState {
   signatureStatus?: AsyncStatus;
   signature?: string;
   currentTarget: INetworkTarget;
-  currentAddress?: string;
 }
 export const initialState: XverseState = {
   connectionStatus: AsyncStatus.IDLE,
   currentTarget: {
     network: BitcoinNetworkType.Testnet,
-    purpose: AddressPurpose.Ordinals,
+    purpose: [AddressPurpose.Ordinals, AddressPurpose.Payment],
   },
 };
 const connectInit = createAction("xverse/connect");

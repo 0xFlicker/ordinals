@@ -1,7 +1,7 @@
 export type BitcoinNetworkNames = "mainnet" | "testnet" | "regtest";
 
 export function toBitcoinNetworkName(name: string): BitcoinNetworkNames {
-  switch (name) {
+  switch (name.toLowerCase()) {
     case "mainnet":
       return "mainnet";
     case "testnet":
@@ -14,7 +14,7 @@ export function toBitcoinNetworkName(name: string): BitcoinNetworkNames {
 }
 
 export function isBitcoinNetworkName(
-  name: string
+  name: string,
 ): name is BitcoinNetworkNames {
   try {
     toBitcoinNetworkName(name);

@@ -2,6 +2,7 @@ import {
   awsEndpoint,
   awsRegion,
   deploymentS3,
+  deploymentKMS,
   inscriptionBucket,
   uploadBucket,
   mainnetMempoolUrl,
@@ -129,6 +130,7 @@ export interface IConfigContext {
   awsEndpoint?: string;
   awsRegion?: string;
   deploymentS3?: string;
+  deploymentKMS?: string;
   inscriptionBucket: string;
   uploadBucket: string;
   parentInscriptionSecKeyEnvelopeKeyId: string;
@@ -164,6 +166,9 @@ export function createConfigContext(): IConfigContext {
     },
     get deploymentS3() {
       return deploymentS3.get();
+    },
+    get deploymentKMS() {
+      return deploymentKMS.get();
     },
     get inscriptionBucket() {
       return inscriptionBucket.get();

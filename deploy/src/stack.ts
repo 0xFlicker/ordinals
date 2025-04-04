@@ -46,7 +46,9 @@ export class BackendStack extends cdk.Stack {
       userNonceTable,
       walletTable,
       uploadsTable,
-    } = new DynamoDB(this, "DynamoDB", {});
+    } = new DynamoDB(this, "DynamoDB", {
+      domainName: new URL(origin).host,
+    });
     // new InscriptionsBus(this, "NftMetadataBus", {
     //   lambdas: false,
     // });
@@ -64,7 +66,7 @@ export class BackendStack extends cdk.Stack {
     });
 
     if (process.env.DEPLOYMENT !== "localstack") {
-      const { api: graphqlApi } = new Graphql(this, "Graphql", {
+      const { httpApi: graphqlApi } = new Graphql(this, "Graphql", {
         domainName: new URL(origin).host,
         claimsTable,
         fundingTable,

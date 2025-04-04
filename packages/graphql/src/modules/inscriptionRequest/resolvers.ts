@@ -71,9 +71,9 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         files.map(async (file) => {
           if (file.inlineFile) {
             return {
-              content: new Uint8Array(
+              content: Uint8Array.from(
                 Buffer.from(file.inlineFile.base64Content, "base64"),
-              ),
+              ).buffer,
               mimeType: file.inlineFile.contentType,
             };
           } else if (file.uploadedFile) {
@@ -92,7 +92,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
               throw new InscriptionRequestError("INVALID_FILE");
             }
             return {
-              content: new Uint8Array(byteArray),
+              content: byteArray.buffer,
               mimeType: contentType,
             };
           }

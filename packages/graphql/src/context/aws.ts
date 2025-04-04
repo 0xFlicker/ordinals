@@ -12,6 +12,7 @@ export function createAwsContext({
   awsEndpoint: endpoint,
   awsRegion: region,
   deploymentS3,
+  deploymentKMS,
 }: IConfigContext): IAwsContext {
   const s3Client = createS3Client({
     ...(deploymentS3 !== "aws" && endpoint ? { endpoint } : {}),
@@ -20,14 +21,15 @@ export function createAwsContext({
     (typeof deploymentS3 === "undefined" && endpoint?.startsWith("http:"))
       ? {
           forcePathStyle: true,
+          defaultsMode: "legacy",
         }
       : {}),
   });
 
   const kmsClient = new KMSClient({
     region,
-    ...(deploymentS3 === "localstack" ||
-    (typeof deploymentS3 === "undefined" && endpoint?.startsWith("http:"))
+    ...(deploymentKMS === "localstack" ||
+    (typeof deploymentKMS === "undefined" && endpoint?.startsWith("http:"))
       ? { endpoint }
       : {}),
   });

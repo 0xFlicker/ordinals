@@ -1,67 +1,27 @@
 import * as cdk from "aws-cdk-lib";
-import { buildSync } from "esbuild";
 import { Construct } from "constructs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import {
   DynamoDBStreamsToLambdaProps,
   DynamoDBStreamsToLambda,
 } from "@aws-solutions-constructs/aws-dynamodbstreams-lambda";
-import path from "path";
+import path, { parse } from "path";
 import { fileURLToPath } from "url";
+import { textFromSecret } from "./utils/files.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function compileDynamodbUpdateFunding() {
-  const outfile = path.join(
-    cdk.FileSystem.mkdtemp("dynamodb-update-funding"),
-    "index.mjs",
-  );
-  buildSync({
-    entryPoints: [
-      path.join(
-        __dirname,
-        "../../apps/functions/src/lambdas/dynamodb-update-funding.ts",
-      ),
-    ],
-    outfile,
-    bundle: true,
-    platform: "node",
-    target: "node20",
-    format: "esm",
-    external: ["aws-sdk", "@aws-sdk/*"],
-    inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
-    sourcemap: true,
-  });
-  const finalDir = path.dirname(outfile);
-  return finalDir;
+function withSecretEnv(secretsFile: string) {
+  return parse(textFromSecret(secretsFile));
 }
 
-function compileFundingPoller() {
-  const outfile = path.join(
-    cdk.FileSystem.mkdtemp("funding-queue"),
-    "index.mjs",
-  );
-  buildSync({
-    entryPoints: [
-      path.join(__dirname, "../../apps/functions/src/lambdas/funding-queue.ts"),
-    ],
-    outfile,
-    bundle: true,
-    platform: "node",
-    target: "node20",
-    format: "esm",
-    external: ["aws-sdk", "@aws-sdk/*"],
-    inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
-    sourcemap: true,
-  });
-  const finalDir = path.dirname(outfile);
-  return finalDir;
+export interface IProps {
+  readonly domainName: string;
 }
-
-export interface IProps {}
 
 export class DynamoDB extends Construct {
   public readonly walletTable: dynamodb.Table;
@@ -72,7 +32,7 @@ export class DynamoDB extends Construct {
   public readonly openEditionClaimsTable: dynamodb.Table;
   public readonly uploadsTable: dynamodb.Table;
 
-  constructor(scope: Construct, id: string, _: IProps) {
+  constructor(scope: Construct, id: string, { domainName }: IProps) {
     super(scope, id);
 
     const walletTable = new dynamodb.Table(this, "WalletTable", {
@@ -197,35 +157,61 @@ export class DynamoDB extends Construct {
       value: userNonceTable.tableName,
     });
 
-    const dynamodbUpdateFundingCodeDir = compileDynamodbUpdateFunding();
-    const fundingTableWithStreams = new DynamoDBStreamsToLambda(
-      this,
-      "DynamodbUpdateFundingLambda",
-      {
-        lambdaFunctionProps: {
-          runtime: lambda.Runtime.NODEJS_20_X,
-          code: lambda.Code.fromAsset(dynamodbUpdateFundingCodeDir),
-          handler: "index.handler",
-        },
-        dynamoTableProps: {
-          partitionKey: {
-            name: "pk",
-            type: dynamodb.AttributeType.STRING,
-          },
-          sortKey: {
-            name: "sk",
-            type: dynamodb.AttributeType.STRING,
-          },
-          tableClass: dynamodb.TableClass.STANDARD,
-          billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-          stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
-        },
+    // // Create a NodejsFunction for the DynamoDB update funding lambda
+    // const dynamodbUpdateFundingLambda = new lambdaNodejs.NodejsFunction(
+    //   this,
+    //   "DynamodbUpdateFundingLambdaFunction",
+    //   {
+    //     entry: path.join(
+    //       __dirname,
+    //       "../../apps/functions/src/lambdas/dynamodb-update-funding.ts",
+    //     ),
+    //     handler: "handler",
+    //     runtime: lambda.Runtime.NODEJS_20_X,
+    //     bundling: {
+    //       externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
+    //       sourceMap: true,
+    //       inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
+    //       format: lambdaNodejs.OutputFormat.ESM,
+    //       target: "node20",
+    //       platform: "node",
+    //     },
+    //   },
+    // );
+
+    // Create the funding table with streams
+    const fundingTable = new dynamodb.Table(this, "FundingTable", {
+      partitionKey: {
+        name: "pk",
+        type: dynamodb.AttributeType.STRING,
       },
-    );
+      sortKey: {
+        name: "sk",
+        type: dynamodb.AttributeType.STRING,
+      },
+      tableClass: dynamodb.TableClass.STANDARD,
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
+    });
 
-    const fundingTable = fundingTableWithStreams.dynamoTable;
+    // Add the Lambda function as a target for the DynamoDB stream
+    // const stream = fundingTable.tableStreamArn;
+    // if (stream) {
+    //   const streamTarget = new targets.LambdaFunction(
+    //     dynamodbUpdateFundingLambda,
+    //   );
+    //   new events.Rule(this, "DynamodbStreamRule", {
+    //     eventPattern: {
+    //       source: ["aws.dynamodb"],
+    //       detailType: ["DynamoDB Streams Record"],
+    //       resources: [stream],
+    //     },
+    //     targets: [streamTarget],
+    //   });
+    // }
 
-    fundingTable?.addGlobalSecondaryIndex({
+    // Add GSIs to the funding table
+    fundingTable.addGlobalSecondaryIndex({
       indexName: "GSI1",
       partitionKey: {
         name: "sk",
@@ -234,7 +220,7 @@ export class DynamoDB extends Construct {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    fundingTable?.addGlobalSecondaryIndex({
+    fundingTable.addGlobalSecondaryIndex({
       indexName: "statusNextCheckAtIndex",
       partitionKey: {
         name: "fundingStatus",
@@ -254,7 +240,7 @@ export class DynamoDB extends Construct {
       ],
     });
 
-    fundingTable?.addGlobalSecondaryIndex({
+    fundingTable.addGlobalSecondaryIndex({
       indexName: "collectionByName",
       partitionKey: {
         name: "collectionName",
@@ -263,7 +249,8 @@ export class DynamoDB extends Construct {
       projectionType: dynamodb.ProjectionType.INCLUDE,
       nonKeyAttributes: ["collectionID", "maxSupply", "currentSupply"],
     });
-    fundingTable?.addGlobalSecondaryIndex({
+
+    fundingTable.addGlobalSecondaryIndex({
       indexName: "collectionId-index",
       partitionKey: {
         name: "collectionId",
@@ -276,7 +263,8 @@ export class DynamoDB extends Construct {
       projectionType: dynamodb.ProjectionType.INCLUDE,
       nonKeyAttributes: ["address", "id", "fundingAmountSat"],
     });
-    fundingTable?.addGlobalSecondaryIndex({
+
+    fundingTable.addGlobalSecondaryIndex({
       indexName: "destination-address-collection-index",
       partitionKey: {
         name: "destinationAddress",
@@ -288,7 +276,8 @@ export class DynamoDB extends Construct {
       },
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    fundingTable?.addGlobalSecondaryIndex({
+
+    fundingTable.addGlobalSecondaryIndex({
       indexName: "farcasterFid-index",
       partitionKey: {
         name: "farcasterFid",
@@ -297,16 +286,19 @@ export class DynamoDB extends Construct {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
-    this.fundingTable = fundingTable!;
+    this.fundingTable = fundingTable;
     new cdk.CfnOutput(this, "FundingTableName", {
       exportName: "FundingTableName",
-      value: fundingTable?.tableName ?? "null",
+      value: fundingTable.tableName,
     });
 
     new cdk.CfnOutput(this, "FundingTableStreamArn", {
       exportName: "FundingTableStreamArn",
-      value: fundingTable?.tableStreamArn ?? "null",
+      value: fundingTable.tableStreamArn ?? "null",
     });
+
+    // Grant permissions to the Lambda function to read from the DynamoDB stream
+    // fundingTable.grantStreamRead(dynamodbUpdateFundingLambda);
 
     const claimsTable = new dynamodb.Table(this, "Claims", {
       partitionKey: {
@@ -421,30 +413,48 @@ export class DynamoDB extends Construct {
       value: openEditionClaimsTable.tableName,
     });
 
-    const fundingPollCodeDir = compileFundingPoller();
-    const fundingPollLambda = new lambda.Function(this, "FundingPollLambda", {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      code: lambda.Code.fromAsset(fundingPollCodeDir),
-      handler: "index.handler",
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 512,
-      environment: {
-        LOG_LEVEL: "debug",
-        TABLE_NAMES: JSON.stringify({
-          rbac: rbacTable.tableName,
-          userNonce: userNonceTable.tableName,
-          funding: fundingTable?.tableName ?? "null",
-          claims: claimsTable.tableName,
-          openEditionClaims: openEditionClaimsTable.tableName,
-        }),
-        EVENT_BUS_NAME: "default",
-      },
-    });
-    fundingTable?.grantReadWriteData(fundingPollLambda);
-    const rule = new events.Rule(this, "FundingPollScheduleRule", {
-      schedule: events.Schedule.rate(cdk.Duration.minutes(1)),
-    });
-    rule.addTarget(new targets.LambdaFunction(fundingPollLambda));
+    // // Create a NodejsFunction for the funding poller lambda
+    // const fundingPollLambda = new lambdaNodejs.NodejsFunction(
+    //   this,
+    //   "FundingPollLambda",
+    //   {
+    //     entry: path.join(
+    //       __dirname,
+    //       "../../apps/functions/src/lambdas/funding-queue.ts",
+    //     ),
+    //     handler: "handler",
+    //     runtime: lambda.Runtime.NODEJS_20_X,
+    //     timeout: cdk.Duration.seconds(30),
+    //     memorySize: 512,
+
+    //     bundling: {
+    //       externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
+    //       sourceMap: true,
+    //       inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
+    //       format: lambdaNodejs.OutputFormat.ESM,
+    //       target: "node20",
+    //       platform: "node",
+    //     },
+    //     environment: {
+    //       LOG_LEVEL: "debug",
+    //       TABLE_NAMES: JSON.stringify({
+    //         rbac: rbacTable.tableName,
+    //         userNonce: userNonceTable.tableName,
+    //         funding: fundingTable?.tableName ?? "null",
+    //         claims: claimsTable.tableName,
+    //         openEditionClaims: openEditionClaimsTable.tableName,
+    //       }),
+    //       EVENT_BUS_NAME: "default",
+    //       ...withSecretEnv(`${domainName.split(":")[0]}/.env.graphql`),
+    //     },
+    //   },
+    // );
+
+    // fundingTable?.grantReadWriteData(fundingPollLambda);
+    // const rule = new events.Rule(this, "FundingPollScheduleRule", {
+    //   schedule: events.Schedule.rate(cdk.Duration.minutes(1)),
+    // });
+    // rule.addTarget(new targets.LambdaFunction(fundingPollLambda));
 
     const uploadsTable = new dynamodb.Table(this, "Uploads", {
       partitionKey: {

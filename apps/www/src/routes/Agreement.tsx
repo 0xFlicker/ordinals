@@ -10,7 +10,7 @@ import { AutoConnect } from "@/features/web3";
 export const AgreementRoute: FC<{
   collectionId: string;
   initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose;
+  initialBitcoinPurpose: AddressPurpose[];
 }> = ({ collectionId, initialBitcoinNetwork, initialBitcoinPurpose }) => {
   return (
     <DefaultProvider>

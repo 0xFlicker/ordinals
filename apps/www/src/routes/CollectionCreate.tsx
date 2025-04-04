@@ -2,7 +2,6 @@
 import { FC, useCallback, useState } from "react";
 import { DefaultProvider } from "@/context/default";
 import Grid2 from "@mui/material/Unstable_Grid2";
-import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
@@ -19,7 +18,7 @@ import { useRouter } from "next/navigation";
 
 export const CollectionCreate: FC<{
   initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose;
+  initialBitcoinPurpose: AddressPurpose[];
 }> = ({ initialBitcoinNetwork, initialBitcoinPurpose }) => {
   const router = useRouter();
   const [name, setName] = useState("");

@@ -21,7 +21,7 @@ import Backdrop from "@mui/material/Backdrop";
 
 export interface INetworkPurpose {
   network: BitcoinNetwork["type"];
-  purpose: AddressPurpose;
+  purpose: AddressPurpose[];
 }
 const ConnectedDropDownModal: FC<{
   anchorEl: Element | null;
@@ -74,7 +74,9 @@ const ConnectedDropDownModal: FC<{
               </ListItemIcon>
               <ListItemText
                 primary={
-                  <Typography textAlign="right">{`(${network.purpose.toLowerCase()}) ${network.network.toLowerCase()}`}</Typography>
+                  <Typography textAlign="right">
+                    {network.network.toLowerCase()}
+                  </Typography>
                 }
               />
             </MenuItem>
@@ -94,28 +96,14 @@ export const BitcoinSwitchNetworks: FC<{
     return [
       {
         network: BitcoinNetworkType.Mainnet,
-        purpose: AddressPurpose.Payment,
-      },
-      {
-        network: BitcoinNetworkType.Mainnet,
-        purpose: AddressPurpose.Ordinals,
+        purpose: [AddressPurpose.Payment, AddressPurpose.Ordinals],
       },
       {
         network: BitcoinNetworkType.Testnet,
-        purpose: AddressPurpose.Payment,
-      },
-
-      {
-        network: BitcoinNetworkType.Testnet,
-        purpose: AddressPurpose.Ordinals,
+        purpose: [AddressPurpose.Payment, AddressPurpose.Ordinals],
       },
     ];
   }, []);
-  const currentNetwork = useMemo(
-    () =>
-      allNetworks.find((n) => n.network === network && n.purpose === purpose),
-    [allNetworks, network, purpose]
-  );
   return (
     <>
       <IconButton
@@ -135,7 +123,7 @@ export const BitcoinSwitchNetworks: FC<{
           setAnchorEl(null);
         }}
         networks={allNetworks}
-        currentNetwork={currentNetwork}
+        currentNetwork={allNetworks.find((n) => n.network === network)}
       />
     </>
   );

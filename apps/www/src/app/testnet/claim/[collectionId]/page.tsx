@@ -9,7 +9,7 @@ export default function Page({
   return (
     <ClaimRoute
       initialBitcoinNetwork={BitcoinNetworkType.Testnet}
-      initialBitcoinPurpose={AddressPurpose.Payment}
+      initialBitcoinPurpose={[AddressPurpose.Payment]}
       collectionId={collectionId}
     />
   );

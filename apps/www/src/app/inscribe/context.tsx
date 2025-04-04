@@ -12,7 +12,7 @@ export const Context = ({
 }: {
   children: React.ReactNode;
   initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose;
+  initialBitcoinPurpose: AddressPurpose[];
 }) => {
   return (
     <DefaultProvider>

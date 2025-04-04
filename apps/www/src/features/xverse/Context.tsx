@@ -8,8 +8,7 @@ import {
   useReducer,
   useState,
 } from "react";
-import {
-  getAddress,
+import Wallet, {
   signMessage,
   BitcoinNetwork,
   GetAddressPayload,
@@ -26,7 +25,7 @@ import {
 
 function useXverseContext(opts: {
   network: BitcoinNetwork["type"];
-  purpose: AddressPurpose;
+  purpose: AddressPurpose[];
 }) {
   const [state, dispatch] = useReducer(xverseReducer, {
     ...initialState,
@@ -66,59 +65,43 @@ function useXverseContext(opts: {
   const isConnecting = state.connectionStatus === AsyncStatus.PENDING;
   const network = state.currentTarget?.network;
   const purpose = state.currentTarget?.purpose;
-  const address =
-    purpose === AddressPurpose.Ordinals
-      ? state.ordinalsAddress
-      : state.paymentAddress;
 
   const connect = useCallback(
-    (opts: Omit<GetAddressPayload, "network" | "purposes">) => {
+    async (opts?: Omit<GetAddressPayload, "network" | "purposes">) => {
       actions.connectInit();
       try {
-        const getAddressPayload: GetAddressPayload = {
-          network: {
-            type: network,
-          },
-          purposes: [AddressPurpose.Ordinals, AddressPurpose.Payment],
+        const response = await Wallet.request("getAccounts", {
+          purposes: [AddressPurpose.Payment, AddressPurpose.Ordinals],
+          message: "Bitflick wants to know your addresses",
           ...opts,
-        };
-        return new Promise<{
-          paymentAddress: string;
-          paymentPublicKey: string;
-          ordinalsAddress: string;
-          ordinalsPublicKey: string;
-        }>((resolve, reject) =>
-          getAddress({
-            payload: getAddressPayload,
-            onFinish(response) {
-              let paymentAddress = "";
-              let paymentPublicKey = "";
-              let ordinalsAddress = "";
-              let ordinalsPublicKey = "";
-              for (const address of response.addresses) {
-                if (address.purpose === "payment") {
-                  paymentAddress = address.address;
-                  paymentPublicKey = address.publicKey;
-                } else if (address.purpose === "ordinals") {
-                  ordinalsAddress = address.address;
-                  ordinalsPublicKey = address.publicKey;
-                }
-              }
-              const r = {
-                paymentAddress,
-                paymentPublicKey,
-                ordinalsAddress,
-                ordinalsPublicKey,
-              };
-              actions.connectFulfilled(r);
-              resolve(r);
-            },
-            onCancel() {
-              actions.connectRejected("User canceled");
-              reject(new Error("User canceled"));
-            },
-          })
-        );
+        });
+        if (response.status === "success") {
+          const accounts = response.result;
+          const paymentAccount = accounts.find(
+            (account) => account.purpose === AddressPurpose.Payment
+          );
+          const ordinalsAccount = accounts.find(
+            (account) => account.purpose === AddressPurpose.Ordinals
+          );
+          if (paymentAccount && ordinalsAccount) {
+            actions.connectFulfilled({
+              paymentAddress: paymentAccount.address,
+              paymentPublicKey: paymentAccount.publicKey,
+              ordinalsAddress: ordinalsAccount.address,
+              ordinalsPublicKey: ordinalsAccount.publicKey,
+            });
+            return {
+              paymentAddress: paymentAccount.address,
+              paymentPublicKey: paymentAccount.publicKey,
+              ordinalsAddress: ordinalsAccount.address,
+              ordinalsPublicKey: ordinalsAccount.publicKey,
+            };
+          } else {
+            throw new Error("No payment or ordinals account found");
+          }
+        } else {
+          throw new Error(response.error.message);
+        }
       } catch (error: unknown) {
         if (error instanceof Error) {
           actions.connectRejected(error.message);
@@ -126,7 +109,7 @@ function useXverseContext(opts: {
         throw error;
       }
     },
-    [actions, network]
+    [actions]
   );
 
   const sign = useCallback(
@@ -136,32 +119,17 @@ function useXverseContext(opts: {
       address: addressToSign,
     }: {
       messageToSign: string;
-      network?: BitcoinNetwork;
-      address?: string;
+      network: BitcoinNetwork;
+      address: string;
     }) => {
-      const initialNetwork = state.currentTarget?.network;
-      const initialPurpose = state.currentTarget?.purpose;
       try {
-        if (!initialNetwork && !network) {
+        if (!network) {
           throw new Error("Network is required");
         }
-        if (!initialPurpose && !address) {
-          throw new Error("Address is required");
-        }
         const signMessagePayload = {
-          address: addressToSign ?? address,
+          address: addressToSign,
           message: messageToSign,
-          ...(initialNetwork ? { network: initialNetwork } : {}),
-          ...(network ? { network } : {}),
-          ...(initialPurpose
-            ? {
-                address:
-                  initialPurpose === AddressPurpose.Ordinals
-                    ? state.ordinalsAddress
-                    : state.paymentAddress,
-              }
-            : {}),
-          ...(address ? { address } : {}),
+          network,
         } as SignMessagePayload;
         dispatch(actionCreators.signatureRequestInit());
         const response = await new Promise<string>((resolve, reject) =>
@@ -190,13 +158,7 @@ function useXverseContext(opts: {
         }
       }
     },
-    [
-      address,
-      state.currentTarget?.network,
-      state.currentTarget?.purpose,
-      state.ordinalsAddress,
-      state.paymentAddress,
-    ]
+    []
   );
 
   const networkSelect = useCallback(
@@ -205,7 +167,7 @@ function useXverseContext(opts: {
       purpose,
     }: {
       network: BitcoinNetwork["type"];
-      purpose: AddressPurpose;
+      purpose: AddressPurpose[];
     }) => {
       dispatch(actionCreators.switchTarget({ network, purpose }));
     },
@@ -220,11 +182,11 @@ function useXverseContext(opts: {
       paymentAddress: string;
       paymentAmountSats: bigint | number;
     }) => {
-      if (!address) {
-        throw new Error("Address is required");
-      }
-      return new Promise((resolve, reject) =>
-        sendBtcTransaction({
+      return new Promise((resolve, reject) => {
+        if (!state.paymentAddress) {
+          throw new Error("Address is required");
+        }
+        return sendBtcTransaction({
           payload: {
             network: {
               type: network,
@@ -235,7 +197,7 @@ function useXverseContext(opts: {
                 amountSats: BigInt(paymentAmountSats),
               },
             ],
-            senderAddress: address,
+            senderAddress: state.paymentAddress,
           },
           onCancel() {
             reject(new Error("User canceled"));
@@ -243,10 +205,10 @@ function useXverseContext(opts: {
           onFinish(response) {
             resolve(response);
           },
-        })
-      );
+        });
+      });
     },
-    [address, network]
+    [network, state.paymentAddress]
   );
 
   return {
@@ -258,7 +220,6 @@ function useXverseContext(opts: {
     networkSelect,
     isConnected,
     isConnecting,
-    address,
     sendBtc,
   };
 }
@@ -269,7 +230,7 @@ const XverseProvider = createContext<TContext | null>(null);
 export const Provider: FC<
   PropsWithChildren<{
     network: BitcoinNetwork["type"];
-    purpose: AddressPurpose;
+    purpose: AddressPurpose[];
   }>
 > = ({ children, network, purpose }) => {
   const context = useXverseContext({

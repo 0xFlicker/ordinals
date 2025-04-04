@@ -3,7 +3,6 @@ import { FC } from "react";
 import { DefaultProvider } from "@/context/default";
 import Grid2 from "@mui/material/Unstable_Grid2";
 import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
-import { Pay } from "@/features/inscription";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
 import { AutoConnect } from "@/features/web3";
 import { Status } from "../features/inscription";
@@ -11,7 +10,7 @@ import { Status } from "../features/inscription";
 export const StatusRoute: FC<{
   fundingId: string;
   initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose;
+  initialBitcoinPurpose: AddressPurpose[];
 }> = ({ fundingId, initialBitcoinNetwork, initialBitcoinPurpose }) => {
   return (
     <DefaultProvider>
