@@ -122,7 +122,7 @@ export async function generateFundableGenesisTransaction(
           mimetypeInfo[mimetype].encoderMode;
       }
       const compressedData = await brotliCompressAsync(
-        content,
+        new Uint8Array(content),
         brotliCompressOptions,
       );
       if (compressedData.byteLength < content.byteLength) {
@@ -165,7 +165,7 @@ export async function generateFundableGenesisTransaction(
       const metadataCbor = cborEncode(metadata);
       for (let j = 0; j < metadataCbor.byteLength; j += 520) {
         const chunk = Buffer.from(metadataCbor.subarray(j, j + 520));
-        masterScript.push("05", chunk);
+        masterScript.push("05", new Uint8Array(chunk));
       }
     }
     if (didCompress) {

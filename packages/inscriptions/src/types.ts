@@ -1,6 +1,6 @@
 export interface InscriptionContent {
   isBin?: boolean;
-  content: ArrayBuffer;
+  content: ArrayBuffer | SharedArrayBuffer;
   mimeType: string;
   metadata?: Record<string, any>;
   compress?: boolean;
@@ -14,7 +14,7 @@ export interface InscriptionId {
 
 export interface InscriptionFile {
   id?: InscriptionId;
-  content: ArrayBuffer;
+  content: ArrayBuffer | SharedArrayBuffer;
   mimetype: string;
   metadata?: Record<string, any>;
   compress?: boolean;
@@ -22,7 +22,7 @@ export interface InscriptionFile {
 
 export interface DestinationInscriptionFile {
   id?: InscriptionId;
-  content: ArrayBuffer;
+  content: ArrayBuffer | SharedArrayBuffer;
   mimetype: string;
   metadata?: Record<string, any>;
   compress?: boolean;
