@@ -1,6 +1,5 @@
 import { Observable, mergeMap, map, from, tap, retry, timer } from "rxjs";
 import {
-  FundedEvent,
   GenesisEvent,
   NoVoutFound,
   createDynamoDbFundingDao,
@@ -12,10 +11,11 @@ import {
   enqueueCheckTxo,
   genesisQueueUrl,
   inscriptionBucket,
+  getFeeEstimates,
 } from "@0xflick/ordinals-backend";
 import { SecretKey } from "@0xflick/crypto-utils";
 import { SQSHandler } from "aws-lambda";
-import { WritableInscription, generateGenesisTransaction, generateRevealTransaction } from "@0xflick/inscriptions";
+import { generateRevealTransaction } from "@0xflick/inscriptions";
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
 
 const logger = createLogger({ name: "funded-queue" });
@@ -30,13 +30,7 @@ const fundingDocDao = createStorageFundingDocDao({
 function observeGenesisEvent(event: Observable<GenesisEvent>) {
   return event.pipe(
     mergeMap(
-      ({
-        fundedAddress,
-        network,
-        fundedAmount,
-        fundingId,
-        fundingTxid,
-      }) =>
+      ({ fundedAddress, network, fundedAmount, fundingId, fundingTxid }) =>
         from(
           enqueueCheckTxo({
             address: fundedAddress,
@@ -56,88 +50,104 @@ function observeGenesisEvent(event: Observable<GenesisEvent>) {
               logger.error(error, "Error checking funding");
               return timer(100);
             },
+            count: 3,
           }),
-          mergeMap(
-            async({
-              address,
-              amount,
-              txid,
-              vout
-            }) => {
-              const [doc, funding] = await Promise.all([
-                fundingDocDao.getInscriptionTransaction({
-                  id: fundingId,
-                  fundingAddress: fundedAddress,
-                }),
-                fundingDao.getFunding(fundingId),
-              ])
-                return {
-                  doc,
-                  fundingId,
-                  fundingTxid,
-                  genesisTxid: txid,
-                  genesisVout: vout,
-                  genesisAmount: amount,
-                  fundedAddress,
-                  fundedAmount,
-                  network,
-                  genesisAddress: address,
-                  tipAmount: funding.tipAmountSat,
-                  tipAddress: funding.tipAmountDestination,
-                }
-            },
-          ),
-          mergeMap(async ({ 
-            doc, tipAmount, tipAddress,genesisAddress, fundedAddress, fundedAmount, fundingId, fundingTxid, network, genesisAmount, genesisVout, genesisTxid }) => {
-            const mempoolBitcoinClient = createMempoolBitcoinClient({
-              network,
-            });
-
-            const { fastestFee, halfHourFee, hourFee } = await mempoolBitcoinClient.fees.getFeesRecommended();
-
-            const revealTx = generateRevealTransaction({
-              inputs: [{
-                address: genesisAddress,
-                amount: genesisAmount,
-                cblock: doc.initCBlock,
-                leaf: doc.initLeaf,
-                script: doc.initScript,
-                tapkey: doc.initTapKey,
-                vout: genesisVout,
-                txid: genesisTxid,
-                padding: doc.padding,
-                secKey: new SecretKey(Buffer.from(doc.secKey, "hex")),
-                inscriptions: doc.writableInscriptions,
-              }]
-            });
-            const revealTxid = await mempoolBitcoinClient.transactions.postTx({
-              txhex: revealTx,
-            });
-
-
-            const [{ MessageId }] = await Promise.all([
-              sqsClient.send(
-                new SendMessageCommand({
-                  QueueUrl: genesisQueueUrl.get(),
-                  MessageBody: JSON.stringify(value),
-                }),
-              ),
+          mergeMap(async ({ address, amount, txid, vout }) => {
+            const [doc, funding] = await Promise.all([
+              fundingDocDao.getInscriptionTransaction({
+                id: fundingId,
+                fundingAddress: fundedAddress,
+              }),
+              fundingDao.getFunding(fundingId),
             ]);
+
             return {
-              revealTxid,
+              doc,
               fundingId,
               fundingTxid,
-              genesisTxid,
+              genesisTxid: txid,
+              genesisVout: vout,
+              genesisAmount: amount,
               fundedAddress,
               fundedAmount,
               network,
-              genesisAddress,
-              genesisAmount,
-              genesisVout,
+              genesisAddress: address,
+              tipAmount: funding.tipAmountSat,
+              tipAddress: funding.tipAmountDestination,
             };
           }),
-        ),  
-      ),
+          mergeMap(
+            async ({
+              doc,
+              tipAmount,
+              tipAddress,
+              genesisAddress,
+              fundedAddress,
+              fundedAmount,
+              fundingId,
+              fundingTxid,
+              network,
+              genesisAmount,
+              genesisVout,
+              genesisTxid,
+            }) => {
+              // Use the cached fee estimates helper function from the backend package
+              const { fastestFee, halfHourFee, hourFee, minimumFee } =
+                await getFeeEstimates(network);
+
+              const revealTx = generateRevealTransaction({
+                feeRateRange: [fastestFee, hourFee],
+                inputs: [
+                  {
+                    amount: genesisAmount,
+                    cblock: doc.initCBlock,
+                    leaf: doc.initLeaf,
+                    script: doc.initScript,
+                    tapkey: doc.initTapKey,
+                    vout: genesisVout,
+                    txid: genesisTxid,
+                    padding: doc.padding,
+                    secKey: new SecretKey(Buffer.from(doc.secKey, "hex")),
+                    inscriptions: doc.writableInscriptions,
+                  },
+                ],
+              });
+
+              // Create a new mempool client for posting the transaction
+              const mempoolBitcoinClient = createMempoolBitcoinClient({
+                network,
+              });
+              const revealTxid = await mempoolBitcoinClient.transactions.postTx(
+                {
+                  txhex: revealTx.hex,
+                },
+              );
+
+              const genesisEvent = {
+                revealTxid,
+                fundingId,
+                fundingTxid,
+                genesisTxid,
+                fundedAddress,
+                fundedAmount,
+                network,
+                genesisAddress,
+                genesisAmount,
+                genesisVout,
+              };
+
+              const [{ MessageId }] = await Promise.all([
+                sqsClient.send(
+                  new SendMessageCommand({
+                    QueueUrl: genesisQueueUrl.get(),
+                    MessageBody: JSON.stringify(genesisEvent),
+                  }),
+                ),
+              ]);
+              return genesisEvent;
+            },
+          ),
+        ),
     ),
     tap((value: GenesisEvent) => {
       sqsClient

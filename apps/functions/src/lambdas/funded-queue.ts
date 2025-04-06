@@ -10,10 +10,11 @@ import {
   createStorageFundingDocDao,
   genesisQueueUrl,
   inscriptionBucket,
+  getFeeEstimates,
 } from "@0xflick/ordinals-backend";
 import { SecretKey } from "@0xflick/crypto-utils";
 import { SQSHandler } from "aws-lambda";
-import { generateGenesisTransaction } from "@0xflick/inscriptions";
+import { generateFundableGenesisTransaction } from "@0xflick/inscriptions";
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
 
 const logger = createLogger({ name: "funded-queue" });
@@ -40,16 +41,27 @@ function observeFundedEvent(event: Observable<FundedEvent>) {
           });
           logger.info("Generating genesis transaction");
           const secKey = new SecretKey(Buffer.from(doc.secKey, "hex"));
-          const genesisTx = await generateGenesisTransaction({
-            amount: fundedAmount,
-            initCBlock: doc.initCBlock,
-            initLeaf: doc.initLeaf,
-            initScript: doc.initScript,
-            initTapKey: doc.initTapKey,
-            secKey,
-            txid,
-            vout,
-            fee: doc.totalFee,
+          const { fastestFee } = await getFeeEstimates(network);
+          const genesisTx = await generateFundableGenesisTransaction({
+            address,
+            feeRate: fastestFee,
+            inscriptions: doc.writableInscriptions.map(({ file }) => ({
+              content: file.content,
+              mimeType: file.mimetype,
+            })),
+            network,
+            privKey: secKey.buff,
+            padding: doc.padding,
+            tip: doc.tip,
+            // amount: fundedAmount,
+            // initCBlock: doc.initCBlock,
+            // initLeaf: doc.initLeaf,
+            // initScript: doc.initScript,
+            // initTapKey: doc.initTapKey,
+            // secKey,
+            // txid,
+            // vout,
+            // fee: doc.totalFee,
           });
 
           logger.info(`Sending genesis funding ${fundingId} to mempool`);

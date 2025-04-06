@@ -20,6 +20,7 @@ export type FundedEvent = {
   vout: number;
   fundedAmount: number;
   network: BitcoinNetworkNames;
+  collectionId?: string;
 };
 
 export type GenesisEvent = {
@@ -29,6 +30,7 @@ export type GenesisEvent = {
   fundedAmount: number;
   fundedAddress: string;
   network: BitcoinNetworkNames;
+  collectionId?: string;
 };
 
 export type RevealEvent = {
@@ -40,4 +42,5 @@ export type RevealEvent = {
   platformFee: number;
   inscriptionFee: number;
   network: BitcoinNetworkNames;
+  collectionId?: string;
 };
