@@ -30,6 +30,11 @@ import {
 } from "./controllers.js";
 import { InscriptionProblem } from "../../generated-types/graphql.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { createLogger } from "@0xflick/ordinals-backend";
+
+const logger = createLogger({
+  name: "inscription-request-resolvers",
+});
 
 const resolvers: InscriptionRequestModule.Resolvers = {
   Mutation: {
@@ -113,6 +118,13 @@ const resolvers: InscriptionRequestModule.Resolvers = {
       const id = toAddressInscriptionId(
         hashAddress(inscriptionTransaction.fundingAddress),
       );
+      const secKey = serializeEnvelope(
+        await encryptEnvelope({
+          plaintext: inscriptionTransaction.secKey,
+          kmsClient,
+          keyId: fundingSecKeyEnvelopeKeyId,
+        }),
+      );
       const doc: TInscriptionDoc = {
         id,
         fundingAddress: inscriptionTransaction.fundingAddress,
@@ -124,7 +136,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         network: toBitcoinNetworkName(network),
         overhead: inscriptionTransaction.overhead,
         padding: inscriptionTransaction.padding,
-        secKey: inscriptionTransaction.secKey,
+        secKey,
         totalFee: inscriptionTransaction.totalFee,
         writableInscriptions: inscriptionTransaction.writableInscriptions,
         tip: inscriptionTip,
@@ -138,38 +150,30 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         destinationAddress,
         s3Client,
       });
+
       await Promise.all([
-        fundingDocDao.updateOrSaveInscriptionTransaction(
-          doc,
-          fundingSecKeyEnvelopeKeyId,
-        ),
-        encryptEnvelope({
-          plaintext: inscriptionTransaction.secKey,
-          kmsClient,
-          keyId: fundingSecKeyEnvelopeKeyId,
-        })
-          .then(serializeEnvelope)
-          .then((inscriptionSecKey) =>
-            fundingDao.createFunding({
-              address: inscriptionTransaction.fundingAddress,
-              network: toBitcoinNetworkName(network),
-              id,
-              destinationAddress,
-              fundingStatus: "funding",
-              timesChecked: 0,
-              fundingAmountBtc: inscriptionTransaction.fundingAmountBtc,
-              fundingAmountSat: Number(
-                bitcoinToSats(inscriptionTransaction.fundingAmountBtc),
-              ),
-              tipAmountSat: inscriptionTip,
-              tipAmountDestination: tipDestination,
-              meta: {
-                inscriptionSecKey,
-              },
-              type: "address-inscription",
-              createdAt: new Date(),
-            }),
+        fundingDocDao.updateOrSaveInscriptionTransaction(doc, {
+          skipEncryption: true,
+        }),
+        fundingDao.createFunding({
+          address: inscriptionTransaction.fundingAddress,
+          network: toBitcoinNetworkName(network),
+          id,
+          destinationAddress,
+          fundingStatus: "funding",
+          timesChecked: 0,
+          fundingAmountBtc: inscriptionTransaction.fundingAmountBtc,
+          fundingAmountSat: Number(
+            bitcoinToSats(inscriptionTransaction.fundingAmountBtc),
           ),
+          tipAmountSat: inscriptionTip,
+          tipAmountDestination: tipDestination,
+          meta: {
+            inscriptionSecKey: doc.secKey,
+          },
+          type: "address-inscription",
+          createdAt: new Date(),
+        }),
         ...inscriptionTransaction.writableInscriptions.map((f, index) =>
           fundingDocDao.saveInscriptionContent({
             id: {

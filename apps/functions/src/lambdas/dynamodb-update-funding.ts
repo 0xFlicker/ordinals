@@ -1,5 +1,4 @@
 import { DynamoDBStreamEvent, type DynamoDBRecord } from "aws-lambda";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   FundingDao,
   createEventBridgeClient,

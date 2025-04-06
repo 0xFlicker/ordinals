@@ -7,6 +7,7 @@ import {
   useMemo,
   useReducer,
   useState,
+  useEffect,
 } from "react";
 import Wallet, {
   signMessage,
@@ -22,6 +23,15 @@ import {
   initialState,
   xverseReducer,
 } from "./ducks";
+import {
+  createJweRequest,
+  decodeJwtToken,
+} from "@0xflick/ordinals-rbac-models";
+import {
+  useBitcoinNonceMutation,
+  useSiwbMutation,
+} from "./graphql/nonce.generated";
+import { useGetAppInfoQuery } from "@/features/auth/hooks/app.generated";
 
 function useXverseContext(opts: {
   network: BitcoinNetwork["type"];
@@ -34,6 +44,36 @@ function useXverseContext(opts: {
       purpose: opts.purpose,
     },
   });
+
+  const [fetchNonce] = useBitcoinNonceMutation();
+  const [fetchSiwb] = useSiwbMutation();
+  const { data: appInfoData } = useGetAppInfoQuery();
+  const issuer = appInfoData?.appInfo?.name;
+
+  // Check for stored token on launch
+  useEffect(() => {
+    if (!state.ordinalsAddress || !issuer) return;
+
+    const storedToken = localStorage.getItem("xverse_token");
+    if (!storedToken) return;
+
+    try {
+      const authUser = decodeJwtToken(storedToken, issuer);
+      if (authUser && authUser.address === state.ordinalsAddress) {
+        console.log(
+          "Found a token and the token addresses matches the ordinals address, setting verified address"
+        );
+        dispatch(
+          actionCreators.setVerifiedOrdinalsAddress(state.ordinalsAddress)
+        );
+      } else {
+        console.warn(`Unable to parse token for ${state.ordinalsAddress}`);
+      }
+    } catch (err) {
+      console.error("Error decoding token:", err);
+    }
+  }, [state.ordinalsAddress, issuer]);
+
   const actions = useMemo(
     () => ({
       connectInit: () => dispatch(actionCreators.connectInit()),
@@ -58,6 +98,10 @@ function useXverseContext(opts: {
         ),
       connectRejected: (errorMessage: string) =>
         dispatch(actionCreators.connectRejected(errorMessage)),
+      clearVerifiedAddress: () => {
+        localStorage.removeItem("xverse_token");
+        dispatch(actionCreators.setVerifiedOrdinalsAddress(""));
+      },
     }),
     []
   );
@@ -139,6 +183,9 @@ function useXverseContext(opts: {
               dispatch(
                 actionCreators.signatureRequestFulfilled({
                   signature: response,
+                  ...(addressToSign === state.ordinalsAddress
+                    ? { ordinalsAddress: addressToSign }
+                    : {}),
                 })
               );
               resolve(response);
@@ -211,6 +258,65 @@ function useXverseContext(opts: {
     [network, state.paymentAddress]
   );
 
+  const siwb = useCallback(async () => {
+    if (!state.ordinalsAddress) {
+      throw new Error("No ordinals address available");
+    }
+
+    const { data: nonceData } = await fetchNonce({
+      variables: {
+        address: state.ordinalsAddress,
+      },
+    });
+
+    if (!nonceData) {
+      throw new Error("No nonce data received");
+    }
+
+    const {
+      nonceBitcoin: { messageToSign, nonce, pubKey },
+    } = nonceData;
+
+    const signature = await sign({
+      messageToSign,
+      address: state.ordinalsAddress,
+      network: {
+        type: network,
+      },
+    });
+
+    if (!signature) {
+      throw new Error("Signature was declined");
+    }
+
+    const jwe = await createJweRequest({
+      signature,
+      nonce,
+      pubKeyStr: pubKey,
+    });
+
+    const { data: tokenData } = await fetchSiwb({
+      variables: {
+        address: state.ordinalsAddress,
+        jwe,
+      },
+    });
+
+    if (!tokenData) {
+      throw new Error("Failed to obtain SIWB token");
+    }
+
+    // Store the token in localStorage
+    if (tokenData.siwb?.token) {
+      localStorage.setItem("xverse_token", tokenData.siwb.token);
+    }
+
+    return {
+      token: tokenData.siwb,
+      address: state.ordinalsAddress,
+    };
+  }, [state.ordinalsAddress, network, sign, fetchNonce, fetchSiwb]);
+
   return {
     state,
     connect,
@@ -221,6 +327,8 @@ function useXverseContext(opts: {
     isConnected,
     isConnecting,
     sendBtc,
+    siwb,
+    clearVerifiedAddress: actions.clearVerifiedAddress,
   };
 }
 

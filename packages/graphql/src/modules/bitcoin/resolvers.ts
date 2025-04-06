@@ -14,7 +14,6 @@ export const resolvers: BitcoinModule.Resolvers = {
       });
       const mempoolBitcoinClient = new MempoolModel(client);
       const feeEstimate = await mempoolBitcoinClient.recommendedFees();
-
       return {
         minimum: feeEstimate.minimumFee,
         fastest: feeEstimate.fastestFee,

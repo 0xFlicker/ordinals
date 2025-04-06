@@ -122,7 +122,7 @@ export const SwitchableNetwork: FC<
       <AppBar left={title} right={<Connect />} />
       <Container
         sx={{
-          mt: 8,
+          pt: 8,
         }}
       >
         {children}

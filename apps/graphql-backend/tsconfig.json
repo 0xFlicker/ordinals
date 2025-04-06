@@ -1,9 +1,9 @@
 {
   "extends": "@0xflick/tsconfig/tsconfig.base.json",
   "compilerOptions": {
+    "module": "ES2022",
     "target": "ES2022",
     "lib": ["esnext"],
-    "module": "Node16",
     "outDir": "./dist",
     "composite": true,
     "incremental": true,

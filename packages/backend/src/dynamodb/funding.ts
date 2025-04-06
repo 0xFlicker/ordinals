@@ -1081,9 +1081,13 @@ export class FundingDao<
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: lastChecked.getTime(),
       }),
-      ...(typeof nextCheckAt !== "undefined" && {
-        nextCheckAt: nextCheckAt.getTime(),
-      }),
+      ...(typeof nextCheckAt !== "undefined"
+        ? {
+            nextCheckAt: nextCheckAt.getTime(),
+          }
+        : {
+            nextCheckAt: new Date().getTime(),
+          }),
       ...(typeof tipAmountSat !== "undefined" && { tipAmountSat }),
       ...(typeof tipAmountDestination !== "undefined" && {
         tipAmountDestination,

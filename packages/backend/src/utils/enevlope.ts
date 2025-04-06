@@ -29,6 +29,7 @@ export async function decryptEnvelope({
     throw new Error("Failed to decrypt data key");
   }
 
+  // First use the key for decryption
   const decipher = crypto.createDecipheriv(
     "aes-256-gcm",
     decryptedKey.Plaintext,
@@ -37,6 +38,9 @@ export async function decryptEnvelope({
   decipher.setAuthTag(Buffer.from(base64AuthTag, "base64"));
   let decryptedSecKey = decipher.update(base64Ciphertext, "base64", "utf8");
   decryptedSecKey += decipher.final("utf8");
+
+  // clear from memory
+  crypto.webcrypto.getRandomValues(new Uint8Array(decryptedKey.Plaintext));
 
   return decryptedSecKey;
 }
@@ -88,8 +92,29 @@ export function serializeEnvelope({
 }
 
 export function deserializeEnvelope(serializedEnvelope: string) {
-  const [, base64AuthTag, base64Ciphertext, base64DataKey, base64Iv] =
-    serializedEnvelope.split("[")[1].split("]")[0].split(":");
+  if (
+    !serializedEnvelope.startsWith("ENVELOPE[") ||
+    !serializedEnvelope.endsWith("]")
+  ) {
+    throw new Error("Invalid envelope format");
+  }
+
+  const parts = serializedEnvelope.split("[")[1].split("]")[0].split(":");
+  if (parts.length !== 4) {
+    throw new Error("Invalid number of envelope components");
+  }
+
+  const [base64AuthTag, base64Ciphertext, base64DataKey, base64Iv] = parts;
+
+  // Validate base64 strings
+  try {
+    [base64AuthTag, base64Ciphertext, base64DataKey, base64Iv].forEach((str) =>
+      Buffer.from(str, "base64"),
+    );
+  } catch (e) {
+    throw new Error("Invalid base64 encoding in envelope components");
+  }
+
   return {
     base64AuthTag,
     base64Ciphertext,

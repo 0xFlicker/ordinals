@@ -1,6 +1,6 @@
 import { BitcoinNetworkNames } from "@0xflick/ordinals-models";
 
-export type InvalidFundingEvent = {
+export type InsufficientFundsEvent = {
   fundingId: string;
   address: string;
   fundingAmountSat: number;
@@ -9,6 +9,8 @@ export type InvalidFundingEvent = {
   fundedAmount: number;
   network: BitcoinNetworkNames;
 };
+
+export type InvalidFundingEvent = InsufficientFundsEvent;
 
 export type FundedEvent = {
   fundingId: string;

@@ -386,10 +386,9 @@ export class AxolotlModel implements IAxolotlMeta {
       s3Client,
     });
     await Promise.all([
-      fundingDocDao.updateOrSaveInscriptionTransaction(
-        doc,
-        fundingSecKeyEnvelopeKeyId,
-      ),
+      fundingDocDao.updateOrSaveInscriptionTransaction(doc, {
+        secKeyEnvelopeKeyId: fundingSecKeyEnvelopeKeyId,
+      }),
       incrementingRevealDao.createFunding(addressModel),
       ...writableInscriptions.map((f, index) =>
         fundingDocDao.saveInscriptionContent({

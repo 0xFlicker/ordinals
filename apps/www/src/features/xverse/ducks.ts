@@ -27,6 +27,7 @@ export interface XverseState {
   signatureStatus?: AsyncStatus;
   signature?: string;
   currentTarget: INetworkTarget;
+  verifiedOrdinalsAddress?: string;
 }
 export const initialState: XverseState = {
   connectionStatus: AsyncStatus.IDLE,
@@ -68,9 +69,16 @@ const connectRejected = createAction(
 const signatureRequestInit = createAction("xverse/signatureRequest");
 const signatureRequestFulfilled = createAction(
   "xverse/signatureRequest/fulfilled",
-  ({ signature }: { signature: string }) => ({
+  ({
+    signature,
+    ordinalsAddress,
+  }: {
+    signature: string;
+    ordinalsAddress?: string;
+  }) => ({
     payload: {
       signature,
+      ordinalsAddress,
     },
   })
 );
@@ -88,6 +96,15 @@ const switchTarget = createAction(
     payload: {
       network,
       purpose,
+    },
+  })
+);
+
+const setVerifiedOrdinalsAddress = createAction(
+  "xverse/setVerifiedOrdinalsAddress",
+  (ordinalsAddress: string) => ({
+    payload: {
+      ordinalsAddress,
     },
   })
 );
@@ -112,6 +129,7 @@ export const xverseReducer = createReducer<XverseState>(
       state.paymentPublicKey = undefined;
       state.ordinalsAddress = undefined;
       state.ordinalsPublicKey = undefined;
+      state.verifiedOrdinalsAddress = undefined;
     });
     builder.addCase(signatureRequestInit, (state) => {
       state.signatureStatus = AsyncStatus.PENDING;
@@ -119,6 +137,9 @@ export const xverseReducer = createReducer<XverseState>(
     builder.addCase(signatureRequestFulfilled, (state, action) => {
       state.signatureStatus = AsyncStatus.FULFILLED;
       state.signature = action.payload.signature;
+      if (action.payload.ordinalsAddress) {
+        state.verifiedOrdinalsAddress = action.payload.ordinalsAddress;
+      }
     });
     builder.addCase(signatureRequestRejected, (state, action) => {
       state.signatureStatus = AsyncStatus.REJECTED;
@@ -126,6 +147,9 @@ export const xverseReducer = createReducer<XverseState>(
     });
     builder.addCase(switchTarget, (state, action) => {
       state.currentTarget = action.payload;
+    });
+    builder.addCase(setVerifiedOrdinalsAddress, (state, action) => {
+      state.verifiedOrdinalsAddress = action.payload.ordinalsAddress;
     });
   }
 );
@@ -138,4 +162,5 @@ export const actionCreators = {
   signatureRequestFulfilled,
   signatureRequestRejected,
   switchTarget,
+  setVerifiedOrdinalsAddress,
 };

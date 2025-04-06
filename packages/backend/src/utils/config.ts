@@ -5,7 +5,7 @@ const deploymentName = config.deployment.name;
 
 export const awsEndpoint = lazySingleton(() => {
   return process.env.AWS_ENDPOINT_URL ?? deploymentName === "localstack"
-    ? "http://localhost:4566"
+    ? "http://localhost.localstack.cloud:4566"
     : undefined;
 });
 
@@ -78,8 +78,8 @@ export const fundedQueueUrl = lazySingleton(() => {
   return process.env.FUNDED_QUEUE_URL ?? null;
 });
 
-export const invalidFundingQueueUrl = lazySingleton(() => {
-  return process.env.INVALID_FUNDING_QUEUE_URL ?? null;
+export const insufficientFundsQueueUrl = lazySingleton(() => {
+  return process.env.INSUFFICIENT_FUNDS_QUEUE_URL ?? null;
 });
 
 export const genesisQueueUrl = lazySingleton(() => {

@@ -1,5 +1,7 @@
 import path from "path";
 import fs from "fs";
+
+import { parse } from "dotenv";
 import { spawnSync } from "child_process";
 
 import { fileURLToPath } from "url";
@@ -16,10 +18,30 @@ export function jsonFromNodeModules(file: string) {
 }
 
 export function textFromSecret(file: string) {
+  // Check if we're in localstack mode
+  const isLocalstack = process.env.DEPLOYMENT === "localstack";
+
+  if (isLocalstack) {
+    // Use pre-decrypted secrets in localstack mode
+    const decryptedPath = path.join(
+      __dirname,
+      "../../dist/decrypted-secrets",
+      file,
+    );
+    if (!fs.existsSync(decryptedPath)) {
+      throw new Error(
+        `Decrypted secret file not found: ${decryptedPath}. Please run the decrypt-secrets script first.`,
+      );
+    }
+    return fs.readFileSync(decryptedPath, "utf8");
+  }
+
+  // For non-localstack deployments, use sops directly
   console.log(`${__dirname}/../../../secrets/${file}`);
   const { stdout, stderr } = spawnSync("sops", ["--decrypt", file], {
     cwd: path.join(__dirname, "../../../secrets"),
     encoding: "utf8",
+    env: process.env, // Pass through all environment variables
   });
   if (stderr) {
     throw new Error(stderr);
@@ -33,4 +55,8 @@ export function jsonFromSecret(file: string) {
 
 export function readJSONSync(file: string) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+export function parseEnv(file: string) {
+  return parse(textFromSecret(file));
 }

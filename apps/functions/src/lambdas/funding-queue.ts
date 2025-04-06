@@ -2,12 +2,12 @@ import { from, mergeMap, retry, timer, filter, map, tap } from "rxjs";
 import {
   FundedEvent,
   FundingDao,
-  InvalidFundingEvent,
+  InsufficientFundsEvent,
   createLogger,
   createMempoolBitcoinClient,
   createSqsClient,
   enqueueCheckTxo,
-  invalidFundingQueueUrl,
+  insufficientFundsQueueUrl,
 } from "@0xflick/ordinals-backend";
 import { type Handler } from "aws-lambda";
 import {
@@ -63,6 +63,7 @@ function createCheckFundingStream({
         logger.error(error, "Error checking funding");
         return timer(100);
       },
+      count: 3,
     }),
     mergeMap(async (funding) => {
       logger.info(
@@ -85,7 +86,7 @@ function createCheckFundingStream({
     }),
     tap((funding) => {
       if (funding.amount < fundingAmountSat) {
-        const event: InvalidFundingEvent = {
+        const event: InsufficientFundsEvent = {
           fundingId,
           address,
           fundingAmountSat,
@@ -96,7 +97,7 @@ function createCheckFundingStream({
         };
         sqsClient.send(
           new SendMessageCommand({
-            QueueUrl: invalidFundingQueueUrl.get(),
+            QueueUrl: insufficientFundsQueueUrl.get(),
             MessageBody: JSON.stringify(event),
           }),
         );
@@ -107,13 +108,32 @@ function createCheckFundingStream({
 
 export const handler: Handler = async () => {
   const fundingDao = createDynamoDbFundingDao();
-  const fundingStreams = from(
-    fundingDao.listAllFundingsByStatusNextCheckAt({
-      fundingStatus: "funding",
-      nextCheckAt: new Date(),
-    }),
-  ).pipe(
-    filter((funding) => shouldCheckNow(funding)),
+  const allFundings = await fundingDao.getAllFundingsByStatusNextCheckAt({
+    fundingStatus: "funding",
+    nextCheckAt: new Date(),
+  });
+
+  const fundingsToCheck = allFundings.filter(shouldCheckNow);
+  const fundingsToSkip = allFundings.filter((f) => !shouldCheckNow(f));
+
+  const nextCheckTime =
+    fundingsToSkip.length > 0
+      ? new Date(
+          Math.min(...fundingsToSkip.map((f) => f.nextCheckAt.getTime())),
+        ).toISOString()
+      : "N/A";
+
+  logger.info(
+    {
+      totalFundings: allFundings.length,
+      checkingNow: fundingsToCheck.length,
+      checkingLater: fundingsToSkip.length,
+      nextCheckAt: nextCheckTime,
+    },
+    "Funding check status",
+  );
+
+  const fundingStreams = from(fundingsToCheck).pipe(
     mergeMap((funding) => {
       return createCheckFundingStream({
         fundingId: funding.id,

@@ -6,15 +6,9 @@ import Typography from "@mui/material/Typography";
 
 import { FC, useCallback, useState } from "react";
 import { useXverse } from "../Context";
-import {
-  BitcoinNonceMutation,
-  useBitcoinNonceMutation,
-  useSiwbMutation,
-} from "../graphql/nonce.generated";
 import { BitcoinSwitchNetworks } from "./BitcoinSwitchNetworks";
 
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { createJweRequest } from "@0xflick/ordinals-rbac-models";
 import { BitcoinNetworkType } from "sats-connect";
 
 export enum EFlow {
@@ -50,63 +44,32 @@ export const ConnectMenuItem: FC<{
     connect: xverseConnect,
     isConnected,
     isConnecting,
-    state: { ordinalsAddress, paymentAddress },
-    sign,
-    network,
+    state: { ordinalsAddress },
+    siwb,
   } = useXverse();
-  const [
-    fetchNonce,
-    { loading: fetchingNonce, error: nonceError, data: nonceData },
-  ] = useBitcoinNonceMutation();
-  const [
-    fetchSiwb,
-    { loading: fetchingSiwb, error: siwbError, data: siwbData },
-  ] = useSiwbMutation();
+
   const handleBitcoinConnect = useCallback(async () => {
     try {
       onUpdateFlow?.({ flow: EFlow.Connecting });
-      const { ordinalsAddress, ordinalsPublicKey } = await xverseConnect({
+      const { ordinalsAddress } = await xverseConnect({
         message: "Connect to bitflick",
       });
+
       if (ordinalsAddress) {
         onUpdateFlow?.({ flow: EFlow.SignatureRequesting });
-        const { data: nonceData } = await fetchNonce({
-          variables: {
-            address: ordinalsAddress,
-          },
-        });
-        if (!nonceData) {
-          return console.warn("No nonce data");
+        try {
+          await siwb();
+          onUpdateFlow?.({ flow: EFlow.SignatureObtained });
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            error.message === "Signature was declined"
+          ) {
+            onUpdateFlow?.({ flow: EFlow.SignatureDeclined });
+          } else {
+            throw error;
+          }
         }
-        const {
-          nonceBitcoin: { messageToSign, nonce, pubKey },
-        } = nonceData;
-        const signature = await sign({
-          messageToSign,
-          address: ordinalsAddress,
-          network: {
-            type: network,
-          },
-        });
-        if (!signature) {
-          return onUpdateFlow?.({ flow: EFlow.SignatureDeclined });
-        }
-        const jwe = await createJweRequest({
-          signature,
-          nonce,
-          pubKeyStr: pubKey,
-        });
-        const { data: tokenData } = await fetchSiwb({
-          variables: {
-            address: ordinalsAddress,
-            jwe,
-          },
-        });
-        if (!tokenData) {
-          return onUpdateFlow?.({ flow: EFlow.SignatureDeclined });
-        }
-        const { siwb: token } = tokenData;
-        console.log("token", token);
       }
     } catch (error) {
       console.error("error", error);
@@ -117,7 +80,8 @@ export const ConnectMenuItem: FC<{
         message,
       });
     }
-  }, [fetchNonce, fetchSiwb, onUpdateFlow, sign, xverseConnect]);
+  }, [onUpdateFlow, xverseConnect, siwb]);
+
   return (
     <MenuItem onClick={handleBitcoinConnect}>
       <ListItemIcon>

@@ -158,10 +158,9 @@ export async function updateCollectionFunding({
   };
 
   await Promise.all([
-    fundingDocDao.updateOrSaveInscriptionTransaction(
-      doc,
-      fundingSecKeyEnvelopeKeyId,
-    ),
+    fundingDocDao.updateOrSaveInscriptionTransaction(doc, {
+      secKeyEnvelopeKeyId: fundingSecKeyEnvelopeKeyId,
+    }),
     encryptEnvelope({
       plaintext: privateKey,
       kmsClient,

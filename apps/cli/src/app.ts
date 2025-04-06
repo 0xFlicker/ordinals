@@ -15,6 +15,7 @@ import { findMalformedFunding } from "./commands/rescue/cmd.js";
 import { allocateAirdrop, collectAddresses } from "./commands/rune.js";
 import { mintChildMany } from "./commands/mintChildMany.js";
 import { deployOpLockCat } from "./commands/op-lock-cat/deploy.js";
+import { sendBitcoinToAddress } from "./commands/sendBitcoin.js";
 const program = new Command();
 
 program
@@ -330,6 +331,49 @@ deployCommand
         rpcwallet,
         feeRate,
         noSend,
+      });
+    },
+  );
+
+program
+  .command("send-bitcoin <address> <amount>")
+  .option("-n, --network <network>", "Bitcoin network", "regtest")
+  .option("-u, --rpcuser <rpcuser>", "Bitcoin RPC username")
+  .option("-p, --rpcpassword <rpcpassword>", "Bitcoin RPC password")
+  .option("-w, --rpcwallet <rpcwallet>", "Bitcoin Wallet name", "default")
+  .option(
+    "-f, --fee-rate <fee-rate>",
+    "Fee rate in satoshis per vbyte",
+    Number,
+    1,
+  )
+  .option("-d, --bitcoin-data-dir <bitcoin-data-dir>", "Bitcoin data directory")
+  .option("-g, --generate", "Generate a block after sending (regtest only)")
+  .description("Send Bitcoin to an address")
+  .action(
+    async (
+      address,
+      amount,
+      {
+        network,
+        rpcuser,
+        rpcpassword,
+        rpcwallet,
+        feeRate,
+        bitcoinDataDir,
+        generate,
+      },
+    ) => {
+      await sendBitcoinToAddress({
+        address,
+        amount: Number(amount),
+        network,
+        rpcuser,
+        rpcpassword,
+        rpcwallet,
+        feeRate,
+        bitcoinDataDir,
+        generate,
       });
     },
   );

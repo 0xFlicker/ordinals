@@ -11,6 +11,7 @@ import { Www } from "./distribution.js";
 import { Graphql } from "./graphql.js";
 import { Frame } from "./frame.js";
 import { Envelope } from "./envelope.js";
+import { InscriptionFunding } from "./inscription-funding.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 interface IProps extends cdk.StackProps {
@@ -26,7 +27,7 @@ export class BackendStack extends cdk.Stack {
     });
     const { bucket: uploadBucket } = new Storage(this, "UploadBucket", {
       name: "uploads",
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      localstack: process.env.DEPLOYMENT === "localstack",
       encryption: s3.BucketEncryption.S3_MANAGED,
       cors: [
         {
@@ -63,6 +64,16 @@ export class BackendStack extends cdk.Stack {
 
     const fundingSecKeyEnvelope = new Envelope(this, "FundingSecKeyEnvelope", {
       description: "Key for envelope encryption of bitcoin taproot secKeys",
+    });
+
+    // Always deploy the InscriptionFunding construct, even in localstack
+    new InscriptionFunding(this, "InscriptionFunding", {
+      domainName: new URL(origin).host,
+      fundingTable,
+      rbacTable,
+      userNonceTable,
+      claimsTable,
+      openEditionClaimsTable,
     });
 
     if (process.env.DEPLOYMENT !== "localstack") {
