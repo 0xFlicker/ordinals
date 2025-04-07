@@ -3,8 +3,6 @@ import { mainnet, sepolia, base } from "@wagmi/core/chains";
 import { createConfig, watchContractEvent } from "@wagmi/core";
 import { frameTransport } from "@0xflick/frame";
 
-import ethProvider from "eth-provider";
-
 export const config = createConfig({
   chains: [mainnet, sepolia, base],
   transports: {

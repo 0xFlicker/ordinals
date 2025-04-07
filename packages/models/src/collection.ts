@@ -21,6 +21,6 @@ export type TCollectionModel<T = Record<string, any>> = {
   maxSupply?: number;
   pendingCount: number;
   totalCount: number;
-  meta?: T;
+  meta: T;
   type: "collection";
 };

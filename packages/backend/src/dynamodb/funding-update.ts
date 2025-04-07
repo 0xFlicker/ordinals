@@ -134,6 +134,12 @@ export async function updateCollectionFunding({
     tip: 0,
     inscriptions: [inscriptionContent],
     tipAmountDestination: tipDestination,
+    // parentInscriptions: [
+    //   {
+    //     txid: parentInscriptionTxid,
+    //     index: parentInscriptionVout,
+    //   },
+    // ],
   });
 
   const id = toAddressInscriptionId(hashAddress(parentInscriptionAddress));

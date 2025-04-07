@@ -16,6 +16,7 @@ import { allocateAirdrop, collectAddresses } from "./commands/rune.js";
 import { mintChildMany } from "./commands/mintChildMany.js";
 import { deployOpLockCat } from "./commands/op-lock-cat/deploy.js";
 import { sendBitcoinToAddress } from "./commands/sendBitcoin.js";
+import { parentMintTest } from "./commands/parentMintTest.js";
 const program = new Command();
 
 program
@@ -127,7 +128,7 @@ program
           parentSecKey: parentKey,
           parentAmount: Number(parentAmount),
           tipDestinationAddress,
-          tipAmount: Number(tipAmount),
+          tipAmount: tipAmount ? Number(tipAmount) : undefined,
         });
       } else {
         console.log("Minting single");
@@ -377,5 +378,14 @@ program
       });
     },
   );
+
+program
+  .command("parent-mint-test")
+  .description(
+    "Run the parent mint test to validate crypto libraries outside of Jest",
+  )
+  .action(async () => {
+    await parentMintTest();
+  });
 
 program.parse(process.argv);

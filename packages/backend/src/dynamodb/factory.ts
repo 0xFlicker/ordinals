@@ -6,13 +6,13 @@ import { ClaimsDao } from "./claims.js";
 import { OpenEditionClaimsDao } from "./openEdition.js";
 import { WalletDAO } from "./wallet.js";
 import { UploadsDAO } from "./uploads.js";
+import { BatchDAO } from "./batch.js";
 
 export function createDynamoDbFundingDao<
   ItemMeta extends Record<string, any> = {},
   CollectionMeta extends Record<string, any> = {},
 >(): FundingDao<ItemMeta, CollectionMeta> {
-  const allTableNames = tableNames.get();
-  FundingDao.TABLE_NAME = allTableNames.funding ?? FundingDao.TABLE_NAME;
+  FundingDao.TABLE_NAME = tableNames.get().funding ?? FundingDao.TABLE_NAME;
   return new FundingDao<ItemMeta, CollectionMeta>(getDb());
 }
 
@@ -21,44 +21,66 @@ export function createDynamoDbClaimsDao({
   db,
 }: {
   claimsTableName?: string;
-  db: DynamoDBDocumentClient;
-}) {
+  db?: DynamoDBDocumentClient;
+} = {}) {
+  claimsTableName = claimsTableName ?? tableNames.get().claims;
+
   ClaimsDao.TABLE_NAME = claimsTableName ?? ClaimsDao.TABLE_NAME;
-  return new ClaimsDao(db);
+  return new ClaimsDao(db ?? getDb());
 }
 
 export function createDynamoDbOpenEditionClaimsDao({
   db,
   openEditionClaimsTableName,
 }: {
-  db: DynamoDBDocumentClient;
+  db?: DynamoDBDocumentClient;
   openEditionClaimsTableName?: string;
-}) {
+} = {}) {
+  openEditionClaimsTableName =
+    openEditionClaimsTableName ?? tableNames.get().openEditionClaims;
+
   OpenEditionClaimsDao.TABLE_NAME =
     openEditionClaimsTableName ?? OpenEditionClaimsDao.TABLE_NAME;
-  return new OpenEditionClaimsDao(db);
+  return new OpenEditionClaimsDao(db ?? getDb());
 }
 
 export function createDynamoDbWalletDao({
   db,
   walletTableName,
 }: {
-  db: DynamoDBDocumentClient;
+  db?: DynamoDBDocumentClient;
   walletTableName?: string;
-}) {
-  WalletDAO.TABLE_NAME =
-    walletTableName ?? tableNames.get().wallet ?? WalletDAO.TABLE_NAME;
-  return new WalletDAO(db);
+} = {}) {
+  walletTableName = walletTableName ?? tableNames.get().wallet;
+
+  WalletDAO.TABLE_NAME = walletTableName ?? WalletDAO.TABLE_NAME;
+  return new WalletDAO(db ?? getDb());
 }
 
 export function createDynamoDbUploadsDao({
   db,
   uploadsTableName,
 }: {
-  db: DynamoDBDocumentClient;
+  db?: DynamoDBDocumentClient;
   uploadsTableName?: string;
-}) {
+} = {}) {
+  uploadsTableName = uploadsTableName ?? tableNames.get().uploads;
+
   UploadsDAO.TABLE_NAME =
     uploadsTableName ?? tableNames.get().uploads ?? UploadsDAO.TABLE_NAME;
-  return new UploadsDAO(db);
+  return new UploadsDAO(db ?? getDb());
+}
+
+export function createDynamoDbBatchDao({
+  db,
+  batchTableName,
+}: {
+  db?: DynamoDBDocumentClient;
+  batchTableName?: string;
+} = {}) {
+  batchTableName = batchTableName ?? tableNames.get().batches;
+
+  BatchDAO.TABLE_NAME =
+    batchTableName ?? tableNames.get().batches ?? BatchDAO.TABLE_NAME;
+  return new BatchDAO(db ?? getDb());
 }

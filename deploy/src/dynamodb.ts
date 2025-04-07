@@ -230,8 +230,10 @@ export class DynamoDB extends Construct {
         "id",
         "address",
         "fundingAmountSat",
+        "sizeEstimate",
         "network",
         "createdAt",
+        "fundedAt",
       ],
     });
 

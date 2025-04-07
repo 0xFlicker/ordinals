@@ -46,7 +46,7 @@ export async function generateRefundTransaction({
   });
 
   // Sign template to get accurate witness size
-  const templateSig = await Signer.taproot.sign(secKey.raw, templateTx, 0, {
+  const templateSig = await Signer.taproot.sign(secKey, templateTx, 0, {
     extension: Tap.encodeScript(refundScript),
   });
   templateTx.vin[0].witness = [templateSig.hex, refundScript, refundCBlock];
@@ -75,7 +75,7 @@ export async function generateRefundTransaction({
     ],
   });
 
-  const sig = await Signer.taproot.sign(secKey.raw, refundTx, 0, {
+  const sig = await Signer.taproot.sign(secKey, refundTx, 0, {
     extension: Tap.encodeScript(refundScript),
   });
   refundTx.vin[0].witness = [sig.hex, refundScript, refundCBlock];

@@ -227,7 +227,7 @@ export async function generateFundableGenesisTransaction(
   });
 
   // 9) Sign the partial input with the new leaf, so the witness is included in the size
-  const initSig = await Signer.taproot.sign(secKey.raw, partialTxData, 0, {
+  const initSig = await Signer.taproot.sign(secKey, partialTxData, 0, {
     extension: genesisScript,
   });
   const [genesisTapKey, genesisCblock] = Tap.getPubKey(pubKey, {

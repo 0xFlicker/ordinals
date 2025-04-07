@@ -144,7 +144,7 @@ export async function mintChildMany({
         address,
         inscriptions,
         padding,
-        tip: tipAmount,
+        tip: tipAmount ?? 0,
         network,
         privKey: generatePrivKey(),
         feeRate,
@@ -223,13 +223,17 @@ export async function mintChildMany({
   const revealResponse = generateRevealTransaction({
     feeRateRange: feeRate ? [feeRate, feeRate] : [fastestFee, halfHourFee],
     inputs,
-    feeTarget: tipAmount,
-    feeDestinations: [
-      {
-        address: tipDestinationAddress,
-        weight: 100,
-      },
-    ],
+    ...(tipDestinationAddress && tipAmount
+      ? {
+          feeTarget: tipAmount,
+          feeDestinations: [
+            {
+              address: tipDestinationAddress,
+              weight: 100,
+            },
+          ],
+        }
+      : {}),
     parentTxs: [
       {
         vin: {

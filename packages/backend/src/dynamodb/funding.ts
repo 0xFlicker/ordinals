@@ -38,9 +38,8 @@ export type TFundingDb<T extends Record<string, any>> = {
   address: string;
   network: string;
   collectionId?: string;
-  fundingTxid?: string;
-  fundingVout?: number;
-  revealTxids?: string[];
+  fundedAt?: number;
+  revealTxid?: string;
   genesisTxid?: string;
   lastChecked?: number;
   createdAt: number;
@@ -52,6 +51,8 @@ export type TFundingDb<T extends Record<string, any>> = {
   destinationAddress: string;
   tipAmountSat?: number;
   tipAmountDestination?: string;
+  batchId?: string;
+  sizeEstimate: number;
 } & T;
 
 export type TFundingCollectionDb<T extends Record<string, any>> = {
@@ -357,6 +358,8 @@ export class FundingDao<
       nextCheckAt: Date;
       fundingAmountSat: number;
       network: BitcoinNetworkNames;
+      fundedAt?: Date;
+      sizeEstimate: number;
     },
     any,
     unknown
@@ -386,6 +389,8 @@ export class FundingDao<
       nextCheckAt: Date;
       fundingAmountSat: number;
       network: BitcoinNetworkNames;
+      fundedAt?: Date;
+      sizeEstimate: number;
     }>
   > {
     const pagination = decodeCursor(cursor);
@@ -417,8 +422,10 @@ export class FundingDao<
           nextCheckAt: item.nextCheckAt
             ? new Date(item.nextCheckAt)
             : new Date(0),
+          fundedAt: item.fundedAt ? new Date(item.fundedAt) : undefined,
           fundingAmountSat: item.fundingAmountSat,
           network: toBitcoinNetworkName(item.network),
+          sizeEstimate: item.sizeEstimate,
         })) ?? [],
       cursor: encodeCursor({
         page,
@@ -799,6 +806,23 @@ export class FundingDao<
     }
   }
 
+  public async updateBatchId({ id, batchId }: { id: string; batchId: string }) {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: FundingDao.TABLE_NAME,
+        Key: {
+          pk: id,
+          sk: "funding",
+        },
+        ConditionExpression: "attribute_exists(pk)",
+        UpdateExpression: "SET batchId = :batchId",
+        ExpressionAttributeValues: {
+          ":batchId": batchId,
+        },
+      }),
+    );
+  }
+
   public async createCollection(item: TCollectionModel<CollectionMeta>) {
     const db = FundingDao.toCollectionDb(item);
     await this.client.send(
@@ -1010,8 +1034,7 @@ export class FundingDao<
     id,
     network,
     timesChecked,
-    fundingTxid,
-    fundingVout,
+    fundedAt,
     lastChecked,
     nextCheckAt,
     createdAt,
@@ -1019,6 +1042,7 @@ export class FundingDao<
     tipAmountSat,
     farcasterFid,
     secKey,
+    sizeEstimate,
   }: IPresaleModel): TPresaleDb {
     return {
       pk: id,
@@ -1033,8 +1057,8 @@ export class FundingDao<
       network,
       secKey,
       timesChecked,
-      ...(fundingTxid && { fundingTxid }),
-      ...(fundingVout && { fundingVout }),
+      sizeEstimate,
+      ...(fundedAt && { fundedAt: fundedAt.getTime() }),
       ...(lastChecked && { lastChecked: lastChecked.getTime() }),
       ...(nextCheckAt && { nextCheckAt: nextCheckAt.getTime() }),
       ...(tipAmountDestination && { tipAmountDestination }),
@@ -1051,10 +1075,9 @@ export class FundingDao<
     id,
     network,
     fundingStatus,
-    fundingTxid,
-    fundingVout,
+    fundedAt,
     genesisTxid,
-    revealTxids,
+    revealTxid,
     meta,
     lastChecked,
     nextCheckAt,
@@ -1064,6 +1087,8 @@ export class FundingDao<
     fundingAmountSat,
     tipAmountDestination,
     tipAmountSat,
+    batchId,
+    sizeEstimate,
   }: IAddressInscriptionModel<T>): TFundingDb<T> {
     return {
       pk: id,
@@ -1077,6 +1102,7 @@ export class FundingDao<
       fundingAmountBtc,
       fundingAmountSat,
       destinationAddress,
+      sizeEstimate,
       createdAt: createdAt.getTime(),
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: lastChecked.getTime(),
@@ -1092,10 +1118,10 @@ export class FundingDao<
       ...(typeof tipAmountDestination !== "undefined" && {
         tipAmountDestination,
       }),
-      ...(typeof fundingTxid !== "undefined" && { fundingTxid }),
-      ...(typeof fundingVout !== "undefined" && { fundingVout }),
+      ...(typeof fundedAt !== "undefined" && { fundedAt: fundedAt.getTime() }),
       ...(typeof genesisTxid !== "undefined" && { genesisTxid }),
-      ...(typeof revealTxids !== "undefined" && { revealTxids }),
+      ...(typeof revealTxid !== "undefined" && { revealTxid }),
+      ...(typeof batchId !== "undefined" && { batchId }),
       ...(typeof meta !== "undefined"
         ? // remove undefined values
           (mapMetaKeys<T>(
@@ -1166,18 +1192,18 @@ export class FundingDao<
     destinationAddress,
     network,
     fundingStatus,
-    fundingTxid,
-    fundingVout,
     timesChecked,
     lastChecked,
     nextCheckAt,
     createdAt,
+    fundedAt,
     fundingAmountBtc,
     fundingAmountSat,
     tipAmountDestination,
     tipAmountSat,
     farcasterFid,
     secKey,
+    sizeEstimate,
   }: TPresaleDb): IPresaleModel {
     return {
       address,
@@ -1194,6 +1220,7 @@ export class FundingDao<
       fundingAmountSat,
       destinationAddress,
       secKey,
+      sizeEstimate,
       createdAt: new Date(createdAt),
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: new Date(lastChecked),
@@ -1201,8 +1228,7 @@ export class FundingDao<
       ...(typeof nextCheckAt !== "undefined" && {
         nextCheckAt: new Date(nextCheckAt),
       }),
-      ...(typeof fundingTxid !== "undefined" && { fundingTxid }),
-      ...(typeof fundingVout !== "undefined" && { fundingVout }),
+      ...(typeof fundedAt !== "undefined" && { fundedAt: new Date(fundedAt) }),
       ...(typeof tipAmountSat !== "undefined" && { tipAmountSat }),
       ...(typeof tipAmountDestination !== "undefined" && {
         tipAmountDestination,
@@ -1218,18 +1244,19 @@ export class FundingDao<
     destinationAddress,
     network,
     fundingStatus,
-    fundingTxid,
-    fundingVout,
     genesisTxid,
-    revealTxids,
+    revealTxid,
     timesChecked,
     lastChecked,
     nextCheckAt,
     createdAt,
+    fundedAt,
     fundingAmountBtc,
     fundingAmountSat,
     tipAmountDestination,
     tipAmountSat,
+    batchId,
+    sizeEstimate,
     ...meta
   }: TFundingDb<T>): IAddressInscriptionModel<T> {
     return {
@@ -1241,6 +1268,7 @@ export class FundingDao<
       fundingAmountBtc,
       fundingAmountSat,
       destinationAddress,
+      sizeEstimate,
       type: "address-inscription",
       createdAt: new Date(createdAt),
       ...(typeof lastChecked !== "undefined" && {
@@ -1249,10 +1277,9 @@ export class FundingDao<
       ...(typeof nextCheckAt !== "undefined" && {
         nextCheckAt: new Date(nextCheckAt),
       }),
-      ...(typeof fundingTxid !== "undefined" && { fundingTxid }),
-      ...(typeof fundingVout !== "undefined" && { fundingVout }),
+      ...(typeof fundedAt !== "undefined" && { fundedAt: new Date(fundedAt) }),
       ...(typeof genesisTxid !== "undefined" && { genesisTxid }),
-      ...(typeof revealTxids !== "undefined" && { revealTxids }),
+      ...(typeof revealTxid !== "undefined" && { revealTxid }),
       ...(typeof collectionId !== "undefined"
         ? { collectionId: toCollectionId(collectionId) }
         : {}),
@@ -1260,6 +1287,7 @@ export class FundingDao<
       ...(typeof tipAmountDestination !== "undefined" && {
         tipAmountDestination,
       }),
+      ...(typeof batchId !== "undefined" && { batchId }),
       meta: unmapMetaKeys(excludePrimaryKeys(meta)) as T,
     };
   }

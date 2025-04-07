@@ -14,7 +14,6 @@ import {
 } from "@0xflick/ordinals-backend";
 import { SecretKey } from "@0xflick/crypto-utils";
 import { SQSHandler } from "aws-lambda";
-import { generateFundableGenesisTransaction } from "@0xflick/inscriptions";
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
 
 const logger = createLogger({ name: "funded-queue" });
@@ -31,10 +30,31 @@ function observeFundedEvent(event: Observable<FundedEvent>) {
     mergeMap(
       async ({ address, fundedAmount, fundingId, txid, vout, network }) => {
         try {
-          const doc = await fundingDocDao.getInscriptionTransaction({
-            fundingAddress: address,
-            id: fundingId,
-          });
+          const [
+            doc,
+            {
+              address: fundingAddress,
+              network,
+              createdAt,
+              destinationAddress,
+              fundingAmountBtc,
+              fundingAmountSat,
+              fundingStatus,
+              id,
+              meta,
+              timesChecked,
+              type,
+              collectionId,
+              fundedAt,
+              revealTxid,
+            },
+          ] = await Promise.all([
+            fundingDocDao.getInscriptionTransaction({
+              fundingAddress: address,
+              id: fundingId,
+            }),
+            fundingDao.getFunding(fundingId),
+          ]);
 
           const mempoolBitcoinClient = createMempoolBitcoinClient({
             network,
@@ -42,41 +62,7 @@ function observeFundedEvent(event: Observable<FundedEvent>) {
           logger.info("Generating genesis transaction");
           const secKey = new SecretKey(Buffer.from(doc.secKey, "hex"));
           const { fastestFee } = await getFeeEstimates(network);
-          const genesisTx = await generateFundableGenesisTransaction({
-            address,
-            feeRate: fastestFee,
-            inscriptions: doc.writableInscriptions.map(({ file }) => ({
-              content: file.content,
-              mimeType: file.mimetype,
-            })),
-            network,
-            privKey: secKey.buff,
-            padding: doc.padding,
-            tip: doc.tip,
-            // amount: fundedAmount,
-            // initCBlock: doc.initCBlock,
-            // initLeaf: doc.initLeaf,
-            // initScript: doc.initScript,
-            // initTapKey: doc.initTapKey,
-            // secKey,
-            // txid,
-            // vout,
-            // fee: doc.totalFee,
-          });
 
-          logger.info(`Sending genesis funding ${fundingId} to mempool`);
-          const genesisTxid = (await mempoolBitcoinClient.transactions.postTx({
-            txhex: genesisTx,
-          })) as string;
-          logger.info(`Genesis funding ${fundingId} is funded!`);
-          const genesisEvent: GenesisEvent = {
-            fundingId,
-            genesisTxid,
-            fundingTxid: txid,
-            fundedAmount,
-            fundedAddress: address,
-            network,
-          };
           const [{ MessageId }] = await Promise.all([
             sqsClient.send(
               new SendMessageCommand({
@@ -85,7 +71,7 @@ function observeFundedEvent(event: Observable<FundedEvent>) {
               }),
             ),
             fundingDao.genesisFunded({
-              genesisTxid,
+              genesisTxid: txid,
               id: fundingId,
             }),
             fundingDao.updateFundingLastChecked({

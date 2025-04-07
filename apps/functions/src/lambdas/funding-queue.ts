@@ -7,7 +7,9 @@ import {
   createMempoolBitcoinClient,
   createSqsClient,
   enqueueCheckTxo,
+  getDb,
   insufficientFundsQueueUrl,
+  tableNames,
 } from "@0xflick/ordinals-backend";
 import { type Handler } from "aws-lambda";
 import {

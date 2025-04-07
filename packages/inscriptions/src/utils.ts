@@ -88,12 +88,12 @@ export function scriptDataToSerializedScript(
 
 export function serializedScriptToScriptData(
   serializedScript: BitcoinScriptData[],
-): (string | Uint8Array)[] {
+) {
   return serializedScript.map((data) => {
     if (typeof data === "string") {
       return data;
     }
-    return Buffer.from(data.base64, "base64");
+    return new Uint8Array(Buffer.from(data.base64, "base64"));
   });
 }
 

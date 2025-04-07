@@ -18,6 +18,7 @@ export async function createInscriptionTransaction({
   tip,
   inscriptions,
   tipAmountDestination,
+  parentInscriptions,
 }: {
   address: string;
   network: BitcoinNetworkNames;
@@ -25,6 +26,10 @@ export async function createInscriptionTransaction({
   tip?: number;
   inscriptions: InscriptionContent[];
   tipAmountDestination: string;
+  parentInscriptions?: {
+    txid: string;
+    index: number;
+  }[];
 }): Promise<TInscriptionDoc & { files: InscriptionFile[] }> {
   const privKey = generatePrivKey();
   const {
@@ -48,6 +53,7 @@ export async function createInscriptionTransaction({
     feeRate,
     tip: tip ?? 0,
     padding: 546,
+    parentInscriptions,
   });
 
   return {
@@ -62,7 +68,7 @@ export async function createInscriptionTransaction({
     network,
     overhead,
     padding,
-    secKey: Buffer.from(secKey.raw).toString("hex"),
+    secKey: Buffer.from(secKey).toString("hex"),
     totalFee,
     writableInscriptions: inscriptionsToWrite,
     tip: tip ?? 0,

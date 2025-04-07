@@ -7,3 +7,4 @@ export * from "./openEdition.js";
 export * from "./claims.js";
 export * from "./uploads.js";
 export * from "./wallet.js";
+export * from "./batch.js";

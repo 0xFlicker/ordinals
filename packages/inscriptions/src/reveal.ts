@@ -11,35 +11,43 @@ import * as cryptoUtils from "@0xflick/crypto-utils";
 import { CannotFitInscriptionsError } from "./errors.js";
 import { BitcoinScriptData, WritableInscription } from "./types.js";
 import { serializedScriptToScriptData } from "./utils.js";
+import { inspect } from "util";
+
+export interface RevealTransactionInput {
+  leaf: string;
+  tapkey: string;
+  cblock: string;
+  script: BitcoinScriptData[];
+  vout: number;
+  txid: string;
+  amount: number;
+  secKey: Uint8Array;
+  padding: number;
+  inscriptions: WritableInscription[];
+}
+
+export type RevealTransactionParentTx = Omit<TxTemplate, "vin"> & {
+  vin: Required<TxTemplate>["vin"]["0"];
+  value: number;
+  secKey: cryptoUtils.SecretKey;
+  destinationAddress: string;
+};
+
+export type RevealTransactionFeeDestination = {
+  address: string;
+  weight: number;
+};
+
+export type RevealTransactionFeeRateRange = [number, number];
 
 export interface RevealTransactionRequest {
-  inputs: {
-    leaf: string;
-    tapkey: string;
-    cblock: string;
-    script: BitcoinScriptData[];
-    vout: number;
-    txid: string;
-    amount: number;
-    secKey: cryptoUtils.SecretKey;
-    padding: number;
-    inscriptions: WritableInscription[];
-  }[];
+  inputs: RevealTransactionInput[];
 
-  parentTxs?: (Omit<TxTemplate, "vin"> & {
-    vin: Required<TxTemplate>["vin"]["0"];
-    value: number;
-    secKey: cryptoUtils.SecretKey;
-    destinationAddress: string;
-  })[];
+  parentTxs?: RevealTransactionParentTx[];
 
-  // If you leave this empty, the fee will be paid to the miners
-  feeDestinations?: {
-    address: string;
-    weight: number;
-  }[];
+  feeDestinations?: RevealTransactionFeeDestination[];
 
-  readonly feeRateRange: [number, number]; // sats/vbyte [highest, lowest]
+  readonly feeRateRange: RevealTransactionFeeRateRange; // sats/vbyte [highest, lowest]
   readonly feeTarget?: number; // in sats, if not provided, the fee will be paid to the miners
 }
 
@@ -228,19 +236,6 @@ function buildTxAtFeeRate(
   ];
   txSkeleton.vout.push(...dummyOutputs);
 
-  let totalSize;
-  try {
-    totalSize = Tx.util.getTxSize(txSkeleton).vsize;
-  } catch (e) {
-    return null;
-  }
-
-  // Most systems have a 1MB (1,048,576 bytes) limit
-  // Using vsize * 4 since witness data is discounted
-  if (totalSize * 4 > 1000000) {
-    throw new TransactionTooLargeError();
-  }
-
   // Remove the dummy outputs before proceeding
   txSkeleton.vout.splice(-dummyOutputs.length);
 
@@ -374,7 +369,6 @@ function verifyAndSignTx(
       const [tPub] = Tap.getPubKey(pubKey);
       witnessSigners.push(() => {
         const tapSecKey = Tap.getSecKey(pTx.secKey)[0];
-
         const sig = Signer.taproot.sign(tapSecKey, txSkeleton, i);
 
         Signer.taproot.verifyTx(txSkeleton, i, {
@@ -529,7 +523,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
   for (let i = indexOffset; i < inputs.length + indexOffset; i++) {
     const input = inputs[i - indexOffset];
     witnessSigners.push(() => {
-      const sig = Signer.taproot.sign(input.secKey.raw, txSkeleton, i, {
+      const sig = Signer.taproot.sign(input.tapkey, txSkeleton, i, {
         extension: input.leaf,
       });
       return [

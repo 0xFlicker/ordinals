@@ -113,7 +113,8 @@ export const resolvers: CollectionsModule.Resolvers = {
       if (!collection) {
         throw new CollectionError("COLLECTION_NOT_FOUND", collectionId);
       }
-      const { parentInscriptionUploadId } = collection.meta ?? {};
+      const { parentInscriptionUploadId, parentInscriptionAddress } =
+        collection.meta ?? {};
       if (!parentInscriptionUploadId) {
         throw new CollectionError(
           "COLLECTION_PARENT_INSCRIPTION_NOT_FOUND",
@@ -124,6 +125,7 @@ export const resolvers: CollectionsModule.Resolvers = {
         throw new CollectionError("COLLECTION_NOT_FOUND", collectionId);
       }
       const inscriptionFunding = await updateCollectionParentInscription({
+        parentInscriptionAddress,
         parentInscriptionUploadId,
         uploadsDao,
         s3Client,
