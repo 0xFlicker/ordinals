@@ -20,8 +20,8 @@ type InscriptionFunding {
   status: FundingStatus!
   fundingGenesisTxId: String
   fundingGenesisTxUrl: String
-  fundingRevealTxIds: [String!]
-  fundingRevealTxUrls: [String!]
+  fundingRevealTxId: String
+  fundingRevealTxUrl: String
 
   overhead: Int!
   padding: Int!

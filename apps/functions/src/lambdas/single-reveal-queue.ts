@@ -46,10 +46,7 @@ function observeGenesisEvent(event: Observable<GenesisEvent>) {
           }),
           retry({
             resetOnSuccess: true,
-            delay(error, retryCount) {
-              logger.error(error, "Error checking funding");
-              return timer(100);
-            },
+            delay: 100,
             count: 3,
           }),
           mergeMap(async ({ address, amount, txid, vout }) => {
@@ -144,6 +141,12 @@ function observeGenesisEvent(event: Observable<GenesisEvent>) {
                   }),
                 ),
               ]);
+              logger.info(
+                {
+                  MessageId,
+                },
+                `Sent genesis event ${fundingId} to queue`,
+              );
               return genesisEvent;
             },
           ),

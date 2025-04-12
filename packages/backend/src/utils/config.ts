@@ -29,6 +29,14 @@ export const inscriptionBucket = lazySingleton(() => {
     : process.env.INSCRIPTION_BUCKET || "inscriptions";
 });
 
+export const transactionBucket = lazySingleton(() => {
+  return deploymentName === "localstack"
+    ? process.env.TRANSACTION_BUCKET_LOCAL ||
+        process.env.TRANSACTION_BUCKET ||
+        "transactions"
+    : process.env.TRANSACTION_BUCKET || "transactions";
+});
+
 export const uploadBucket = lazySingleton(() => {
   return deploymentName === "localstack"
     ? process.env.UPLOAD_BUCKET_LOCAL || process.env.UPLOAD_BUCKET || "uploads"
@@ -84,4 +92,16 @@ export const insufficientFundsQueueUrl = lazySingleton(() => {
 
 export const genesisQueueUrl = lazySingleton(() => {
   return process.env.GENESIS_QUEUE_URL ?? null;
+});
+
+export const batchSuccessQueueUrl = lazySingleton(() => {
+  return process.env.BATCH_SUCCESS_QUEUE_URL ?? null;
+});
+
+export const batchFailureQueueUrl = lazySingleton(() => {
+  return process.env.BATCH_FAILURE_QUEUE_URL ?? null;
+});
+
+export const batchRemainingFundingsQueueUrl = lazySingleton(() => {
+  return process.env.BATCH_REMAINING_FUNDINGS_QUEUE_URL ?? null;
 });

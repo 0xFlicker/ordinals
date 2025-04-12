@@ -243,8 +243,8 @@ export type InscriptionFunding = {
   fundingAmountSats: Scalars['Int']['output'];
   fundingGenesisTxId?: Maybe<Scalars['String']['output']>;
   fundingGenesisTxUrl?: Maybe<Scalars['String']['output']>;
-  fundingRevealTxIds?: Maybe<Array<Scalars['String']['output']>>;
-  fundingRevealTxUrls?: Maybe<Array<Scalars['String']['output']>>;
+  fundingRevealTxId?: Maybe<Scalars['String']['output']>;
+  fundingRevealTxUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   inscriptionContent: InscriptionData;
   inscriptionContents: Array<InscriptionData>;
@@ -998,8 +998,8 @@ export type InscriptionFundingResolvers<ContextType = Context, ParentType extend
   fundingAmountSats?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   fundingGenesisTxId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   fundingGenesisTxUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  fundingRevealTxIds?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
-  fundingRevealTxUrls?: Resolver<Maybe<Array<ResolversTypes['String']>>, ParentType, ContextType>;
+  fundingRevealTxId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  fundingRevealTxUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   inscriptionContent?: Resolver<ResolversTypes['InscriptionData'], ParentType, ContextType, RequireFields<InscriptionFundingInscriptionContentArgs, 'index'>>;
   inscriptionContents?: Resolver<Array<ResolversTypes['InscriptionData']>, ParentType, ContextType>;

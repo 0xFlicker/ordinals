@@ -4,6 +4,7 @@ import {
   DynamoDBDocumentClient,
   PutCommand,
   GetCommand,
+  DeleteCommand,
 } from "@aws-sdk/lib-dynamodb";
 
 type TUploadDb = {
@@ -36,6 +37,7 @@ export class UploadsDAO {
         uploadId: uploadId,
         multiPartUploadId: upload.multiPartUploadId,
         key,
+        TTL: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 1 day
       },
     });
     await this.client.send(command);
@@ -49,5 +51,13 @@ export class UploadsDAO {
     });
     const result = await this.client.send(command);
     return result.Item as TUploadDb;
+  }
+
+  public async deleteUpload(uploadId: string) {
+    const command = new DeleteCommand({
+      TableName: UploadsDAO.TABLE_NAME,
+      Key: { pk: uploadId },
+    });
+    await this.client.send(command);
   }
 }

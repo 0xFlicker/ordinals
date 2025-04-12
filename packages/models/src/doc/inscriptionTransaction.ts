@@ -30,6 +30,7 @@ export interface IInscriptionDocCommon {
   writableInscriptions: WritableInscription[];
   tip: number;
   tipAmountDestination: string;
+  parentInscriptionId?: string;
 }
 
 export type TInscriptionDoc = IInscriptionDocCommon;

@@ -20,6 +20,21 @@ export type InscriptionFunding = {
   inputs: RevealTransactionInput[];
   parentTxs?: RevealTransactionParentTx[];
   feeDestinations?: RevealTransactionFeeDestination[];
+  feeTarget?: number;
+};
+
+/**
+ * GroupableFunding is a funding that can be grouped.
+ */
+export type GroupableFunding = {
+  id: string;
+  sizeEstimate: number; // estimated size (computed externally)
+  fundedAt: Date;
+  parentInscriptionId?: string;
+  input: RevealTransactionInput;
+  feeDestinations: RevealTransactionFeeDestination[];
+  parentTx?: RevealTransactionParentTx;
+  feeTarget?: number;
 };
 
 /**
@@ -40,10 +55,8 @@ export interface GroupingResult {
   laterParentInscription: Record<string, RevealedTransaction[]>;
   // Non-parent fundings are grouped by fee destinations (the set of all fee destinations).
   feeDestinationGroups: Record<string, RevealedTransaction[]>;
-  // Batches that don't fall into a fee group.
-  remainingFundings: RevealedTransaction[];
   // Fundings that are too recent (<15 minutes old) and must wait.
-  laterFundings: InscriptionFunding[];
+  laterFundings: GroupableFunding[];
   // Fundings that cannot form a valid batch even on their own.
   rejectedFundings: InscriptionFunding[];
 }
@@ -66,7 +79,6 @@ export function sizeOfTransaction(funding: InscriptionFunding): number {
 export function validateBatch(
   fundings: InscriptionFunding[],
   feeRateRange: RevealTransactionFeeRateRange,
-  feeTarget?: number,
 ):
   | false
   | {
@@ -97,13 +109,18 @@ export function validateBatch(
   }
   const uniqueParentTxs = Array.from(uniqueParentTxsMap.values());
 
+  const totalFeeTarget = fundings.reduce(
+    (acc, f) => acc + (f.feeTarget ?? 0),
+    0,
+  );
+
   try {
     const tx = generateRevealTransactionDataIteratively({
       feeRateRange,
       inputs: uniqueInputs,
       parentTxs: uniqueParentTxs,
       feeDestinations: uniqueFeeDestinations,
-      feeTarget,
+      feeTarget: totalFeeTarget,
     });
     const { size } = Tx.util.getTxSize(tx.txData);
     if (size > MAX_BATCH_SIZE) {
@@ -125,7 +142,9 @@ export function validateBatch(
  * Generates a grouping key for non-parent fundings based on feeDestinations.
  * If none are provided, returns "nofee".
  */
-function feeDestinationsKey(funding: InscriptionFunding): string {
+function feeDestinationsKey(
+  funding: GroupableFunding | InscriptionFunding,
+): string {
   if (!funding.feeDestinations || funding.feeDestinations.length === 0) {
     return "nofee";
   }
@@ -133,6 +152,35 @@ function feeDestinationsKey(funding: InscriptionFunding): string {
     .slice()
     .sort((a, b) => a.address.localeCompare(b.address));
   return JSON.stringify(sorted);
+}
+
+function createNewInscriptionFunding(
+  funding: GroupableFunding,
+): InscriptionFunding {
+  return {
+    ...funding,
+    inputs: [funding.input],
+    ...(funding.parentTx ? { parentTxs: [funding.parentTx] } : {}),
+    feeDestinations: funding.feeDestinations,
+    ...(funding.feeTarget ? { feeTarget: funding.feeTarget } : {}),
+  };
+}
+
+function canJoinBatch(
+  batch: InscriptionFunding,
+  funding: GroupableFunding,
+  feeRateRange: RevealTransactionFeeRateRange,
+): boolean {
+  // Add the funding to the batch and validate the batch.
+  // first clone the batch
+  const newBatch = {
+    ...batch,
+  };
+  newBatch.inputs.push(funding.input);
+  newBatch.feeTarget = funding.feeTarget
+    ? funding.feeTarget + (batch.feeTarget ?? 0)
+    : funding.feeTarget;
+  return !!validateBatch([newBatch], feeRateRange);
 }
 
 /**
@@ -144,18 +192,16 @@ function feeDestinationsKey(funding: InscriptionFunding): string {
  * - Fundings that can't form a valid batch even on their own are rejected.
  */
 export function groupFundings(
-  fundings: InscriptionFunding[],
+  fundings: GroupableFunding[],
   feeRateRange: RevealTransactionFeeRateRange,
-  feeTarget?: number,
 ): GroupingResult {
   const now = Date.now();
 
-  const laterFundings: InscriptionFunding[] = [];
+  const laterFundings: GroupableFunding[] = [];
   const rejectedFundings: InscriptionFunding[] = [];
   const nextParentInscription: Record<string, RevealedTransaction> = {};
   const laterParentInscription: Record<string, RevealedTransaction[]> = {};
   const feeDestinationGroups: Record<string, RevealedTransaction[]> = {};
-  const remainingFundings: RevealedTransaction[] = [];
 
   // Separate parent and non-parent fundings.
   const parentFundings = fundings.filter((f) => f.parentInscriptionId);
@@ -170,9 +216,26 @@ export function groupFundings(
     }
     const key = f.parentInscriptionId!;
     if (!parentGroups.has(key)) {
-      parentGroups.set(key, []);
+      parentGroups.set(key, [createNewInscriptionFunding(f)]);
+    } else {
+      // look for a batch that we can join
+      const batch = parentGroups.get(key)!;
+      let joined = false;
+      for (const b of batch) {
+        if (canJoinBatch(b, f, feeRateRange)) {
+          b.inputs.push(f.input);
+          b.feeTarget = f.feeTarget
+            ? f.feeTarget + (b.feeTarget ?? 0)
+            : f.feeTarget;
+          b.sizeEstimate += f.sizeEstimate;
+          joined = true;
+          break;
+        }
+      }
+      if (!joined) {
+        batch.push(createNewInscriptionFunding(f));
+      }
     }
-    parentGroups.get(key)!.push(f);
   }
   for (const [parentId, group] of parentGroups.entries()) {
     group.sort((a, b) => {
@@ -186,7 +249,7 @@ export function groupFundings(
     for (const funding of group) {
       const fundSize = sizeOfTransaction(funding);
       if (!currentBatch.length) {
-        if (!validateBatch([funding], feeRateRange, feeTarget)) {
+        if (!validateBatch([funding], feeRateRange)) {
           rejectedFundings.push(funding);
           continue;
         }
@@ -194,11 +257,7 @@ export function groupFundings(
         currentSize = fundSize;
       } else {
         if (currentSize + fundSize > MAX_BATCH_SIZE) {
-          const validated = validateBatch(
-            currentBatch,
-            feeRateRange,
-            feeTarget,
-          );
+          const validated = validateBatch(currentBatch, feeRateRange);
           if (validated) {
             batches.push({ fundings: [...currentBatch], hex: validated.hex });
           } else {
@@ -206,7 +265,7 @@ export function groupFundings(
           }
           currentBatch = [];
           currentSize = 0;
-          if (validateBatch([funding], feeRateRange, feeTarget)) {
+          if (validateBatch([funding], feeRateRange)) {
             currentBatch.push(funding);
             currentSize = fundSize;
           } else {
@@ -214,16 +273,12 @@ export function groupFundings(
           }
         } else {
           const candidate = [...currentBatch, funding];
-          const validated = validateBatch(candidate, feeRateRange, feeTarget);
+          const validated = validateBatch(candidate, feeRateRange);
           if (validated) {
             currentBatch.push(funding);
             currentSize += fundSize;
           } else {
-            const batchValidated = validateBatch(
-              currentBatch,
-              feeRateRange,
-              feeTarget,
-            );
+            const batchValidated = validateBatch(currentBatch, feeRateRange);
             if (batchValidated) {
               batches.push({
                 fundings: [...currentBatch],
@@ -232,7 +287,7 @@ export function groupFundings(
             } else {
               currentBatch.forEach((f) => rejectedFundings.push(f));
             }
-            if (validateBatch([funding], feeRateRange, feeTarget)) {
+            if (validateBatch([funding], feeRateRange)) {
               currentBatch = [funding];
               currentSize = fundSize;
             } else {
@@ -245,7 +300,7 @@ export function groupFundings(
       }
     }
     if (currentBatch.length) {
-      const validated = validateBatch(currentBatch, feeRateRange, feeTarget);
+      const validated = validateBatch(currentBatch, feeRateRange);
       if (validated) {
         batches.push({ fundings: [...currentBatch], hex: validated.hex });
       } else {
@@ -269,9 +324,26 @@ export function groupFundings(
     }
     const key = feeDestinationsKey(f);
     if (!feeGroups.has(key)) {
-      feeGroups.set(key, []);
+      feeGroups.set(key, [createNewInscriptionFunding(f)]);
+    } else {
+      // look for a batch that we can join
+      const batch = feeGroups.get(key)!;
+      let joined = false;
+      for (const b of batch) {
+        if (canJoinBatch(b, f, feeRateRange)) {
+          b.inputs.push(f.input);
+          b.feeTarget = f.feeTarget
+            ? f.feeTarget + (b.feeTarget ?? 0)
+            : f.feeTarget;
+          joined = true;
+          b.sizeEstimate += f.sizeEstimate;
+          break;
+        }
+      }
+      if (!joined) {
+        batch.push(createNewInscriptionFunding(f));
+      }
     }
-    feeGroups.get(key)!.push(f);
   }
   for (const [key, group] of feeGroups.entries()) {
     group.sort((a, b) => {
@@ -285,7 +357,7 @@ export function groupFundings(
     for (const funding of group) {
       const fundSize = sizeOfTransaction(funding);
       if (!currentBatch.length) {
-        if (!validateBatch([funding], feeRateRange, feeTarget)) {
+        if (!validateBatch([funding], feeRateRange)) {
           rejectedFundings.push(funding);
           continue;
         }
@@ -293,11 +365,7 @@ export function groupFundings(
         currentSize = fundSize;
       } else {
         if (currentSize + fundSize > MAX_BATCH_SIZE) {
-          const validated = validateBatch(
-            currentBatch,
-            feeRateRange,
-            feeTarget,
-          );
+          const validated = validateBatch(currentBatch, feeRateRange);
           if (validated) {
             batches.push({ fundings: [...currentBatch], hex: validated.hex });
           } else {
@@ -305,7 +373,7 @@ export function groupFundings(
           }
           currentBatch = [];
           currentSize = 0;
-          if (validateBatch([funding], feeRateRange, feeTarget)) {
+          if (validateBatch([funding], feeRateRange)) {
             currentBatch.push(funding);
             currentSize = fundSize;
           } else {
@@ -313,16 +381,12 @@ export function groupFundings(
           }
         } else {
           const candidate = [...currentBatch, funding];
-          const validated = validateBatch(candidate, feeRateRange, feeTarget);
+          const validated = validateBatch(candidate, feeRateRange);
           if (validated) {
             currentBatch.push(funding);
             currentSize += fundSize;
           } else {
-            const batchValidated = validateBatch(
-              currentBatch,
-              feeRateRange,
-              feeTarget,
-            );
+            const batchValidated = validateBatch(currentBatch, feeRateRange);
             if (batchValidated) {
               batches.push({
                 fundings: [...currentBatch],
@@ -331,7 +395,7 @@ export function groupFundings(
             } else {
               currentBatch.forEach((f) => rejectedFundings.push(f));
             }
-            if (validateBatch([funding], feeRateRange, feeTarget)) {
+            if (validateBatch([funding], feeRateRange)) {
               currentBatch = [funding];
               currentSize = fundSize;
             } else {
@@ -344,7 +408,7 @@ export function groupFundings(
       }
     }
     if (currentBatch.length) {
-      const validated = validateBatch(currentBatch, feeRateRange, feeTarget);
+      const validated = validateBatch(currentBatch, feeRateRange);
       if (validated) {
         batches.push({ fundings: [...currentBatch], hex: validated.hex });
       } else {
@@ -358,7 +422,6 @@ export function groupFundings(
     nextParentInscription,
     laterParentInscription,
     feeDestinationGroups,
-    remainingFundings, // currently empty
     laterFundings,
     rejectedFundings,
   };

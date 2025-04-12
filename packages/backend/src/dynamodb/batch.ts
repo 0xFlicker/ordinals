@@ -3,6 +3,7 @@ import { TFundingStatus } from "@0xflick/ordinals-models";
 import {
   DynamoDBDocumentClient,
   TransactWriteCommand,
+  UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 
 const FUNDED: TFundingStatus = "funded";
@@ -42,6 +43,21 @@ export class BatchDAO {
     }));
     await this.client.send(
       new TransactWriteCommand({ TransactItems: transactItems }),
+    );
+  }
+
+  public async updateBatch(batchId: string, txid: string): Promise<void> {
+    await this.client.send(
+      new UpdateCommand({
+        TableName: BatchDAO.TABLE_NAME,
+        Key: { pk: batchId, sk: "batch" },
+        ConditionExpression: "attribute_exists(pk)",
+        UpdateExpression: "SET txid = :txid, TTL = :ttl",
+        ExpressionAttributeValues: {
+          ":txid": txid,
+          ":ttl": Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 30 days
+        },
+      }),
     );
   }
 }

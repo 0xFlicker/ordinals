@@ -36,14 +36,15 @@ export const resolvers: InscriptionFundingModule.Resolvers = {
           ],
         };
       }
-      const fundings = await fundingDao.listAllFundingByStatusPaginated({
-        id: collectionId as ID_Collection,
-        fundingStatus: fundingStatus
-          ? fromGraphqlFundingStatus(fundingStatus)
-          : undefined,
-        cursor: next ?? undefined,
-        limit: limit ?? undefined,
-      });
+      const fundings =
+        await fundingDao.listAllFundingByStatusAndCollectionPaginated({
+          id: collectionId as ID_Collection,
+          fundingStatus: fundingStatus
+            ? fromGraphqlFundingStatus(fundingStatus)
+            : undefined,
+          cursor: next ?? undefined,
+          limit: limit ?? undefined,
+        });
       return {
         fundings: fundings.items.map((f) =>
           getFundingModel({
@@ -94,29 +95,27 @@ export const resolvers: InscriptionFundingModule.Resolvers = {
       return getUrl({
         network: funding.network,
         id: funding.genesisTxid,
-        bitcoinRegtestMempoolEndpoint: "http://localhost",
-        bitcoinTestnetMempoolEndpoint: "https://mempool.space",
+        bitcoinRegtestMempoolEndpoint: "http://localhost:4080",
+        bitcoinTestnetMempoolEndpoint: "https://mempool.space/testnet",
         bitcoinMainnetMempoolEndpoint: "https://mempool.space",
       });
     },
-    fundingRevealTxIds: async (p, _, { fundingDao }) => {
+    fundingRevealTxId: async (p, _, { fundingDao }) => {
       const funding = await fundingDao.getFunding(p.id);
-      return funding.revealTxids ?? null;
+      return funding.revealTxid!;
     },
-    fundingRevealTxUrls: async (p, _, { fundingDao }) => {
+    fundingRevealTxUrl: async (p, _, { fundingDao }) => {
       const funding = await fundingDao.getFunding(p.id);
-      if (!funding.revealTxids) {
+      if (!funding.revealTxid) {
         return null;
       }
-      return funding.revealTxids.map((txid) =>
-        getUrl({
-          network: funding.network,
-          id: txid,
-          bitcoinRegtestMempoolEndpoint: "http://localhost",
-          bitcoinTestnetMempoolEndpoint: "https://mempool.space",
-          bitcoinMainnetMempoolEndpoint: "https://mempool.space",
-        }),
-      );
+      return getUrl({
+        network: funding.network,
+        id: funding.revealTxid,
+        bitcoinRegtestMempoolEndpoint: "http://localhost:4080",
+        bitcoinTestnetMempoolEndpoint: "https://mempool.space/testnet",
+        bitcoinMainnetMempoolEndpoint: "https://mempool.space",
+      });
     },
   },
 };

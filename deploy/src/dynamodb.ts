@@ -27,7 +27,7 @@ export class DynamoDB extends Construct {
   public readonly claimsTable: dynamodb.Table;
   public readonly openEditionClaimsTable: dynamodb.Table;
   public readonly uploadsTable: dynamodb.Table;
-
+  public readonly batchTable: dynamodb.Table;
   constructor(scope: Construct, id: string, { domainName }: IProps) {
     super(scope, id);
 
@@ -230,10 +230,32 @@ export class DynamoDB extends Construct {
         "id",
         "address",
         "fundingAmountSat",
-        "sizeEstimate",
+        "network",
+        "createdAt",
+      ],
+    });
+
+    fundingTable.addGlobalSecondaryIndex({
+      indexName: "statusFundedAtIndex",
+      partitionKey: {
+        name: "fundingStatus",
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: "fundedAt",
+        type: dynamodb.AttributeType.NUMBER,
+      },
+      projectionType: dynamodb.ProjectionType.INCLUDE,
+      nonKeyAttributes: [
+        "id",
+        "address",
+        "fundingAmountSat",
         "network",
         "createdAt",
         "fundedAt",
+        "sizeEstimate",
+        "fundingTxid",
+        "fundingVout",
       ],
     });
 
@@ -410,11 +432,30 @@ export class DynamoDB extends Construct {
       value: openEditionClaimsTable.tableName,
     });
 
+    const batchTable = new dynamodb.Table(this, "Batch", {
+      partitionKey: {
+        name: "pk",
+        type: dynamodb.AttributeType.STRING,
+      },
+      timeToLiveAttribute: "TTL",
+      tableClass: dynamodb.TableClass.STANDARD,
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    });
+
+    this.batchTable = batchTable;
+    new cdk.CfnOutput(this, "BatchTableName", {
+      exportName: "BatchTableName",
+      value: batchTable.tableName,
+    });
+
     const uploadsTable = new dynamodb.Table(this, "Uploads", {
       partitionKey: {
         name: "pk",
         type: dynamodb.AttributeType.STRING,
       },
+      timeToLiveAttribute: "TTL",
+      tableClass: dynamodb.TableClass.STANDARD,
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
     });
 
     this.uploadsTable = uploadsTable;

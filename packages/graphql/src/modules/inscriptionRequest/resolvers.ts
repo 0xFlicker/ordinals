@@ -173,6 +173,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
           },
           type: "address-inscription",
           createdAt: new Date(),
+          sizeEstimate: inscriptionTransaction.totalFee,
         }),
         ...inscriptionTransaction.writableInscriptions.map((f, index) =>
           fundingDocDao.saveInscriptionContent({

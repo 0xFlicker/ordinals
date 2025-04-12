@@ -98,12 +98,12 @@ export const Pay: FC<{
     if (
       data?.inscriptionFunding?.fundingAmountSats &&
       (!isConnected ||
-        currentTarget.purpose !== AddressPurpose.Payment ||
+        !currentTarget.purpose.includes(AddressPurpose.Payment) ||
         currentTarget.network !== network)
     ) {
       networkSelect({
         network: currentTarget.network,
-        purpose: AddressPurpose.Payment,
+        purpose: [AddressPurpose.Payment],
       });
       connect({
         message: "Please connect your wallet to continue",
@@ -125,7 +125,16 @@ export const Pay: FC<{
     ) {
       setDoSend(true);
     }
-  }, [data?.inscriptionFunding?.fundingAmountSats, data?.inscriptionFunding?.fundingAddress, isConnected, currentTarget.purpose, currentTarget.network, network, networkSelect, connect]);
+  }, [
+    data?.inscriptionFunding?.fundingAmountSats,
+    data?.inscriptionFunding?.fundingAddress,
+    isConnected,
+    currentTarget.purpose,
+    currentTarget.network,
+    network,
+    networkSelect,
+    connect,
+  ]);
 
   if (!data || loading) {
     return <Loading />;
@@ -201,6 +210,9 @@ export const Pay: FC<{
           <Button variant="contained" onClick={sendXverse}>
             Xverse
           </Button>
+          <Typography variant="body1" sx={{ mb: 1, ml: 2 }} component="span">
+            on {network.toLowerCase()}
+          </Typography>
         </CardActionArea>
       </Card>
     </>

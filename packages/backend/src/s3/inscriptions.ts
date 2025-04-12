@@ -58,8 +58,6 @@ export class FundingDocDao {
   ) {
     const { fundingAddress } = item;
 
-    // logger.debug({ item }, "Updating or saving inscription transaction");
-
     let secKey = item.secKey;
     if (!options?.skipEncryption) {
       // replace secKey with encrypted envelope
@@ -151,11 +149,6 @@ export class FundingDocDao {
             base64AuthTag: "",
             base64Iv: "",
           };
-    // logger.debug(
-    //   { data, base64DataKey, base64Ciphertext, base64AuthTag, base64Iv },
-    //   "Decrypted inscription transaction",
-    // );
-
     return {
       ...data,
       secKey: request.skipDecryption

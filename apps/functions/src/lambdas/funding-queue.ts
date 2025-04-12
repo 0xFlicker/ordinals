@@ -5,17 +5,15 @@ import {
   InsufficientFundsEvent,
   createLogger,
   createMempoolBitcoinClient,
+  createDynamoDbFundingDao,
   createSqsClient,
   enqueueCheckTxo,
   getDb,
   insufficientFundsQueueUrl,
+  fundedQueueUrl,
   tableNames,
 } from "@0xflick/ordinals-backend";
 import { type Handler } from "aws-lambda";
-import {
-  createDynamoDbFundingDao,
-  fundedQueueUrl,
-} from "@0xflick/ordinals-backend";
 import { BitcoinNetworkNames } from "@0xflick/inscriptions";
 import { NoVoutFound } from "@0xflick/ordinals-backend/watch/mempool.js";
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
@@ -61,10 +59,7 @@ function createCheckFundingStream({
     }),
     retry({
       resetOnSuccess: true,
-      delay(error, retryCount) {
-        logger.error(error, "Error checking funding");
-        return timer(100);
-      },
+      delay: 100,
       count: 3,
     }),
     mergeMap(async (funding) => {

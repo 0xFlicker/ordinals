@@ -353,6 +353,7 @@ export class AxolotlModel implements IAxolotlMeta {
       fundingAmountSat: Number(bitcoinToSats(fundingAmountBtc)),
       tipAmountSat: tip ?? 0 * inscriptionContents.length,
       tipAmountDestination: tipDestination,
+      sizeEstimate: totalFee,
       meta: {
         tokenIds,
         claimedCount: count,

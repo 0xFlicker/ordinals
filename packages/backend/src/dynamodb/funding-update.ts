@@ -43,6 +43,8 @@ function generateAddressFromKeyPair({
 }
 
 export async function updateCollectionFunding({
+  parentParentInscriptionId,
+  parentInscriptionAddress,
   collectionId,
   parentInscriptionSecKeyEnvelopeKeyId,
   fundingSecKeyEnvelopeKeyId,
@@ -58,7 +60,12 @@ export async function updateCollectionFunding({
   metadata,
   fundingDocDao,
   fundingDao,
+  parentInscriptionVout,
+  parentInscriptionTxid,
+  tipAmountSat,
 }: {
+  parentParentInscriptionId?: string;
+  parentInscriptionAddress: string;
   parentInscriptionSecKeyEnvelopeKeyId: string;
   fundingSecKeyEnvelopeKeyId: string;
   collectionId: ID_Collection;
@@ -68,27 +75,25 @@ export async function updateCollectionFunding({
   network: BitcoinNetworkNames;
   uploadBucket: string;
   metadata?: InscriptionContent["metadata"];
+  parentInscriptionVout?: number;
+  parentInscriptionTxid?: string;
   feeClient: MempoolClient["bitcoin"]["fees"];
   kmsClient: KMSClient;
   s3Client: S3Client;
   uploadsDao: UploadsDAO;
   fundingDocDao: FundingDocDao;
-  fundingDao: FundingDao<
-    {
-      parentInscriptionTxid?: string;
-      parentInscriptionVout?: number;
-      parentInscriptionSecKey: string;
-    },
-    TCollectionModel<TCollectionParentInscription>
-  >;
+  fundingDao: FundingDao<{}, TCollectionParentInscription>;
+  tipAmountSat: number;
 }) {
   // Generate a new private key. This will be used to custody the parent
   const privateKey = generatePrivKey();
   const parentSecKey = new KeyPair(privateKey);
-  const parentInscriptionAddress = generateAddressFromKeyPair({
-    secKey: parentSecKey,
-    network,
-  });
+  parentInscriptionAddress =
+    parentInscriptionAddress ??
+    generateAddressFromKeyPair({
+      secKey: parentSecKey,
+      network,
+    });
 
   const { key } = await uploadsDao.getUpload(parentInscriptionUploadId);
 
@@ -131,6 +136,7 @@ export async function updateCollectionFunding({
     address: parentInscriptionAddress,
     feeRate: fastestFee,
     network,
+    // FIXME
     tip: 0,
     inscriptions: [inscriptionContent],
     tipAmountDestination: tipDestination,
@@ -159,7 +165,7 @@ export async function updateCollectionFunding({
     secKey,
     totalFee,
     writableInscriptions,
-    tip: 0,
+    tip: tipAmountSat,
     tipAmountDestination: tipDestination,
   };
 
@@ -167,30 +173,21 @@ export async function updateCollectionFunding({
     fundingDocDao.updateOrSaveInscriptionTransaction(doc, {
       secKeyEnvelopeKeyId: fundingSecKeyEnvelopeKeyId,
     }),
-    encryptEnvelope({
-      plaintext: privateKey,
-      kmsClient,
-      keyId: parentInscriptionSecKeyEnvelopeKeyId,
-    })
-      .then(serializeEnvelope)
-      .then((parentInscriptionSecKey) =>
-        fundingDao.createFunding({
-          address: fundingAddress,
-          network,
-          id,
-          destinationAddress: parentInscriptionAddress,
-          fundingStatus: "funding",
-          timesChecked: 0,
-          fundingAmountBtc,
-          fundingAmountSat: Number(bitcoinToSats(fundingAmountBtc)),
-          tipAmountSat: 0,
-          meta: {
-            parentInscriptionSecKey,
-          },
-          type: "address-inscription",
-          createdAt: new Date(),
-        }),
-      ),
+    fundingDao.createFunding({
+      address: fundingAddress,
+      network,
+      id,
+      destinationAddress: parentInscriptionAddress,
+      fundingStatus: "funding",
+      timesChecked: 0,
+      fundingAmountBtc,
+      fundingAmountSat: Number(bitcoinToSats(fundingAmountBtc)),
+      tipAmountSat,
+      meta: {},
+      sizeEstimate: totalFee,
+      type: "address-inscription",
+      createdAt: new Date(),
+    }),
     ...writableInscriptions.map((f, index) =>
       fundingDocDao.saveInscriptionContent({
         id: {

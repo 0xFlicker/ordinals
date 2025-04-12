@@ -152,3 +152,17 @@ export const enqueueCheckTxo = ({
     checkTxo({ address, mempoolBitcoinClient, findValue }),
   );
 };
+
+export const submitTx = async ({
+  txhex,
+  mempoolBitcoinClient,
+}: {
+  txhex: string;
+  mempoolBitcoinClient: MempoolClient["bitcoin"];
+}): Promise<string> => {
+  return processingQueue.add(() =>
+    mempoolBitcoinClient.transactions.postTx({
+      txhex,
+    }),
+  ) as Promise<string>;
+};

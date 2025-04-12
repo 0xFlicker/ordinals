@@ -106,61 +106,6 @@ type Query {
   presales(query: PresaleQuery!): PresalesResult!
 }
 
-enum PermissionAction {
-  CREATE
-  UPDATE
-  DELETE
-  LIST
-  GET
-  USE
-  ADMIN
-}
-
-enum PermissionResource {
-  ALL
-  USER
-  ADMIN
-  ROLE
-  PRESALE
-  AFFILIATE
-  COLLECTION
-}
-
-type Permission {
-  action: PermissionAction!
-  resource: PermissionResource!
-  identifier: String
-}
-
-input PermissionInput {
-  action: PermissionAction!
-  resource: PermissionResource!
-  identifier: String
-}
-
-type Role {
-  id: ID!
-  name: String!
-  userCount: Int!
-  permissions: [Permission!]!
-
-  bindToUser(userAddress: String!): Web3User!
-  unbindFromUser(userAddress: String!): Web3User!
-  addPermissions(permissions: [PermissionInput!]!): Role!
-  removePermissions(permissions: [PermissionInput!]!): Role!
-  delete: Boolean!
-}
-
-type Query {
-  role(id: ID!): Role
-  roles: [Role!]!
-}
-
-type Mutation {
-  createRole(name: String!, permissions: [PermissionInput!]): Role!
-  role(id: ID!): Role!
-}
-
 type InscriptionData {
   textContent: String
   base64Content: String
@@ -252,6 +197,61 @@ type Query {
   signMultipartUpload(uploadId: String!, partNumber: Int!): String!
 }
 
+enum PermissionAction {
+  CREATE
+  UPDATE
+  DELETE
+  LIST
+  GET
+  USE
+  ADMIN
+}
+
+enum PermissionResource {
+  ALL
+  USER
+  ADMIN
+  ROLE
+  PRESALE
+  AFFILIATE
+  COLLECTION
+}
+
+type Permission {
+  action: PermissionAction!
+  resource: PermissionResource!
+  identifier: String
+}
+
+input PermissionInput {
+  action: PermissionAction!
+  resource: PermissionResource!
+  identifier: String
+}
+
+type Role {
+  id: ID!
+  name: String!
+  userCount: Int!
+  permissions: [Permission!]!
+
+  bindToUser(userAddress: String!): Web3User!
+  unbindFromUser(userAddress: String!): Web3User!
+  addPermissions(permissions: [PermissionInput!]!): Role!
+  removePermissions(permissions: [PermissionInput!]!): Role!
+  delete: Boolean!
+}
+
+type Query {
+  role(id: ID!): Role
+  roles: [Role!]!
+}
+
+type Mutation {
+  createRole(name: String!, permissions: [PermissionInput!]): Role!
+  role(id: ID!): Role!
+}
+
 enum FundingStatus {
   FUNDING
   FUNDED
@@ -274,8 +274,8 @@ type InscriptionFunding {
   status: FundingStatus!
   fundingGenesisTxId: String
   fundingGenesisTxUrl: String
-  fundingRevealTxIds: [String!]
-  fundingRevealTxUrls: [String!]
+  fundingRevealTxId: String
+  fundingRevealTxUrl: String
 
   overhead: Int!
   padding: Int!
@@ -328,33 +328,6 @@ type Query {
   #   network: BitcoinNetwork
   #   inscriptions: [EstimateInscriptionFundingInput!]!
   # ): EstimateInscriptionFundingResult!
-}
-
-enum BitcoinNetwork {
-  MAINNET
-  TESTNET
-  REGTEST
-}
-
-enum BlockchainNetwork {
-  BITCOIN
-  ETHEREUM
-}
-
-type FeeEstimate {
-  minimum: Int!
-  fastest: Int!
-  halfHour: Int!
-  hour: Int!
-}
-
-type Query {
-  currentBitcoinFees(network: BitcoinNetwork!): FeeEstimate!
-}
-
-type BitcoinScriptItem {
-  text: String
-  base64: String
 }
 
 type KeyValue {
@@ -410,6 +383,33 @@ type Mutation {
 type Query {
   collections: [Collection!]!
   collection(id: ID!): Collection!
+}
+
+enum BitcoinNetwork {
+  MAINNET
+  TESTNET
+  REGTEST
+}
+
+enum BlockchainNetwork {
+  BITCOIN
+  ETHEREUM
+}
+
+type FeeEstimate {
+  minimum: Int!
+  fastest: Int!
+  halfHour: Int!
+  hour: Int!
+}
+
+type Query {
+  currentBitcoinFees(network: BitcoinNetwork!): FeeEstimate!
+}
+
+type BitcoinScriptItem {
+  text: String
+  base64: String
 }
 
 input AxolotlClaimRequest {

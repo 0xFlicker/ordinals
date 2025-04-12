@@ -166,17 +166,19 @@ export async function getCollectionWithParentInscription(
               model.meta.parentInscriptionContentType,
           }
         : {}),
-      uploadUrl,
-      multipartUploadId,
     };
   }
   return new CollectionModel(model, parentInscription);
 }
 
 export async function updateCollectionParentInscription({
+  parentParentInscriptionId,
   parentInscriptionUploadId,
   parentInscriptionSecKeyEnvelopeKeyId,
   fundingSecKeyEnvelopeKeyId,
+  parentInscriptionVout,
+  parentInscriptionTxid,
+  parentInscriptionAddress,
   s3Client,
   uploadBucketName,
   inscriptionBucketName,
@@ -184,10 +186,15 @@ export async function updateCollectionParentInscription({
   tipDestination,
   kmsClient,
   uploadsDao,
+  tipAmountSat,
 }: {
+  parentParentInscriptionId?: string;
   parentInscriptionUploadId: string;
   parentInscriptionSecKeyEnvelopeKeyId: string;
   fundingSecKeyEnvelopeKeyId: string;
+  parentInscriptionVout?: number;
+  parentInscriptionTxid?: string;
+  parentInscriptionAddress: string;
   s3Client: S3Client;
   kmsClient: KMSClient;
   uploadBucketName: string;
@@ -195,6 +202,7 @@ export async function updateCollectionParentInscription({
   bitcoinNetwork: BitcoinNetworkNames;
   tipDestination: string;
   uploadsDao: UploadsDAO;
+  tipAmountSat: number;
 }) {
   const { key } = await uploadsDao.getUpload(parentInscriptionUploadId);
 
@@ -211,24 +219,20 @@ export async function updateCollectionParentInscription({
     return;
   }
   const fundingDao = createDynamoDbFundingDao<
-    {
-      parentInscriptionTxid?: string;
-      parentInscriptionVout?: number;
-      parentInscriptionSecKey: string;
-    },
-    TCollectionModel<TCollectionParentInscription>
+    {},
+    TCollectionParentInscription
   >();
   const fundingDocDao = createStorageFundingDocDao({
     bucketName: inscriptionBucketName,
     s3Client,
   });
   const {
-    parentInscriptionAddress,
     id: parentInscriptionAddressId,
     fundingAddress,
     fundingAmountBtc,
     document,
   } = await updateCollectionFunding({
+    parentParentInscriptionId,
     collectionId: toCollectionId(collectionId),
     fundingSecKeyEnvelopeKeyId,
     parentInscriptionSecKeyEnvelopeKeyId,
@@ -245,26 +249,20 @@ export async function updateCollectionParentInscription({
     }).fees,
     tipDestination,
     kmsClient,
+    parentInscriptionVout,
+    parentInscriptionTxid,
+    parentInscriptionAddress,
+    tipAmountSat,
   });
   const collectionFundingDao = createDynamoDbFundingDao<
-    {
-      parentInscriptionTxid?: string;
-      parentInscriptionVout?: number;
-      parentInscriptionSecKey: string;
-    },
-    {
-      parentInscriptionId?: string;
-      parentInscriptionAddress: string;
-      parentInscriptionContentExists: boolean;
-      parentInscriptionAddressId: string;
-    }
+    {},
+    TCollectionParentInscription
   >();
   await collectionFundingDao.updateCollectionMeta(
     toCollectionId(collectionId),
     {
       parentInscriptionContentExists: true,
       parentInscriptionAddress,
-      parentInscriptionAddressId,
     },
   );
   logger.info(
@@ -405,8 +403,6 @@ export async function createCollection({
       ...(parentInscriptionContentType ? { parentInscriptionContentType } : {}),
       ...(parentInscriptionAddress ? { parentInscriptionAddress } : {}),
       ...(parentInscriptionFileName ? { parentInscriptionFileName } : {}),
-      uploadUrl,
-      multipartUploadId,
     };
   }
 

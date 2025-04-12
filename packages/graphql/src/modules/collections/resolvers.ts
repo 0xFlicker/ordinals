@@ -96,25 +96,20 @@ export const resolvers: CollectionsModule.Resolvers = {
         uploadsDao,
       },
     ) => {
-      const fundingDao = typedFundingDao<
-        {},
-        {
-          parentInscriptionUploadId?: string;
-          parentInscriptionFileName?: string;
-          parentInscriptionId?: string;
-          parentInscriptionAddress: string;
-          parentInscriptionContentExists: boolean;
-          parentInscriptionAddressId: string;
-        }
-      >();
+      const fundingDao = typedFundingDao<{}, TCollectionParentInscription>();
       const collection = await fundingDao.getCollection(
         toCollectionId(collectionId),
       );
       if (!collection) {
         throw new CollectionError("COLLECTION_NOT_FOUND", collectionId);
       }
-      const { parentInscriptionUploadId, parentInscriptionAddress } =
-        collection.meta ?? {};
+      const {
+        parentInscriptionUploadId,
+        parentInscriptionId,
+        parentInscriptionAddress,
+        parentInscriptionVout,
+        parentInscriptionTxid,
+      } = collection.meta ?? {};
       if (!parentInscriptionUploadId) {
         throw new CollectionError(
           "COLLECTION_PARENT_INSCRIPTION_NOT_FOUND",
@@ -124,28 +119,32 @@ export const resolvers: CollectionsModule.Resolvers = {
       if (!collection) {
         throw new CollectionError("COLLECTION_NOT_FOUND", collectionId);
       }
-      const inscriptionFunding = await updateCollectionParentInscription({
-        parentInscriptionAddress,
-        parentInscriptionUploadId,
-        uploadsDao,
-        s3Client,
-        uploadBucketName: uploadBucket,
-        inscriptionBucketName: inscriptionBucket,
-        bitcoinNetwork: toBitcoinNetworkName(bitcoinNetwork),
-        tipDestination: defaultTipDestinationForNetwork(
-          toBitcoinNetworkName(bitcoinNetwork),
-        ),
-        kmsClient,
-        fundingSecKeyEnvelopeKeyId,
-        parentInscriptionSecKeyEnvelopeKeyId,
-      });
-      if (!inscriptionFunding) {
-        throw new CollectionError(
-          "COLLECTION_PARENT_INSCRIPTION_NOT_FOUND",
-          collectionId,
-        );
-      }
-      return inscriptionFunding;
+      throw new Error("Not implemented");
+      // const inscriptionFunding = await updateCollectionParentInscription({
+      //   parentParentInscriptionId: parentInscriptionId,
+      //   parentInscriptionUploadId,
+      //   uploadsDao,
+      //   s3Client,
+      //   uploadBucketName: uploadBucket,
+      //   inscriptionBucketName: inscriptionBucket,
+      //   bitcoinNetwork: toBitcoinNetworkName(bitcoinNetwork),
+      //   tipDestination: defaultTipDestinationForNetwork(
+      //     toBitcoinNetworkName(bitcoinNetwork),
+      //   ),
+      //   kmsClient,
+      //   fundingSecKeyEnvelopeKeyId,
+      //   parentInscriptionSecKeyEnvelopeKeyId,
+      //   parentInscriptionAddress,
+      //   parentInscriptionVout,
+      //   parentInscriptionTxid,
+      // });
+      // if (!inscriptionFunding) {
+      //   throw new CollectionError(
+      //     "COLLECTION_PARENT_INSCRIPTION_NOT_FOUND",
+      //     collectionId,
+      //   );
+      // }
+      // return inscriptionFunding;
     },
   },
   Query: {

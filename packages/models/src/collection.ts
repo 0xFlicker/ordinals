@@ -11,8 +11,8 @@ export type TCollectionParentInscription = {
   parentInscriptionAddress?: string;
   parentInscriptionContentExists?: boolean;
   parentInscriptionFundingId?: string;
-  uploadUrl?: string;
-  multipartUploadId?: string;
+  parentInscriptionVout?: number;
+  parentInscriptionTxid?: string;
 };
 
 export type TCollectionModel<T = Record<string, any>> = {

@@ -97,7 +97,7 @@ export function watchForFundings(
     tap(() => logger.trace(`Polling for new fundings`)),
     switchMap(() =>
       from(
-        fundingDao.listAllFundingsByStatus({
+        fundingDao.listAllFundingsByStatusAndCollection({
           id: collectionId,
           fundingStatus: "funding",
         }),

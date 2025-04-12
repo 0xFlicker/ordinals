@@ -51,6 +51,9 @@ export const Inscribe: FC<{
   const [customFeeRate, setCustomFeeRate] = useState<number>(10);
   const [networkSelectOpen, setNetworkSelectOpen] = useState<boolean>(false);
   const [feeLevelSelectOpen, setFeeLevelSelectOpen] = useState<boolean>(false);
+  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
+  const [isConnecting, setIsConnecting] = useState<boolean>(false);
+  const [isSiwbPending, setIsSiwbPending] = useState<boolean>(false);
 
   const { data: feeEstimate, loading: feeEstimateLoading } =
     useFeeEstimateQuery({
@@ -63,18 +66,10 @@ export const Inscribe: FC<{
     });
   const {
     state: { ordinalsAddress: xverseOrdinalsAddress, verifiedOrdinalsAddress },
-    network: xverseNetwork,
     isConnected,
     connect,
     siwb,
   } = useXverse();
-
-  // Set network based on xverse network when connected
-  useEffect(() => {
-    if (isConnected && xverseNetwork) {
-      setNetwork(xverseNetwork.toLowerCase());
-    }
-  }, [isConnected, xverseNetwork]);
 
   const handleWalletClick = useCallback(async () => {
     if (!isConnected) {
@@ -94,14 +89,27 @@ export const Inscribe: FC<{
 
   const handleDrop = useCallback(
     async (files: File[]) => {
-      if (!isConnected) {
-        await connect();
-      }
-      if (!verifiedOrdinalsAddress) {
-        await siwb();
-      }
-
       try {
+        if (!isConnected) {
+          setIsConnecting(true);
+          setIsSiwbPending(true);
+          await connect();
+          setIsConnecting(false);
+          setPendingFiles(files);
+          return;
+        }
+
+        if (!verifiedOrdinalsAddress) {
+          setIsSiwbPending(true);
+          await siwb();
+          setIsSiwbPending(false);
+          if (pendingFiles) {
+            handleCreate(pendingFiles);
+            setPendingFiles(null);
+          }
+          return;
+        }
+
         handleCreate(files);
       } catch (error: unknown) {
         if (error instanceof InscribeError) {
@@ -111,8 +119,48 @@ export const Inscribe: FC<{
         }
       }
     },
-    [handleCreate, isConnected, connect, siwb, verifiedOrdinalsAddress]
+    [
+      handleCreate,
+      isConnected,
+      connect,
+      siwb,
+      verifiedOrdinalsAddress,
+      pendingFiles,
+    ]
   );
+
+  // Effect to handle pending files after connection
+  useEffect(() => {
+    if (isConnected && !isConnecting && pendingFiles && !isSiwbPending) {
+      if (!verifiedOrdinalsAddress) {
+        setIsSiwbPending(true);
+        siwb()
+          .then(() => {
+            setIsSiwbPending(false);
+            handleCreate(pendingFiles);
+            setPendingFiles(null);
+          })
+          .catch((error) => {
+            if (error instanceof InscribeError) {
+              setInscribeError(error);
+            } else {
+              throw error;
+            }
+          });
+      } else {
+        handleCreate(pendingFiles);
+        setPendingFiles(null);
+      }
+    }
+  }, [
+    isConnected,
+    isConnecting,
+    pendingFiles,
+    verifiedOrdinalsAddress,
+    isSiwbPending,
+    siwb,
+    handleCreate,
+  ]);
 
   const handleCustomFeeChange = (
     event: React.ChangeEvent<HTMLInputElement>

@@ -1,10 +1,7 @@
 import * as cdk from "aws-cdk-lib";
-import path from "path";
 import { Construct } from "constructs";
 import * as s3 from "aws-cdk-lib/aws-s3";
-import { fileURLToPath } from "url";
 
-import { InscriptionsBus } from "./inscription-bus.js";
 import { Storage } from "./storage.js";
 import { DynamoDB } from "./dynamodb.js";
 import { Www } from "./distribution.js";
@@ -12,7 +9,6 @@ import { Graphql } from "./graphql.js";
 import { Frame } from "./frame.js";
 import { Envelope } from "./envelope.js";
 import { InscriptionFunding } from "./inscription-funding.js";
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 interface IProps extends cdk.StackProps {
   origin: string;
@@ -42,6 +38,7 @@ export class BackendStack extends cdk.Stack {
     const {
       claimsTable,
       fundingTable,
+      batchTable,
       openEditionClaimsTable,
       rbacTable,
       userNonceTable,
@@ -67,13 +64,16 @@ export class BackendStack extends cdk.Stack {
     });
 
     // Always deploy the InscriptionFunding construct, even in localstack
-    new InscriptionFunding(this, "InscriptionFunding", {
+    new InscriptionFunding(this, "TxWorker", {
       domainName: new URL(origin).host,
       fundingTable,
       rbacTable,
       userNonceTable,
       claimsTable,
       openEditionClaimsTable,
+      batchTable,
+      parentInscriptionSecKeyEnvelope,
+      inscriptionBucket,
     });
 
     if (process.env.DEPLOYMENT !== "localstack") {

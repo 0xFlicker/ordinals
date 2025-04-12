@@ -30,7 +30,7 @@ export function checkFunding({
 }) {
   logger.trace(`Watching for fundings for collection ${collectionId}`);
   return from(
-    fundingDao.listAllFundingsByStatus({
+    fundingDao.listAllFundingsByStatusAndCollection({
       id: collectionId,
       fundingStatus: "funding",
     }),

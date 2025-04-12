@@ -81,7 +81,7 @@ export function watchForFunded(
     ),
     switchMap(() =>
       from(
-        fundingDao.listAllFundingsByStatus({
+        fundingDao.listAllFundingsByStatusAndCollection({
           id: collectionId,
           fundingStatus: "funded",
         }),

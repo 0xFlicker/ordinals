@@ -73,6 +73,22 @@ type TPresaleDb = Omit<
   "contentIds"
 >;
 
+type TFundingByStatus = {
+  address: string;
+  id: string;
+  createdAt: Date;
+  nextCheckAt: Date;
+  fundingAmountSat: number;
+  network: BitcoinNetworkNames;
+};
+
+type TFundedByStatus = {
+  fundedAt: Date;
+  sizeEstimate: number;
+  genesisTxid: string;
+  genesisVout: number;
+} & TFundingByStatus;
+
 function excludePrimaryKeys<T extends Record<string, any>>(
   input: T,
 ): Record<string, any> {
@@ -196,12 +212,12 @@ export class FundingDao<
     };
   }
 
-  public async getAllFundingsByStatus({
+  public async getAllFundingsByStatusAndCollection({
     id,
     fundingStatus,
   }: {
-    id?: ID_Collection;
-    fundingStatus?: TFundingStatus;
+    id: ID_Collection;
+    fundingStatus: TFundingStatus;
   }) {
     const results: {
       address: string;
@@ -210,7 +226,7 @@ export class FundingDao<
       timesChecked: number;
       fundingAmountSat: number;
     }[] = [];
-    for await (const item of this.listAllFundingsByStatus({
+    for await (const item of this.listAllFundingsByStatusAndCollection({
       id,
       fundingStatus,
     })) {
@@ -219,8 +235,8 @@ export class FundingDao<
     return results;
   }
 
-  public listAllFundingsByStatus(opts: {
-    id?: ID_Collection;
+  public listAllFundingsByStatusAndCollection(opts: {
+    id: ID_Collection;
     fundingStatus?: TFundingStatus;
   }): AsyncGenerator<
     {
@@ -234,17 +250,20 @@ export class FundingDao<
     unknown
   > {
     return paginate((options) =>
-      this.listAllFundingByStatusPaginated({ ...opts, ...options }),
+      this.listAllFundingByStatusAndCollectionPaginated({
+        ...opts,
+        ...options,
+      }),
     );
   }
 
-  public async listAllFundingByStatusPaginated({
+  public async listAllFundingByStatusAndCollectionPaginated({
     id,
     fundingStatus,
     cursor,
     limit,
   }: {
-    id?: ID_Collection;
+    id: ID_Collection;
     fundingStatus?: TFundingStatus;
   } & IPaginationOptions): Promise<
     IPaginatedResult<{
@@ -255,36 +274,118 @@ export class FundingDao<
       fundingAmountSat: number;
     }>
   > {
-    if (!id && !fundingStatus) {
-      throw new Error("Must provide either id or fundingStatus");
-    }
-    let keyConditionExpression: string;
-    let expressionAttributeValues: Record<string, any>;
-    if (id && fundingStatus) {
-      keyConditionExpression =
-        "collectionId = :collectionId AND fundingStatus = :sk";
-      expressionAttributeValues = {
-        ":collectionId": toCollectionId(id),
-        ":sk": fundingStatus,
-      };
-    } else if (id) {
-      keyConditionExpression = "collectionId = :collectionId";
-      expressionAttributeValues = {
-        ":collectionId": toCollectionId(id),
-      };
-    } else {
-      keyConditionExpression = "fundingStatus = :sk";
-      expressionAttributeValues = {
-        ":sk": fundingStatus,
-      };
-    }
     const pagination = decodeCursor(cursor);
     const result = await this.client.send(
       new QueryCommand({
         TableName: FundingDao.TABLE_NAME,
         IndexName: "collectionId-index",
-        KeyConditionExpression: keyConditionExpression,
-        ExpressionAttributeValues: expressionAttributeValues,
+        KeyConditionExpression:
+          "collectionId = :collectionId AND fundingStatus = :sk",
+        ExpressionAttributeValues: {
+          ":collectionId": toCollectionId(id),
+          ":sk": fundingStatus,
+        },
+        ...(pagination && { ExclusiveStartKey: pagination.lastEvaluatedKey }),
+        ...(limit && { Limit: limit }),
+      }),
+    );
+    const lastEvaluatedKey = result.LastEvaluatedKey;
+    const page = pagination ? pagination.page + 1 : 1;
+    const size = result.Items?.length || 0;
+    const count = (pagination ? pagination.count : 0) + size;
+
+    return {
+      items: result.Items?.map((item) => ({
+        address: item.address,
+        id: item.id,
+        lastChecked: item.lastChecked
+          ? new Date(item.lastChecked)
+          : new Date(0),
+        timesChecked: item.timesChecked,
+        fundingAmountSat: item.fundingAmountSat,
+      })) as {
+        address: string;
+        id: string;
+        lastChecked: Date;
+        timesChecked: number;
+        fundingAmountSat: number;
+      }[],
+      cursor: encodeCursor({
+        page,
+        count,
+        lastEvaluatedKey,
+      }),
+      page,
+      count,
+      size,
+    };
+  }
+
+  public async getAllFundingsByStatus({
+    fundingStatus,
+  }: {
+    fundingStatus: TFundingStatus;
+  }) {
+    const results: {
+      address: string;
+      id: string;
+      lastChecked: Date;
+      timesChecked: number;
+      fundingAmountSat: number;
+    }[] = [];
+    for await (const item of this.listAllFundingsByStatus({
+      fundingStatus,
+    })) {
+      results.push(item);
+    }
+    return results;
+  }
+
+  public listAllFundingsByStatus(opts: {
+    fundingStatus: TFundingStatus;
+  }): AsyncGenerator<
+    {
+      address: string;
+      id: string;
+      lastChecked: Date;
+      timesChecked: number;
+      fundingAmountSat: number;
+    },
+    any,
+    unknown
+  > {
+    return paginate((options) =>
+      this.listAllFundingByStatusPaginated({
+        ...opts,
+        ...options,
+      }),
+    );
+  }
+
+  public async listAllFundingByStatusPaginated({
+    fundingStatus,
+    cursor,
+    limit,
+  }: {
+    fundingStatus: TFundingStatus;
+  } & IPaginationOptions): Promise<
+    IPaginatedResult<{
+      address: string;
+      id: string;
+      lastChecked: Date;
+      timesChecked: number;
+      fundingAmountSat: number;
+    }>
+  > {
+    const pagination = decodeCursor(cursor);
+    const result = await this.client.send(
+      new QueryCommand({
+        TableName: FundingDao.TABLE_NAME,
+        IndexName: "statusFundedAtIndex",
+        KeyConditionExpression: "fundingStatus = :sk",
+        ExpressionAttributeValues: {
+          ":sk": fundingStatus,
+        },
         ...(pagination && { ExclusiveStartKey: pagination.lastEvaluatedKey }),
         ...(limit && { Limit: limit }),
       }),
@@ -350,20 +451,7 @@ export class FundingDao<
   }: {
     fundingStatus: TFundingStatus;
     nextCheckAt: Date;
-  }): AsyncGenerator<
-    {
-      address: string;
-      id: string;
-      createdAt: Date;
-      nextCheckAt: Date;
-      fundingAmountSat: number;
-      network: BitcoinNetworkNames;
-      fundedAt?: Date;
-      sizeEstimate: number;
-    },
-    any,
-    unknown
-  > {
+  }): AsyncGenerator<TFundingByStatus, any, unknown> {
     return paginate((options) =>
       this.listAllFundingsByStatusNextCheckAtPaginated({
         fundingStatus,
@@ -381,18 +469,7 @@ export class FundingDao<
   }: {
     fundingStatus: TFundingStatus;
     nextCheckAt: Date;
-  } & IPaginationOptions): Promise<
-    IPaginatedResult<{
-      address: string;
-      id: string;
-      createdAt: Date;
-      nextCheckAt: Date;
-      fundingAmountSat: number;
-      network: BitcoinNetworkNames;
-      fundedAt?: Date;
-      sizeEstimate: number;
-    }>
-  > {
+  } & IPaginationOptions): Promise<IPaginatedResult<TFundingByStatus>> {
     const pagination = decodeCursor(cursor);
     const result = await this.client.send(
       new QueryCommand({
@@ -422,10 +499,103 @@ export class FundingDao<
           nextCheckAt: item.nextCheckAt
             ? new Date(item.nextCheckAt)
             : new Date(0),
-          fundedAt: item.fundedAt ? new Date(item.fundedAt) : undefined,
           fundingAmountSat: item.fundingAmountSat,
           network: toBitcoinNetworkName(item.network),
+        })) ?? [],
+      cursor: encodeCursor({
+        page,
+        count,
+        lastEvaluatedKey,
+      }),
+      page,
+      count,
+      size,
+    };
+  }
+
+  public async getAllFundingsByStatusFundedAt({
+    fundingStatus,
+    fundedAt,
+  }: {
+    fundingStatus: TFundingStatus;
+    fundedAt: Date;
+  }) {
+    const results: {
+      address: string;
+      id: string;
+      nextCheckAt: Date;
+      fundingAmountSat: number;
+      network: BitcoinNetworkNames;
+    }[] = [];
+    for await (const item of this.listAllFundingsByStatusFundedAt({
+      fundingStatus,
+      fundedAt,
+    })) {
+      results.push(item);
+    }
+    return results;
+  }
+
+  public listAllFundingsByStatusFundedAt({
+    fundingStatus,
+    fundedAt,
+  }: {
+    fundingStatus: TFundingStatus;
+    fundedAt: Date;
+  }): AsyncGenerator<TFundedByStatus, any, unknown> {
+    return paginate((options) =>
+      this.listAllFundingsByStatusFundedAtPaginated({
+        fundingStatus,
+        fundedAt,
+        ...options,
+      }),
+    );
+  }
+
+  public async listAllFundingsByStatusFundedAtPaginated({
+    fundingStatus,
+    fundedAt,
+    cursor,
+    limit,
+  }: {
+    fundingStatus: TFundingStatus;
+    fundedAt: Date;
+  } & IPaginationOptions): Promise<IPaginatedResult<TFundedByStatus>> {
+    const pagination = decodeCursor(cursor);
+    const result = await this.client.send(
+      new QueryCommand({
+        TableName: FundingDao.TABLE_NAME,
+        IndexName: "statusFundedAtIndex",
+        KeyConditionExpression:
+          "fundingStatus = :fundingStatus AND fundedAt < :fundedAt",
+        ExpressionAttributeValues: {
+          ":fundingStatus": fundingStatus,
+          ":fundedAt": fundedAt.getTime(),
+        },
+        ...(pagination && { ExclusiveStartKey: pagination.lastEvaluatedKey }),
+        ...(limit && { Limit: limit }),
+      }),
+    );
+    const lastEvaluatedKey = result.LastEvaluatedKey;
+    const page = pagination ? pagination.page + 1 : 1;
+    const size = result.Items?.length || 0;
+    const count = (pagination ? pagination.count : 0) + size;
+
+    return {
+      items:
+        result.Items?.map((item) => ({
+          address: item.address,
+          id: item.id,
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(0),
+          nextCheckAt: item.nextCheckAt
+            ? new Date(item.nextCheckAt)
+            : new Date(0),
+          fundingAmountSat: item.fundingAmountSat,
+          network: toBitcoinNetworkName(item.network),
+          fundedAt: item.fundedAt ? new Date(item.fundedAt) : new Date(0),
           sizeEstimate: item.sizeEstimate,
+          genesisTxid: item.genesisTxid,
+          genesisVout: item.genesisVout,
         })) ?? [],
       cursor: encodeCursor({
         page,
@@ -684,11 +854,12 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus",
+          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, fundedAt = :fundedAt",
         ExpressionAttributeValues: {
           ":fundingTxid": fundingTxid,
           ":fundingVout": fundingVout,
           ":fundingStatus": "funded",
+          ":fundedAt": new Date().getTime(),
         },
       }),
     );
@@ -776,34 +947,16 @@ export class FundingDao<
           pk: id,
           sk: "funding",
         },
-        ConditionExpression: "attribute_exists(pk)",
+        ConditionExpression:
+          "attribute_exists(pk) AND NOT contains(revealTxids, :revealTxid)",
         UpdateExpression:
-          "SET revealTxids = list_append(revealTxids, :revealTxid)",
+          "SET revealTxids = list_append(revealTxids, :revealTxid), fundingStatus = :fundingStatus",
         ExpressionAttributeValues: {
           ":revealTxid": [revealTxid],
+          ":fundingStatus": "revealed",
         },
       }),
     );
-    // Update state if and only if contentIds.length === revealTxids.length
-    try {
-      await this.client.send(
-        new UpdateCommand({
-          TableName: FundingDao.TABLE_NAME,
-          Key: {
-            pk: id,
-            sk: "funding",
-          },
-          ConditionExpression:
-            "attribute_exists(pk) AND size(revealTxids) >= size(contentIds)",
-          UpdateExpression: "SET fundingStatus = :fundingStatus",
-          ExpressionAttributeValues: {
-            ":fundingStatus": "revealed",
-          },
-        }),
-      );
-    } catch (error) {
-      // ignore
-    }
   }
 
   public async updateBatchId({ id, batchId }: { id: string; batchId: string }) {
