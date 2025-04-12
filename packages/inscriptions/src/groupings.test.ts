@@ -1,11 +1,6 @@
 import { KeyPair, SecretKey } from "@0xflick/crypto-utils";
 import { Address, Tap, Tx } from "@0xflick/tapscript";
-import {
-  groupFundings,
-  sizeOfTransaction,
-  validateBatch,
-  InscriptionFunding,
-} from "./groupings.js";
+import { groupFundings, GroupableFunding } from "./groupings.js";
 
 import {
   bitcoinToSats,
@@ -66,9 +61,8 @@ async function createFunding(
   fundedAt: Date,
   parentInscriptionId?: string,
   feeDestinations?: { address: string; weight: number }[],
-  batchId?: string,
   contentSize?: number,
-): Promise<InscriptionFunding> {
+): Promise<GroupableFunding> {
   const privKey = generatePrivKey();
   const address = generateTapscriptAddress();
 
@@ -127,8 +121,8 @@ async function createFunding(
     sizeEstimate,
     parentInscriptionId,
     fundedAt,
-    inputs: [input],
-    parentTxs: parentTx ? [parentTx] : [],
+    input,
+    parentTx,
     feeDestinations: feeDestinations || [{ address, weight: 100 }],
   };
 }
@@ -211,14 +205,7 @@ describe("groupFundings", () => {
 
   it("should reject a funding that is too large on its own", async () => {
     const now = new Date(Date.now() - 20 * 60 * 1000);
-    const funding1 = await createFunding(
-      1,
-      now,
-      undefined,
-      undefined,
-      undefined,
-      500000,
-    );
+    const funding1 = await createFunding(1, now, undefined, undefined, 500000);
     const oldConsoleError = console.error;
     console.error = () => {};
     try {
@@ -229,39 +216,5 @@ describe("groupFundings", () => {
     } finally {
       console.error = oldConsoleError;
     }
-  });
-
-  it("should validate mock inputs to generateFundableGenesisTransaction", async () => {
-    const now = new Date(Date.now() - 20 * 60 * 1000);
-    const parentTxid = createUniqueTxid();
-    const parentInscriptionId = createParentInscriptionId(parentTxid);
-    const feeAddressA = generateTapscriptAddress();
-
-    const funding = await createFunding(1, now, parentInscriptionId, [
-      { address: feeAddressA, weight: 100 },
-    ]);
-    expect(funding.parentInscriptionId).toBe(parentInscriptionId);
-    expect(funding.parentTxs).toBeDefined();
-    expect(funding.parentTxs?.length).toBe(1);
-    expect(funding.parentTxs?.[0].vin.txid).toBe(parentTxid);
-    const validated = validateBatch([funding], feeRateRange);
-    expect(validated).not.toBe(false);
-    const funding2 = await createFunding(2, now, parentInscriptionId, [
-      { address: feeAddressA, weight: 100 },
-    ]);
-    const validatedBatch = validateBatch([funding, funding2], feeRateRange);
-    expect(validatedBatch).not.toBe(false);
-    const parentTxid2 = createUniqueTxid();
-    const parentInscriptionId2 = createParentInscriptionId(parentTxid2);
-    const feeAddressB = generateTapscriptAddress();
-
-    const funding3 = await createFunding(3, now, parentInscriptionId2, [
-      { address: feeAddressB, weight: 100 },
-    ]);
-    const validatedAll = validateBatch(
-      [funding, funding2, funding3],
-      feeRateRange,
-    );
-    expect(validatedAll).not.toBe(false);
   });
 });

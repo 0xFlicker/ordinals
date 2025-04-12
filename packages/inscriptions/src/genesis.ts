@@ -255,7 +255,7 @@ export async function generateFundableGenesisTransaction(
   // (You can tweak as needed.)
   const totalInscriptions = inscriptions.length;
   const required =
-    Math.max(tip, Math.ceil(feeSize * 0.05)) +
+    Math.max(tip, Math.ceil(feeSize * 0.03)) +
     feeSize +
     padding * totalInscriptions +
     // output signatures

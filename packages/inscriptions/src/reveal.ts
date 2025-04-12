@@ -11,7 +11,6 @@ import * as cryptoUtils from "@0xflick/crypto-utils";
 import { CannotFitInscriptionsError } from "./errors.js";
 import { BitcoinScriptData, WritableInscription } from "./types.js";
 import { serializedScriptToScriptData } from "./utils.js";
-import { inspect } from "util";
 
 export interface RevealTransactionInput {
   leaf: string;
