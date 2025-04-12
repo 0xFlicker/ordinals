@@ -85,9 +85,9 @@ type TFundingByStatus = {
 type TFundedByStatus = {
   fundedAt: Date;
   sizeEstimate: number;
-  genesisTxid: string;
-  genesisVout: number;
-} & TFundingByStatus;
+  fundingTxid: string;
+  fundingVout: number;
+} & Omit<TFundingByStatus, "nextCheckAt" | "createdAt">;
 
 function excludePrimaryKeys<T extends Record<string, any>>(
   input: T,
@@ -523,9 +523,12 @@ export class FundingDao<
     const results: {
       address: string;
       id: string;
-      nextCheckAt: Date;
       fundingAmountSat: number;
       network: BitcoinNetworkNames;
+      fundedAt: Date;
+      sizeEstimate: number;
+      fundingTxid: string;
+      fundingVout: number;
     }[] = [];
     for await (const item of this.listAllFundingsByStatusFundedAt({
       fundingStatus,
@@ -586,16 +589,12 @@ export class FundingDao<
         result.Items?.map((item) => ({
           address: item.address,
           id: item.id,
-          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(0),
-          nextCheckAt: item.nextCheckAt
-            ? new Date(item.nextCheckAt)
-            : new Date(0),
           fundingAmountSat: item.fundingAmountSat,
           network: toBitcoinNetworkName(item.network),
           fundedAt: item.fundedAt ? new Date(item.fundedAt) : new Date(0),
           sizeEstimate: item.sizeEstimate,
-          genesisTxid: item.genesisTxid,
-          genesisVout: item.genesisVout,
+          fundingTxid: item.fundingTxid,
+          fundingVout: item.fundingVout,
         })) ?? [],
       cursor: encodeCursor({
         page,
@@ -854,11 +853,12 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, fundedAt = :fundedAt",
+          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, sk = :sk, fundedAt = :fundedAt",
         ExpressionAttributeValues: {
           ":fundingTxid": fundingTxid,
           ":fundingVout": fundingVout,
           ":fundingStatus": "funded",
+          ":sk": "funded",
           ":fundedAt": new Date().getTime(),
         },
       }),
@@ -898,10 +898,11 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET genesisTxid = :genesisTxid, fundingStatus = :fundingStatus, revealTxids = :revealTxids",
+          "SET genesisTxid = :genesisTxid, fundingStatus = :fundingStatus, sk = :sk, revealTxids = :revealTxids",
         ExpressionAttributeValues: {
           ":genesisTxid": genesisTxid,
           ":fundingStatus": "genesis",
+          ":sk": "genesis",
           ":revealTxids": [],
         },
       }),
@@ -924,10 +925,11 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET revealTxids = :revealTxids, fundingStatus = :fundingStatus",
+          "SET revealTxids = :revealTxids, fundingStatus = :fundingStatus, sk = :sk",
         ExpressionAttributeValues: {
           ":revealTxids": revealTxids,
           ":fundingStatus": "revealed",
+          ":sk": "revealed",
         },
       }),
     );
@@ -950,22 +952,31 @@ export class FundingDao<
         ConditionExpression:
           "attribute_exists(pk) AND NOT contains(revealTxids, :revealTxid)",
         UpdateExpression:
-          "SET revealTxids = list_append(revealTxids, :revealTxid), fundingStatus = :fundingStatus",
+          "SET revealTxids = list_append(revealTxids, :revealTxid), fundingStatus = :fundingStatus, sk = :sk",
         ExpressionAttributeValues: {
           ":revealTxid": [revealTxid],
           ":fundingStatus": "revealed",
+          ":sk": "revealed",
         },
       }),
     );
   }
 
-  public async updateBatchId({ id, batchId }: { id: string; batchId: string }) {
+  public async updateBatchId({
+    id,
+    batchId,
+    type,
+  }: {
+    id: string;
+    batchId: string;
+    type: "funding" | "genesis" | "revealed";
+  }) {
     await this.client.send(
       new UpdateCommand({
         TableName: FundingDao.TABLE_NAME,
         Key: {
           pk: id,
-          sk: "funding",
+          sk: type,
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression: "SET batchId = :batchId",

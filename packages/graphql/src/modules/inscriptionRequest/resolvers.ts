@@ -71,7 +71,6 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         feePerByte,
         feeLevel,
       });
-      const privKey = generatePrivKey();
       const inscriptions: InscriptionContent[] = await Promise.all(
         files.map(async (file) => {
           if (file.inlineFile) {
@@ -168,9 +167,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
           ),
           tipAmountSat: inscriptionTip,
           tipAmountDestination: tipDestination,
-          meta: {
-            inscriptionSecKey: doc.secKey,
-          },
+          meta: {},
           type: "address-inscription",
           createdAt: new Date(),
           sizeEstimate: inscriptionTransaction.totalFee,

@@ -82,7 +82,7 @@ export const Inscribe: FC<{
 
   const { handleCreate, paymentRequest } = useInscribe({
     network: BitcoinNetwork.Regtest,
-    destinationAddress: xverseOrdinalsAddress,
+    destinationAddress: ordinalsAddress,
     feeLevel: feeMode === "preset" ? feeLevel : undefined,
     feePerByte: feeMode === "custom" ? customFeeRate : undefined,
   });
@@ -92,10 +92,9 @@ export const Inscribe: FC<{
       try {
         if (!isConnected) {
           setIsConnecting(true);
-          setIsSiwbPending(true);
+          setPendingFiles(files);
           await connect();
           setIsConnecting(false);
-          setPendingFiles(files);
           return;
         }
 
@@ -129,9 +128,10 @@ export const Inscribe: FC<{
     ]
   );
 
-  // Effect to handle pending files after connection
+  // Effect to handle connection state changes
   useEffect(() => {
-    if (isConnected && !isConnecting && pendingFiles && !isSiwbPending) {
+    if (isConnected && !isConnecting && pendingFiles) {
+      // If we're connected but not verified, trigger SIWB
       if (!verifiedOrdinalsAddress) {
         setIsSiwbPending(true);
         siwb()
@@ -148,6 +148,7 @@ export const Inscribe: FC<{
             }
           });
       } else {
+        // If we're connected and verified, process the files directly
         handleCreate(pendingFiles);
         setPendingFiles(null);
       }
@@ -157,8 +158,26 @@ export const Inscribe: FC<{
     isConnecting,
     pendingFiles,
     verifiedOrdinalsAddress,
-    isSiwbPending,
     siwb,
+    handleCreate,
+  ]);
+
+  // Effect to handle SIWB state changes
+  useEffect(() => {
+    if (
+      !isSiwbPending &&
+      pendingFiles &&
+      isConnected &&
+      verifiedOrdinalsAddress
+    ) {
+      handleCreate(pendingFiles);
+      setPendingFiles(null);
+    }
+  }, [
+    isSiwbPending,
+    pendingFiles,
+    isConnected,
+    verifiedOrdinalsAddress,
     handleCreate,
   ]);
 

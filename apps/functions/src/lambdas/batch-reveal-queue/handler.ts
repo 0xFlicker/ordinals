@@ -15,7 +15,6 @@ import {
 } from "@0xflick/ordinals-backend";
 import { v4 as uuidv4 } from "uuid";
 import {
-  RevealTransactionInput,
   GroupableFunding,
   groupFundings,
   InscriptionFunding,
@@ -35,8 +34,6 @@ const logger = createLogger({ name: "scheduled-batch-processor" });
 type StatusFunding = {
   address: string;
   id: string;
-  createdAt: Date;
-  nextCheckAt: Date;
   fundingAmountSat: number;
   network: BitcoinNetworkNames;
   fundedAt: Date;
