@@ -62,7 +62,8 @@ export interface GroupingResult {
 }
 
 const MAX_BATCH_SIZE = 100000; // 100K size threshold
-const RECENT_THRESHOLD = 15 * 60 * 1000; // 15 minutes in milliseconds
+// FIXME: set to 1 minute for testing
+const RECENT_THRESHOLD = 1 * 60 * 1000; // 15 minutes in milliseconds
 
 /**
  * Returns the size of a funding.
