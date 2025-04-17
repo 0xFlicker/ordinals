@@ -14,7 +14,7 @@ import {
   map,
   EMPTY,
 } from "rxjs";
-import { SecretKey } from "@0xflick/crypto-utils";
+import { SecretKey } from "@cmdcode/crypto-tools";
 import {
   FundingDao,
   FundingDocDao,

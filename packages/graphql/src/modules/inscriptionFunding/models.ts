@@ -10,8 +10,8 @@ import { toDataURL, QRCodeToDataURLOptions } from "qrcode";
 
 export class InscriptionFundingModel {
   public id: string;
-  private readonly fundingAddress: string;
-  private readonly destinationAddress?: string;
+  public readonly fundingAddress: string;
+  public readonly destinationAddress: string;
   private document?: TInscriptionDoc;
   private readonly bucket: string;
   private s3Client: S3Client;
@@ -27,7 +27,7 @@ export class InscriptionFundingModel {
     id: string;
     document?: TInscriptionDoc;
     fundingAddress: string;
-    destinationAddress?: string;
+    destinationAddress: string;
     bucket: string;
     s3Client: S3Client;
   }) {
@@ -205,34 +205,6 @@ export class InscriptionFundingModel {
       };
     }
     return this._qrSrc;
-  }
-
-  public get initScript() {
-    return this.fetchInscription().then((doc) =>
-      doc.initScript.map((script) => {
-        if (typeof script === "string") {
-          return {
-            text: script,
-          };
-        }
-
-        return {
-          base64: script.base64,
-        };
-      }),
-    );
-  }
-
-  public get initTapKey() {
-    return this.fetchInscription().then((d) => d.initTapKey);
-  }
-
-  public get initLeaf() {
-    return this.fetchInscription().then((d) => d.initLeaf);
-  }
-
-  public get initCBlock() {
-    return this.fetchInscription().then((d) => d.initCBlock);
   }
 
   public get overhead() {

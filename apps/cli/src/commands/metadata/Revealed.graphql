@@ -1,9 +1,9 @@
-query Revealed($collectionId: ID!, next: String) {
+query Revealed($collectionId: ID!, $next: String) {
   inscriptionFundings(
-    query: { collectionId: $collectionId, fundingStatus: REVEALED, next: next}
+    query: { collectionId: $collectionId, fundingStatus: REVEALED, next: $next }
   ) {
     fundings {
-      fundingRevealTxIds
+      fundingRevealTxId
     }
     problems {
       code

@@ -1,34 +1,38 @@
 import {
   Address,
   OutputData,
+  Script,
   Signer,
   Tap,
   Tx,
   TxData,
   TxTemplate,
-} from "@0xflick/tapscript";
-import * as cryptoUtils from "@0xflick/crypto-utils";
+} from "@cmdcode/tapscript";
+import { get_pubkey, get_seckey } from "@cmdcode/crypto-tools/keys";
 import { CannotFitInscriptionsError } from "./errors.js";
-import { BitcoinScriptData, WritableInscription } from "./types.js";
+import { BitcoinScriptData } from "./types.js";
 import { serializedScriptToScriptData } from "./utils.js";
 
 export interface RevealTransactionInput {
   leaf: string;
   tapkey: string;
   cblock: string;
+  rootTapKey: string;
   script: BitcoinScriptData[];
   vout: number;
   txid: string;
   amount: number;
   secKey: Uint8Array;
   padding: number;
-  inscriptions: WritableInscription[];
+  inscriptions: {
+    destinationAddress: string;
+  }[];
 }
 
 export type RevealTransactionParentTx = Omit<TxTemplate, "vin"> & {
   vin: Required<TxTemplate>["vin"]["0"];
   value: number;
-  secKey: cryptoUtils.SecretKey;
+  secKey: Uint8Array;
   destinationAddress: string;
 };
 
@@ -360,35 +364,7 @@ function verifyAndSignTx(
   // Sign with real signatures
   signAllVin(txSkeleton, witnessSigners);
 
-  // Verify all signatures
-  try {
-    let offset = request.parentTxs?.length ?? 0;
-    request.parentTxs?.forEach((pTx, i) => {
-      const pubKey = pTx.secKey.pub.x;
-      const [tPub] = Tap.getPubKey(pubKey);
-      witnessSigners.push(() => {
-        const tapSecKey = Tap.getSecKey(pTx.secKey)[0];
-        const sig = Signer.taproot.sign(tapSecKey, txSkeleton, i);
-
-        Signer.taproot.verifyTx(txSkeleton, i, {
-          pubkey: tPub,
-        });
-
-        return [sig];
-      });
-    });
-
-    request.inputs.forEach((_, i) => {
-      if (!txSkeleton.vin[offset + i].witness?.length) {
-        throw new Error("Missing witness data");
-      }
-    });
-
-    return txSkeleton;
-  } catch (e) {
-    console.error("Verification failed:", e);
-    return null;
-  }
+  return txSkeleton;
 }
 
 /**
@@ -493,43 +469,51 @@ export function buildSkeleton(request: RevealTransactionRequest): {
 
   for (let i = 0; i < (parentTxs?.length ?? 0); i++) {
     const parentTx = parentTxs![i];
-    const pubKey = parentTx.secKey.pub.x;
-    const [tPub] = Tap.getPubKey(pubKey);
+    const index = i;
+    const secKey = get_seckey(parentTx.secKey);
+    const pubKey = get_pubkey(secKey);
+    const [tapSecKey] = Tap.getSecKey(secKey);
+    const script = [pubKey, "OP_CHECKSIG"];
+    const sbytes = Script.encode(script);
+    const tapleaf = Tap.tree.getLeaf(sbytes);
+    const [tPub, cBlock] = Tap.getPubKey(pubKey, {
+      target: tapleaf,
+    });
     witnessSigners.push(() => {
-      const tapSecKey = Tap.getSecKey(parentTx.secKey)[0];
-      const sig = Signer.taproot.sign(tapSecKey, txSkeleton, i);
-      Signer.taproot.verifyTx(txSkeleton, i, { pubkey: tPub });
-      return [sig];
+      const sig = Signer.taproot.sign(tapSecKey, txSkeleton, index, {
+        extension: tapleaf,
+      });
+      return [sig.hex, script, cBlock];
     });
     vin.push({
       ...parentTx.vin,
       prevout: {
         value: parentTx.value,
-        scriptPubKey: Address.p2tr.scriptPubKey(tPub),
+        scriptPubKey: ["OP_1", tPub],
       },
     });
     vout.push({
       value: parentTx.value,
-      scriptPubKey: [
-        "OP_1",
-        Address.p2tr.decode(parentTx.destinationAddress).hex,
-      ],
+      scriptPubKey: Address.toScriptPubKey(parentTx.destinationAddress),
     });
   }
 
   // Inputs & Inscriptions
   let indexOffset = parentTxs?.length ?? 0;
   for (let i = indexOffset; i < inputs.length + indexOffset; i++) {
-    const input = inputs[i - indexOffset];
+    let index = i;
+    const input = inputs[index - indexOffset];
+    const secKey = get_seckey(input.secKey);
     witnessSigners.push(() => {
-      const sig = Signer.taproot.sign(input.tapkey, txSkeleton, i, {
-        extension: input.leaf,
+      const [tseckey] = Tap.getSecKey(secKey);
+      const script = serializedScriptToScriptData(input.script);
+      const target = Tap.encodeScript(script);
+
+      const sig = Signer.taproot.sign(tseckey, txSkeleton, index, {
+        extension: target,
       });
-      return [
-        sig.hex,
-        serializedScriptToScriptData(input.script),
-        input.cblock,
-      ];
+
+      return [sig.hex, script, input.cblock];
     });
 
     vin.push({
@@ -537,7 +521,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
       vout: input.vout,
       prevout: {
         value: input.amount,
-        scriptPubKey: ["OP_1", input.tapkey],
+        scriptPubKey: ["OP_1", input.rootTapKey],
       },
     });
 
@@ -557,7 +541,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
 }
 
 /** Signs all vin with the stored witness signers. */
-function signAllVin(
+export function signAllVin(
   txData: TxData,
   signers: Array<() => TxData["vin"][number]["witness"]>,
 ) {

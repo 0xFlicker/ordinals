@@ -13,7 +13,7 @@ import {
   inscriptionBucket,
   getFeeEstimates,
 } from "@0xflick/ordinals-backend";
-import { SecretKey } from "@0xflick/crypto-utils";
+import { SecretKey } from "@cmdcode/crypto-tools";
 import { SQSHandler } from "aws-lambda";
 import { generateRevealTransaction } from "@0xflick/inscriptions";
 import { SendMessageCommand } from "@aws-sdk/client-sqs";

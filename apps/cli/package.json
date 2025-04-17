@@ -11,15 +11,16 @@
     "schema:types": "yarn graphql-codegen --config codegen.ts"
   },
   "devDependencies": {
-    "@graphql-codegen/typescript": "^4.0.1",
-    "@graphql-codegen/typescript-graphql-request": "^5.0.0",
-    "@graphql-codegen/typescript-operations": "^4.0.1",
+    "@graphql-codegen/typescript": "^4.1.6",
+    "@graphql-codegen/typescript-graphql-request": "^6.2.0",
+    "@graphql-codegen/typescript-operations": "^4.6.0",
     "@types/mime-types": "^2.1.1",
     "ts-node": "^10.9.1",
     "typescript": "^5.1.3"
   },
   "dependencies": {
     "@0xflick/frame": "^0.0.2",
+    "@cmdcode/crypto-tools": "^2.8.0",
     "@wagmi/chains": "^1.8.0",
     "@wagmi/core": "^2.0.0-beta.9",
     "commander": "^11.0.0",
@@ -27,7 +28,7 @@
     "eth-provider": "^0.13.6",
     "ethers": "^6.6.3",
     "glob": "^10.2.7",
-    "graphql-request": "^6.1.0",
+    "graphql-request": "^7.1.2",
     "mime-types": "^2.1.35",
     "viem": "^2.0.0-beta.16",
     "wagmi": "^2.0.0-beta.9"

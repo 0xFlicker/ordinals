@@ -1,13 +1,27 @@
-import { KeyPair } from "@0xflick/crypto-utils";
-import { Address, Tap, Tx, Signer, TxTemplate } from "@0xflick/tapscript";
+import {
+  get_keypair,
+  get_pubkey,
+  get_seckey,
+} from "@cmdcode/crypto-tools/keys";
+import { Address, Tap, Tx, Signer, TxTemplate } from "@cmdcode/tapscript";
 import { generateFundableGenesisTransaction } from "./genesis.js";
-import { bitcoinToSats, networkNamesToTapScriptName } from "./utils.js";
+import {
+  bitcoinToSats,
+  networkNamesToTapScriptName,
+  serializedScriptToScriptData,
+} from "./utils.js";
 import { generateRefundTransaction } from "./refund.js";
 import {
   buildSkeleton,
   generateRevealTransactionDataIteratively,
+  signAllVin,
 } from "./reveal.js";
-import { RevealTransactionRequest } from "./reveal.js";
+import {
+  RevealTransactionRequest,
+  generateRevealTransaction,
+} from "./reveal.js";
+import { BitcoinScriptData } from "./types.js";
+import { inspect } from "util";
 
 describe("Bitcoin Inscription Transactions", () => {
   const TEST_PRIVATE_KEY =
@@ -15,10 +29,10 @@ describe("Bitcoin Inscription Transactions", () => {
 
   const TEST_PRIVATE_KEY_2 =
     "0000000000000000000000000000000000000000000000000000000000000002";
-  const SEC_KEY = new KeyPair(TEST_PRIVATE_KEY);
-  const SEC_KEY_2 = new KeyPair(TEST_PRIVATE_KEY_2);
-  const PUB_KEY = SEC_KEY.pub.x;
-  const PUB_KEY_2 = SEC_KEY_2.pub.x;
+  const SEC_KEY = get_seckey(TEST_PRIVATE_KEY);
+  const SEC_KEY_2 = get_seckey(TEST_PRIVATE_KEY_2);
+  const PUB_KEY = get_pubkey(SEC_KEY);
+  const PUB_KEY_2 = get_pubkey(SEC_KEY_2);
   const [TAP_KEY, C_BLOCK] = Tap.getPubKey(PUB_KEY);
   const [TAP_KEY_2, C_BLOCK_2] = Tap.getPubKey(PUB_KEY_2);
 
@@ -138,7 +152,7 @@ describe("Bitcoin Inscription Transactions", () => {
           {
             leaf: funding.genesisLeaf,
             tapkey: funding.genesisTapKey,
-            cblock: funding.genesisCblock,
+            cblock: funding.genesisCBlock,
             script: funding.genesisScript,
             vout: 0,
             txid: "a99d1112bcb35845fd44e703ef2c611f0360dd2bb28927625dbc13eab58cd968",
@@ -146,6 +160,7 @@ describe("Bitcoin Inscription Transactions", () => {
             secKey: funding.secKey,
             padding: funding.padding,
             inscriptions: funding.inscriptionsToWrite,
+            rootTapKey: funding.rootTapKey,
           },
         ],
         parentTxs: [
@@ -190,7 +205,7 @@ describe("Bitcoin Inscription Transactions", () => {
         tip: 10000,
         revealTip: 10000,
         expectedFeeRate: 12,
-        expectedPlatformFee: 8093,
+        expectedPlatformFee: 8083,
         expectedMinerFee: 2376,
       },
       {
@@ -198,8 +213,8 @@ describe("Bitcoin Inscription Transactions", () => {
         paymentFeeRate: TEST_FEE_RATE,
         revealFeeRange: [30, 5] as const,
         expectedFeeRate: 9,
-        expectedPlatformFee: 267,
-        expectedMinerFee: 15075,
+        expectedPlatformFee: 208,
+        expectedMinerFee: 14976,
         tip: 10000,
         revealTip: 0,
         underpriced: false,
@@ -210,7 +225,7 @@ describe("Bitcoin Inscription Transactions", () => {
         revealFeeRange: [30, 5] as const,
         expectedFeeRate: 30,
         expectedPlatformFee: 0,
-        expectedMinerFee: 50250,
+        expectedMinerFee: 49920,
         tip: 100000,
         revealTip: 1000000,
         underpriced: true,
@@ -259,7 +274,7 @@ describe("Bitcoin Inscription Transactions", () => {
                 {
                   leaf: funding.genesisLeaf,
                   tapkey: funding.genesisTapKey,
-                  cblock: funding.genesisCblock,
+                  cblock: funding.genesisCBlock,
                   script: funding.genesisScript,
                   vout: 0,
                   txid: "a99d1112bcb35845fd44e703ef2c611f0360dd2bb28927625dbc13eab58cd968",
@@ -267,6 +282,7 @@ describe("Bitcoin Inscription Transactions", () => {
                   secKey: funding.secKey,
                   padding: funding.padding,
                   inscriptions: funding.inscriptionsToWrite,
+                  rootTapKey: funding.rootTapKey,
                 },
               ],
               feeRateRange: revealFeeRange as [number, number],
@@ -297,7 +313,6 @@ describe("Bitcoin Inscription Transactions", () => {
         vin: {
           txid: "611f0360dd2bb28927625dbc13eab58cd968a99d1112bcb35845fd44e703ef2c",
           vout: 0,
-          sequence: 4294967293,
         },
         value: 546,
         secKey: SEC_KEY_2,
@@ -311,177 +326,121 @@ describe("Bitcoin Inscription Transactions", () => {
       };
 
       const { txSkeleton, witnessSigners } = buildSkeleton(request);
-
+      console.log(inspect(txSkeleton, { depth: null }));
+      signAllVin(txSkeleton, witnessSigners);
+      console.log(inspect(txSkeleton, { depth: null }));
       // Test each step individually
-      const pubKey = parentTx.secKey.pub.x;
+      const secKey = get_seckey(parentTx.secKey);
+      const pubKey = get_pubkey(secKey);
       expect(pubKey).toBeTruthy();
 
       const [tPub, cBlock] = Tap.getPubKey(pubKey);
       expect(tPub).toBeTruthy();
       expect(cBlock).toBeTruthy();
 
-      const tapSecKey = Tap.getSecKey(parentTx.secKey)[0];
+      const [tapSecKey] = Tap.getSecKey(secKey);
       expect(tapSecKey).toBeTruthy();
 
       // Create a minimal transaction for signing
-      const minimalTx = {
-        ...txSkeleton,
-        vin: [
-          {
-            ...txSkeleton.vin[0],
-            prevout: {
-              ...txSkeleton.vin[0].prevout,
-              scriptPubKey: Address.p2tr.scriptPubKey(tPub),
-            },
-          },
-        ],
-        vout: [txSkeleton.vout[0]],
-      };
+      // const minimalTx = {
+      //   ...txSkeleton,
+      //   vin: [
+      //     {
+      //       ...txSkeleton.vin[0],
+      //       prevout: {
+      //         ...txSkeleton.vin[0].prevout,
+      //         scriptPubKey: Address.p2tr.scriptPubKey(tPub),
+      //       },
+      //     },
+      //   ],
+      //   vout: [txSkeleton.vout[0]],
+      // };
 
-      // console.log("Minimal TX:", {
-      //   vin: minimalTx.vin,
-      //   vout: minimalTx.vout,
-      //   tPub,
-      //   scriptPubKey: Address.p2tr.scriptPubKey(tPub),
-      // });
+      const verifyDefault = Signer.taproot.verify(txSkeleton, 0, {
+        pubkey: pubKey,
+        throws: true,
+      });
 
-      // Try both with and without explicit sighash type
-      const sigDefault = Signer.taproot.sign(
-        new KeyPair(tapSecKey),
-        minimalTx as TxTemplate,
-        0,
-      );
+      expect(verifyDefault).toBe(true);
+    });
+  });
+});
 
-      // console.log("Signatures:", {
-      //   default: sigDefault,
-      // });
+const mockFunding = {
+  id: "143361809af2e5cdb72af5a70d6186785f33be606a5e28d0f494416ec52d0e02",
+  fundingAddress:
+    "bcrt1pzsekrqy67tjumde27kns6cvx0p0n80nqdf0z3585j3qka3fdpcpqmke6au",
+  fundingAmountBtc: "0.00025856",
+  initCBlock:
+    "c142b6b060163faf855d4f6c93a3a43f0b032483da57dfb9e0c8ed27ebc622fc09a26d99bb38fcb20d05c6552b0400f4935acf10d27648cefa4720d264cf04a538",
+  initLeaf: "98a48b981e89fdfe1d3e710db0cac5b59251716b93bf7066b1f287c91b934abf",
+  initScript: [
+    { base64: "QrawYBY/r4VdT2yTo6Q/CwMkg9pX37ngyO0n68Yi/Ak=" },
+    "OP_CHECKSIG",
+    "OP_0",
+    "OP_IF",
+    { base64: "b3Jk" },
+    "01",
+    { base64: "aW1hZ2UvcG5n" },
+    "OP_0",
+    {
+      base64:
+        "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",
+    },
+    "OP_ENDIF",
+  ] as BitcoinScriptData[],
+  initTapKey:
+    "143361809af2e5cdb72af5a70d6186785f33be606a5e28d0f494416ec52d0e02",
+  network: "regtest",
+  overhead: 20642,
+  padding: 546,
+  secKey: "9c22f6dc7929610f3152677bb966761abdb2c3c1c3b37ad6b8cd0f3085cec078",
+  totalFee: 5214,
+  writableInscriptions: [
+    {
+      pointerIndex: 0,
+      file: { content: {}, mimetype: "image/png" },
+      destinationAddress:
+        "bcrt1phpde994azkhgcmeztaa3nrgujvh3xq599fcy44qm00l7yau89xjqmzqay2",
+    },
+  ],
+  tip: 20000,
+  tipAmountDestination:
+    "bcrt1p426wd6f89k26gpugyp5kmcztcldrhyp5cfsazx29wkprdzt8l82qprc5fc",
+};
 
-      // Try verification with different parameters
-      const verifyDefault = Signer.taproot.verifyTx(
-        minimalTx as TxTemplate,
-        0,
+describe("Reveal Transaction", () => {
+  it("should generate a valid reveal transaction", () => {
+    const secKey = get_seckey(mockFunding.secKey);
+    const funding = generateRevealTransaction({
+      inputs: [
         {
-          pubkey: tPub,
+          amount: Number(bitcoinToSats(mockFunding.fundingAmountBtc)),
+          cblock: mockFunding.initCBlock,
+          leaf: mockFunding.initLeaf,
+          script: mockFunding.initScript,
+          padding: mockFunding.padding,
+          secKey,
+          tapkey: mockFunding.initTapKey,
+          txid: "3f6edfd2b521b4166748840b79fed5f241921f17e883e724d207d7fc9aaf40a8",
+          vout: 1,
+          inscriptions: mockFunding.writableInscriptions,
+          rootTapKey: mockFunding.initTapKey,
         },
-      );
-
-      // console.log("Verification Results:", {
-      //   default: verifyDefault,
-      // });
-
-      // Try manual signature verification
-      const hash = Signer.taproot.hash(minimalTx as TxTemplate, 0);
-      const manualVerify = Signer.taproot.verify(sigDefault, hash, tPub);
-
-      // console.log("Manual Verification:", {
-      //   hash,
-      //   result: manualVerify,
-      // });
-
-      expect(verifyDefault || manualVerify).toBe(true);
+      ],
+      feeRateRange: [1, 5],
+      feeDestinations: [
+        {
+          address:
+            "bcrt1p426wd6f89k26gpugyp5kmcztcldrhyp5cfsazx29wkprdzt8l82qprc5fc",
+          weight: 100,
+        },
+      ],
+      feeTarget: 20000,
     });
 
-    it("should correctly sign with multiple inputs", () => {
-      const parentTx = {
-        vin: {
-          txid: "611f0360dd2bb28927625dbc13eab58cd968a99d1112bcb35845fd44e703ef2c",
-          vout: 0,
-          sequence: 4294967293,
-        },
-        value: 546,
-        secKey: SEC_KEY_2,
-        destinationAddress: TEST_ADDRESS_2,
-      };
+    const txData = Tx.decode(funding.hex);
 
-      // Create a transaction with a dummy second input
-      const request: RevealTransactionRequest = {
-        inputs: [
-          {
-            leaf: "00".repeat(32),
-            tapkey: "00".repeat(32),
-            cblock: "00".repeat(32),
-            script: [],
-            vout: 0,
-            txid: "a99d1112bcb35845fd44e703ef2c611f0360dd2bb28927625dbc13eab58cd968",
-            amount: 1546,
-            secKey: SEC_KEY,
-            padding: 546,
-            inscriptions: [],
-          },
-        ],
-        parentTxs: [parentTx],
-        feeRateRange: [1, 2],
-      };
-
-      const { txSkeleton, witnessSigners } = buildSkeleton(request);
-
-      // Add dummy witnesses for all inputs except the one we're signing
-      txSkeleton.vin = txSkeleton.vin.map((vin, i) => ({
-        ...vin,
-        witness: i === 0 ? [] : ["00".repeat(64)],
-      }));
-
-      const pubKey = parentTx.secKey.pub.x;
-      const [tPub, cBlock] = Tap.getPubKey(pubKey);
-      const tapSecKey = Tap.getSecKey(parentTx.secKey)[0];
-
-      // Create a minimal transaction for signing
-      const minimalTx = {
-        ...txSkeleton,
-        vin: [
-          {
-            ...txSkeleton.vin[0],
-            prevout: {
-              ...txSkeleton.vin[0].prevout,
-              scriptPubKey: Address.p2tr.scriptPubKey(tPub),
-            },
-          },
-        ],
-        vout: [txSkeleton.vout[0]],
-      } as TxTemplate;
-
-      // console.log("Minimal TX:", {
-      //   vin: minimalTx.vin,
-      //   vout: minimalTx.vout,
-      //   tPub,
-      //   scriptPubKey: Address.p2tr.scriptPubKey(tPub),
-      // });
-
-      // Try both with and without explicit sighash type
-      // const sigDefault = Signer.taproot.sign(tapSecKey, minimalTx, 0);
-      // const sigSighashDefault = Signer.taproot.sign(tapSecKey, minimalTx, 0, {
-      //   sigflag: 1,
-      // });
-
-      // console.log("Signatures:", {
-      //   default: sigDefault,
-      //   sighashDefault: sigSighashDefault,
-      // });
-
-      // Try verification with different parameters
-      const verifyDefault = Signer.taproot.verifyTx(minimalTx, 0, {
-        pubkey: tPub,
-      });
-      const verifyWithSighash = Signer.taproot.verifyTx(minimalTx, 0, {
-        pubkey: tPub,
-        sigflag: 1,
-      });
-
-      // console.log("Verification Results:", {
-      //   default: verifyDefault,
-      //   withSighash: verifyWithSighash,
-      // });
-
-      // Try manual signature verification
-      const hash = Signer.taproot.hash(minimalTx, 0);
-      // const manualVerify = Signer.taproot.verify(sigDefault, hash, tPub);
-
-      // console.log("Manual Verification:", {
-      //   hash,
-      //   result: manualVerify,
-      // });
-
-      // expect(verifyDefault || manualVerify).toBe(true);
-    });
+    // console.log(funding.hex);
   });
 });

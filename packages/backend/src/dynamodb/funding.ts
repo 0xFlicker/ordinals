@@ -853,12 +853,11 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, sk = :sk, fundedAt = :fundedAt",
+          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, fundedAt = :fundedAt",
         ExpressionAttributeValues: {
           ":fundingTxid": fundingTxid,
           ":fundingVout": fundingVout,
           ":fundingStatus": "funded",
-          ":sk": "funded",
           ":fundedAt": new Date().getTime(),
         },
       }),
@@ -898,11 +897,10 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET genesisTxid = :genesisTxid, fundingStatus = :fundingStatus, sk = :sk, revealTxids = :revealTxids",
+          "SET genesisTxid = :genesisTxid, fundingStatus = :fundingStatus,revealTxids = :revealTxids",
         ExpressionAttributeValues: {
           ":genesisTxid": genesisTxid,
           ":fundingStatus": "genesis",
-          ":sk": "genesis",
           ":revealTxids": [],
         },
       }),
@@ -925,11 +923,10 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET revealTxids = :revealTxids, fundingStatus = :fundingStatus, sk = :sk",
+          "SET revealTxids = :revealTxids, fundingStatus = :fundingStatus",
         ExpressionAttributeValues: {
           ":revealTxids": revealTxids,
           ":fundingStatus": "revealed",
-          ":sk": "revealed",
         },
       }),
     );
@@ -952,11 +949,10 @@ export class FundingDao<
         ConditionExpression:
           "attribute_exists(pk) AND NOT contains(revealTxids, :revealTxid)",
         UpdateExpression:
-          "SET revealTxids = list_append(revealTxids, :revealTxid), fundingStatus = :fundingStatus, sk = :sk",
+          "SET revealTxids = list_append(revealTxids, :revealTxid), fundingStatus = :fundingStatus",
         ExpressionAttributeValues: {
           ":revealTxid": [revealTxid],
           ":fundingStatus": "revealed",
-          ":sk": "revealed",
         },
       }),
     );

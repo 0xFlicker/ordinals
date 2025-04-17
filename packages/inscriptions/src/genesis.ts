@@ -1,5 +1,9 @@
 import { BrotliOptions, brotliCompress, constants } from "zlib";
-import { KeyPair, SecretKey } from "@0xflick/crypto-utils";
+import {
+  get_keypair,
+  get_pubkey,
+  get_seckey,
+} from "@cmdcode/crypto-tools/keys";
 import {
   BitcoinNetworkNames,
   BitcoinScriptData,
@@ -7,8 +11,8 @@ import {
   InscriptionFile,
   WritableInscription,
 } from "./types.js";
-import { Script, Signer, Tx } from "@0xflick/tapscript";
-import { Tap } from "@0xflick/tapscript";
+import { Script, Signer, Tx } from "@cmdcode/tapscript";
+import { Tap } from "@cmdcode/tapscript";
 import {
   cborEncode,
   isValidAddress,
@@ -17,7 +21,7 @@ import {
   scriptDataToSerializedScript,
   serializeTxidAndIndexWithStripping,
 } from "./utils.js";
-import { Address } from "@0xflick/tapscript";
+import { Address } from "@cmdcode/tapscript";
 import { createQR } from "./qrcode.js";
 import { promisify } from "util";
 import { InvalidAddressError, PaddingTooLowError } from "./errors.js";
@@ -57,13 +61,14 @@ export interface GenesisFundingResponse {
   padding: number;
   genesisTapKey: string;
   genesisLeaf: string;
-  genesisCblock: string;
+  genesisCBlock: string;
   genesisScript: BitcoinScriptData[];
   refundTapKey: string;
   refundLeaf: string;
   refundCBlock: string;
   rootTapKey: string;
-  secKey: SecretKey;
+  refundScript: BitcoinScriptData[];
+  secKey: Uint8Array;
 }
 
 export async function generateFundableGenesisTransaction(
@@ -99,8 +104,8 @@ export async function generateFundableGenesisTransaction(
   if (isNaN(padding) || padding < minPadding) {
     throw new PaddingTooLowError(padding, minPadding);
   }
-  const secKey = new KeyPair(privKey);
-  const pubKey = secKey.pub.x;
+  const secKey = get_seckey(privKey);
+  const pubKey = get_pubkey(privKey);
 
   // 5) Compress or not compress each inscription
   const datas = await Promise.all(
@@ -183,13 +188,13 @@ export async function generateFundableGenesisTransaction(
   }
 
   // 7) Create the final leaf & tap key
-  const refundScript = Tap.encodeScript(masterScript.slice(0, 2));
-  const genesisScript = Tap.encodeScript(masterScript);
+  const refundLeaf = Tap.encodeScript(masterScript.slice(0, 2)); // This is only the [pubKey OP_CHECKSIG] part of the script
+  const genesisLeaf = Tap.encodeScript(masterScript);
   const tree = [
     // This is a refund script that does not include the inscription
-    refundScript,
+    refundLeaf,
     // This is the actual inscription script
-    genesisScript,
+    genesisLeaf,
   ];
   const [tapKey] = Tap.getPubKey(pubKey, {
     tree,
@@ -228,20 +233,20 @@ export async function generateFundableGenesisTransaction(
 
   // 9) Sign the partial input with the new leaf, so the witness is included in the size
   const initSig = await Signer.taproot.sign(secKey, partialTxData, 0, {
-    extension: genesisScript,
+    extension: genesisLeaf,
   });
-  const [genesisTapKey, genesisCblock] = Tap.getPubKey(pubKey, {
+  const [genesisTapKey, genesisCBlock] = Tap.getPubKey(pubKey, {
     tree,
-    target: genesisScript,
+    target: genesisLeaf,
   });
   const [refundTapKey, refundCBlock] = Tap.getPubKey(pubKey, {
     tree,
-    target: refundScript,
+    target: refundLeaf,
   });
   partialTxData.vin[0].witness = [
     initSig.hex,
     Script.encode(masterScript),
-    genesisCblock,
+    genesisCBlock,
   ];
 
   // 10) Measure its size so we know how many sats we need to cover (dust + any overhead)
@@ -284,13 +289,14 @@ export async function generateFundableGenesisTransaction(
     overhead,
     padding,
     genesisTapKey,
-    genesisLeaf: genesisScript,
-    genesisCblock,
+    genesisLeaf,
+    genesisCBlock,
     genesisScript: scriptDataToSerializedScript(masterScript),
     refundTapKey,
-    refundLeaf: refundScript,
+    refundLeaf,
     refundCBlock,
     rootTapKey: tapKey,
+    refundScript: scriptDataToSerializedScript(masterScript),
     secKey,
     partialHex: Tx.encode(partialTxData).hex, // so you can debug or show the user
   };

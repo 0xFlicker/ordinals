@@ -4,7 +4,7 @@ import {
   authMessageEthereum,
 } from "@0xflick/ordinals-models";
 import { createLogger } from "@0xflick/ordinals-backend";
-import { Address } from "@0xflick/tapscript";
+import { Address } from "@cmdcode/tapscript";
 import { RoleModel } from "../permissions/models.js";
 import { UserModule } from "./generated-types/module-types.js";
 import { modelPermissionToGraphql } from "../permissions/transforms.js";

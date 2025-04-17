@@ -80,10 +80,11 @@ export async function bulkMint({
     inputs: [
       {
         amount: Number(bitcoinToSats(response.amount)),
-        cblock: response.genesisCblock,
+        cblock: response.genesisCBlock,
         leaf: response.genesisLeaf,
         script: response.genesisScript,
         tapkey: response.genesisTapKey,
+        rootTapKey: response.rootTapKey,
         vout,
         txid,
         secKey: response.secKey,

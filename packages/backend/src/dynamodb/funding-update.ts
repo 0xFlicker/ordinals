@@ -13,7 +13,7 @@ import {
   hashAddress,
   toAddressInscriptionId,
 } from "@0xflick/ordinals-models";
-import { Address, Tap } from "@0xflick/tapscript";
+import { Address, Tap } from "@cmdcode/tapscript";
 import {
   FundingDao,
   FundingDocDao,
@@ -21,19 +21,18 @@ import {
   UploadsDAO,
   createInscriptionTransaction,
 } from "../index.js";
-import { KeyPair, SecretKey } from "@0xflick/crypto-utils";
+import { get_seckey, get_pubkey } from "@cmdcode/crypto-tools/keys";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { encryptEnvelope, serializeEnvelope } from "../utils/enevlope.js";
 import { KMSClient } from "@aws-sdk/client-kms";
 
 function generateAddressFromKeyPair({
   secKey,
   network,
 }: {
-  secKey: SecretKey;
+  secKey: Uint8Array;
   network: BitcoinNetworkNames;
 }) {
-  const pubkey = secKey.pub.x;
+  const pubkey = get_pubkey(secKey);
   const [tPubKey] = Tap.getPubKey(pubkey);
   const address = Address.p2tr.encode(
     tPubKey,
@@ -87,7 +86,7 @@ export async function updateCollectionFunding({
 }) {
   // Generate a new private key. This will be used to custody the parent
   const privateKey = generatePrivKey();
-  const parentSecKey = new KeyPair(privateKey);
+  const parentSecKey = get_seckey(privateKey);
   parentInscriptionAddress =
     parentInscriptionAddress ??
     generateAddressFromKeyPair({
@@ -123,11 +122,17 @@ export async function updateCollectionFunding({
   const {
     fundingAddress,
     fundingAmountBtc,
-    initCBlock,
-    initLeaf,
-    initScript,
-    initTapKey,
     overhead,
+    genesisCBlock,
+    genesisLeaf,
+    genesisScript,
+    genesisTapKey,
+    refundCBlock,
+    refundLeaf,
+    refundScript,
+    refundTapKey,
+    rootTapKey,
+    id,
     padding,
     secKey,
     totalFee,
@@ -148,17 +153,21 @@ export async function updateCollectionFunding({
     // ],
   });
 
-  const id = toAddressInscriptionId(hashAddress(parentInscriptionAddress));
-
   const doc: TInscriptionDoc = {
     id,
     collectionId,
     fundingAddress,
     fundingAmountBtc,
-    initCBlock,
-    initLeaf,
-    initScript,
-    initTapKey,
+    genesisCBlock,
+    genesisLeaf,
+    genesisScript,
+    genesisTapKey,
+    refundCBlock,
+    refundLeaf,
+    refundScript,
+    refundTapKey,
+    rootTapKey,
+    parentInscriptionId: parentParentInscriptionId,
     network,
     overhead,
     padding,

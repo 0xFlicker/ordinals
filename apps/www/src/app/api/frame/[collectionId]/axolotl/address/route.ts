@@ -3,7 +3,7 @@ import { validateFrameMessage } from "@/frame/validate";
 import { FrameRequest, getFrameHtmlResponse } from "@coinbase/onchainkit";
 import { GraphQLClient } from "graphql-request";
 import { NextRequest, NextResponse } from "next/server";
-import { Address } from "@0xflick/tapscript";
+import { Address } from "@cmdcode/tapscript";
 import { BitcoinNetwork } from "@/graphql/types";
 
 const NEXT_PUBLIC_FRAME_URL = "https://frame.bitflick.xyz";

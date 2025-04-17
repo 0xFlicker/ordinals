@@ -2,7 +2,7 @@ import { IObservedClaim } from "@0xflick/ordinals-models";
 import { wagmi } from "@0xflick/ordinals-config";
 import Bottleneck from "bottleneck";
 import { createLogger } from "@0xflick/ordinals-backend";
-import { Address } from "@0xflick/tapscript";
+import { Address } from "@cmdcode/tapscript";
 import { Log } from "viem";
 import { iAllowanceAbi } from "../wagmi/generated.js";
 import { ClaimsDao } from "../index.js";

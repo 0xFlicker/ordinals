@@ -229,7 +229,7 @@ program
 const collectionCommand = program.command("collection");
 
 collectionCommand
-  .command("create <name> <maxSupply>")
+  .command("create <name>")
   .option("-u, --url <url>", "api url", "http://localhost:4000")
   .option(
     "-m, --metadata <metadata>",
@@ -267,7 +267,6 @@ collectionCommand
     console.log(`Creating collection`);
     await collectionCreate({
       name,
-      maxSupply: Number(maxSupply),
       url,
       token,
       keyValues: metadata.map((m: string) => {

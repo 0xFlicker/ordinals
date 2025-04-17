@@ -1,5 +1,5 @@
 // groupings.ts
-import { Tx } from "@0xflick/tapscript";
+import { Tx } from "@cmdcode/tapscript";
 import {
   generateRevealTransactionDataIteratively,
   RevealTransactionFeeDestination,
@@ -62,8 +62,7 @@ export interface GroupingResult {
 }
 
 const MAX_BATCH_SIZE = 100000; // 100K size threshold
-// FIXME: set to 1 minute for testing
-const RECENT_THRESHOLD = 1 * 60 * 1000; // 15 minutes in milliseconds
+const RECENT_THRESHOLD = 15 * 60 * 1000; // 15 minutes in milliseconds
 
 /**
  * Returns the size of a funding.

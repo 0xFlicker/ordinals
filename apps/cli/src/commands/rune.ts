@@ -1,5 +1,5 @@
 import { promises as fs } from "fs";
-import { Address } from "@0xflick/tapscript";
+import { Address } from "@cmdcode/tapscript";
 
 export async function allocateAirdrop(
   addressesFile: string,

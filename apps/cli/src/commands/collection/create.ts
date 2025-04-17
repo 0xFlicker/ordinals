@@ -1,24 +1,18 @@
 import { GraphQLClient } from "graphql-request";
 import { getSdk } from "../../graphql.generated.js";
-import { RequestConfig } from "graphql-request/build/esm/types.js";
 import { ID_Collection } from "@0xflick/ordinals-models";
 
-function createClient(
-  endpoint: string,
-  requestConfig?: RequestConfig,
-): GraphQLClient {
+function createClient(endpoint: string, requestConfig?: any): GraphQLClient {
   return new GraphQLClient(endpoint, requestConfig);
 }
 
 export async function collectionCreate({
   name,
-  maxSupply,
   keyValues,
   url,
   token,
 }: {
   name: string;
-  maxSupply: number;
   keyValues: [string, string][];
   url: string;
   token: string | null;
@@ -36,7 +30,6 @@ export async function collectionCreate({
     createCollection: { id: collectionId },
   } = await sdk.CreateCollection({
     input: {
-      maxSupply,
       name,
     },
   });

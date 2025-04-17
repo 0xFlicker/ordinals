@@ -1,6 +1,10 @@
 import { spawn } from "child_process";
-import { Address, Tap } from "@0xflick/tapscript";
-import { KeyPair } from "@0xflick/crypto-utils";
+import { Address, Tap } from "@cmdcode/tapscript";
+import {
+  get_keypair,
+  get_pubkey,
+  get_seckey,
+} from "@cmdcode/crypto-tools/keys";
 import {
   BitcoinNetworkNames,
   generatePrivKey,
@@ -167,8 +171,8 @@ export async function sendBitcoin({
 
   if (generate) {
     const privateKey = generatePrivKey();
-    const secKey = new KeyPair(privateKey);
-    const pubkey = secKey.pub.x;
+    const secKey = get_seckey(privateKey);
+    const pubkey = get_pubkey(secKey);
     const [tpubkey, cblock] = Tap.getPubKey(pubkey);
     const address = Address.p2tr.encode(
       tpubkey,

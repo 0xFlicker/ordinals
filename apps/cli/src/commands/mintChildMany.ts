@@ -3,16 +3,17 @@ import {
   generatePrivKey,
   broadcastTx,
   BitcoinNetworkNames,
-  waitForInscriptionFunding,
   networkNamesToTapScriptName,
   generateFundableGenesisTransaction,
   generateRevealTransaction,
   satsToBitcoin,
+  bitcoinToSats,
+  RevealTransactionInput,
 } from "@0xflick/inscriptions";
 import { lookup } from "mime-types";
 import fs from "fs";
-import { Address, Tx, Tap } from "@0xflick/tapscript";
-import { SecretKey, KeyPair } from "@0xflick/crypto-utils";
+import { Address, Tx, Tap } from "@cmdcode/tapscript";
+import { get_seckey, get_pubkey } from "@cmdcode/crypto-tools/keys";
 import { sendBitcoin, sendRawTransaction } from "../bitcoin.js";
 import { createMempoolBitcoinClient } from "../mempool.js";
 
@@ -66,8 +67,8 @@ export async function mintChildMany({
     // Generate 3 separate key pairs and addresses for inscriptions
     for (let i = 0; i < 3; i++) {
       const privKey = generatePrivKey();
-      const secKey = new KeyPair(privKey);
-      const pubkey = secKey.pub.x;
+      const secKey = get_seckey(privKey);
+      const pubkey = get_pubkey(secKey);
       const [tseckey] = Tap.getSecKey(secKey);
       const [tpubkey, cblock] = Tap.getPubKey(pubkey);
       const addr = Address.p2tr.encode(
@@ -92,8 +93,8 @@ export async function mintChildMany({
 
   if (destinationParentAddress === "auto") {
     const privKey = generatePrivKey();
-    const secKey = new KeyPair(privKey);
-    const pubkey = secKey.pub.x;
+    const secKey = get_seckey(privKey);
+    const pubkey = get_pubkey(secKey);
     const [tseckey] = Tap.getSecKey(secKey);
     const [tpubkey, cblock] = Tap.getPubKey(pubkey);
     const addr = Address.p2tr.encode(
@@ -185,7 +186,7 @@ export async function mintChildMany({
   );
 
   // Wait for all transactions to be funded and collect their inputs
-  const inputs = await Promise.all(
+  const inputs: RevealTransactionInput[] = await Promise.all(
     responses.map(async (response, i) => {
       let funded = [null, null, null] as const;
       do {
@@ -202,13 +203,13 @@ export async function mintChildMany({
       return {
         leaf: response.genesisLeaf,
         tapkey: response.genesisTapKey,
-        cblock: response.genesisCblock,
+        cblock: response.genesisCBlock,
         script: response.genesisScript,
+        rootTapKey: response.rootTapKey,
         vout,
         txid,
-        amount,
-        secKey: response.secKey,
-        padding: response.padding,
+        ...response,
+        amount: Number(bitcoinToSats(amount)),
         inscriptions: response.inscriptionsToWrite,
       };
     }),
@@ -241,7 +242,7 @@ export async function mintChildMany({
           vout: parentIndex,
         },
         value: parentAmount,
-        secKey: new SecretKey(Buffer.from(parentSecKey, "hex")),
+        secKey: get_seckey(parentSecKey),
         destinationAddress: destinationParentAddress,
       },
     ],

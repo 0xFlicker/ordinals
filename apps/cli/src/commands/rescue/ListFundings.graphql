@@ -7,9 +7,8 @@ query ListFundings($query: InscriptionFundingQuery!) {
       destinationAddress
       network
       status
-      fundingTxId
       fundingGenesisTxId
-      fundingRevealTxIds
+      fundingRevealTxId
     }
     problems {
       code

@@ -1,5 +1,5 @@
 import { Network, validate } from "bitcoin-address-validation";
-import { Address, Networks } from "@0xflick/tapscript";
+import { Address, Networks } from "@cmdcode/tapscript";
 import cbor from "cbor";
 import * as secp from "@noble/secp256k1";
 import { BitcoinNetworkNames, BitcoinScriptData } from "./types.js";

@@ -13,8 +13,8 @@ import { lookup } from "mime-types";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { Address, Tx, Tap } from "@0xflick/tapscript";
-import { SecretKey, KeyPair } from "@0xflick/crypto-utils";
+import { Address, Tx, Tap } from "@cmdcode/tapscript";
+import { get_seckey, get_pubkey } from "@cmdcode/crypto-tools/keys";
 import { inscribeFiles } from "../../inscribe.js";
 import { build } from "esbuild";
 import { createMempoolBitcoinClient } from "../../mempool.js";
@@ -41,8 +41,8 @@ export async function deployOpLockCat({
 }) {
   if (destinationAddress === "auto") {
     const privKey = generatePrivKey();
-    const secKey = new KeyPair(privKey);
-    const pubkey = secKey.pub.x;
+    const secKey = get_seckey(privKey);
+    const pubkey = get_pubkey(secKey);
     const [tseckey] = Tap.getSecKey(secKey);
     const [tpubkey, cblock] = Tap.getPubKey(pubkey);
     const addr = Address.p2tr.encode(
@@ -114,8 +114,8 @@ export async function deployOpLockCat({
 
   console.log(`[FLICKJS] Inscribing to ${destinationAddress}...`);
   const parentPrivKey = generatePrivKey();
-  const parentSecKey = new KeyPair(parentPrivKey);
-  const parentPubkey = parentSecKey.pub.x;
+  const parentSecKey = get_seckey(parentPrivKey);
+  const parentPubkey = get_pubkey(parentSecKey);
   const [parentTseckey] = Tap.getSecKey(parentSecKey);
   const [parentTpubkey, parentCblock] = Tap.getPubKey(parentPubkey);
   const parentAddress = Address.p2tr.encode(

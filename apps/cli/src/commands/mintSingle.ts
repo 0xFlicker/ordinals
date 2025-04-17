@@ -8,7 +8,7 @@ import {
   satsToBitcoin,
 } from "@0xflick/inscriptions";
 import { lookup } from "mime-types";
-import { Tx } from "@0xflick/tapscript";
+import { Tx } from "@cmdcode/tapscript";
 import fs from "fs";
 import { sendBitcoin, sendRawTransaction } from "../bitcoin.js";
 import { createMempoolBitcoinClient } from "@0xflick/ordinals-backend";
@@ -95,8 +95,9 @@ export async function mintSingle({
     {
       leaf: response.genesisLeaf,
       tapkey: response.genesisTapKey,
-      cblock: response.genesisCblock,
+      cblock: response.genesisCBlock,
       script: response.genesisScript,
+      rootTapKey: response.rootTapKey,
       vout,
       txid,
       amount,

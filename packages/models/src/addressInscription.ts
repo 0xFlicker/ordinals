@@ -1,5 +1,5 @@
 import { BitcoinNetworkNames } from "./bitcoin.js";
-import { Address } from "@0xflick/tapscript";
+import { Address } from "@cmdcode/tapscript";
 import { ID_Collection } from "./collection.js";
 export type ID_AddressInscription = string & { __id_addressInscription: never };
 

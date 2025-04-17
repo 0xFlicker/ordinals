@@ -10,8 +10,8 @@ import {
 } from "@0xflick/inscriptions";
 import { lookup } from "mime-types";
 import fs from "fs";
-import { Address, Tx, Tap } from "@0xflick/tapscript";
-import { SecretKey, KeyPair } from "@0xflick/crypto-utils";
+import { Address, Tx, Tap } from "@cmdcode/tapscript";
+import { get_seckey } from "@cmdcode/crypto-tools/keys";
 import { sendBitcoin, sendRawTransaction } from "./bitcoin.js";
 import { createMempoolBitcoinClient } from "./mempool.js";
 
@@ -148,8 +148,9 @@ export async function inscribeFiles({
       {
         leaf: response.genesisLeaf,
         tapkey: response.genesisTapKey,
-        cblock: response.genesisCblock,
+        cblock: response.genesisCBlock,
         script: response.genesisScript,
+        rootTapKey: response.rootTapKey,
         vout,
         txid,
         amount,
@@ -177,7 +178,7 @@ export async function inscribeFiles({
               vout: parent.index,
             },
             value: parent.amount,
-            secKey: new SecretKey(Buffer.from(parent.secKey, "hex")),
+            secKey: get_seckey(Buffer.from(parent.secKey, "hex")),
             destinationAddress: parent.destinationAddress,
           },
         ]

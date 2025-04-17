@@ -1,5 +1,4 @@
-import { GraphQLClient } from 'graphql-request';
-import { GraphQLClientRequestHeaders } from 'graphql-request/build/cjs/types';
+import type { GraphQLClient, RequestOptions } from 'graphql-request';
 import gql from 'graphql-tag';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
@@ -8,6 +7,7 @@ export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: 
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
 export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
+type GraphQLClientRequestHeaders = RequestOptions['requestHeaders'];
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
   ID: { input: string; output: string; }
@@ -21,6 +21,14 @@ export type AppInfo = {
   __typename?: 'AppInfo';
   name: Scalars['String']['output'];
   pubKey: Scalars['String']['output'];
+};
+
+export type AssociatedAddresses = {
+  __typename?: 'AssociatedAddresses';
+  evmSignedAddress: Array<Scalars['ID']['output']>;
+  frameFid?: Maybe<Scalars['ID']['output']>;
+  frameVerifiedAddresses?: Maybe<Array<Scalars['ID']['output']>>;
+  taprootAddress: Array<Scalars['ID']['output']>;
 };
 
 export type AxolotlAvailableClaimedFunding = {
@@ -133,6 +141,7 @@ export type Collection = {
   maxSupply: Scalars['Int']['output'];
   metadata: Array<KeyValue>;
   name: Scalars['String']['output'];
+  parentInscription?: Maybe<CollectionParentInscription>;
   pendingCount: Scalars['Int']['output'];
   totalCount: Scalars['Int']['output'];
   updateMetadata: Collection;
@@ -144,9 +153,44 @@ export type CollectionUpdateMetadataArgs = {
 };
 
 export type CollectionInput = {
-  maxSupply: Scalars['Int']['input'];
   meta?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
+  parentInscription?: InputMaybe<CollectionParentInscriptionInput>;
+};
+
+export type CollectionParentInscription = {
+  __typename?: 'CollectionParentInscription';
+  multipartUploadId?: Maybe<Scalars['String']['output']>;
+  parentInscriptionContentType?: Maybe<Scalars['String']['output']>;
+  parentInscriptionFileName?: Maybe<Scalars['String']['output']>;
+  parentInscriptionId?: Maybe<Scalars['String']['output']>;
+  uploadUrl?: Maybe<Scalars['String']['output']>;
+};
+
+export type CollectionParentInscriptionInput = {
+  parentInscriptionContentType?: InputMaybe<Scalars['String']['input']>;
+  parentInscriptionFileName?: InputMaybe<Scalars['String']['input']>;
+  parentInscriptionId?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateInscriptionProblem = {
+  __typename?: 'CreateInscriptionProblem';
+  code?: Maybe<Scalars['Int']['output']>;
+  message: Scalars['String']['output'];
+};
+
+export type CreateInscriptionResponse = {
+  __typename?: 'CreateInscriptionResponse';
+  data?: Maybe<InscriptionFunding>;
+  problems?: Maybe<Array<CreateInscriptionProblem>>;
+};
+
+export type FeeEstimate = {
+  __typename?: 'FeeEstimate';
+  fastest: Scalars['Int']['output'];
+  halfHour: Scalars['Int']['output'];
+  hour: Scalars['Int']['output'];
+  minimum: Scalars['Int']['output'];
 };
 
 export enum FeeLevel {
@@ -172,27 +216,38 @@ export type InscriptionData = {
 };
 
 export type InscriptionDataInput = {
-  base64Content?: InputMaybe<Scalars['String']['input']>;
+  inlineFile?: InputMaybe<InscriptionFileInlineInput>;
+  metaJson?: InputMaybe<Scalars['String']['input']>;
+  uploadedFile?: InputMaybe<InscriptionFileUploadedInput>;
+};
+
+export type InscriptionFileInlineInput = {
+  base64Content: Scalars['String']['input'];
   contentType: Scalars['String']['input'];
-  textContent?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type InscriptionFileUploadedInput = {
+  id: Scalars['String']['input'];
 };
 
 export type InscriptionFunding = {
   __typename?: 'InscriptionFunding';
+  count: Scalars['Int']['output'];
   destinationAddress: Scalars['String']['output'];
+  fee: Scalars['Int']['output'];
   fundingAddress: Scalars['String']['output'];
   fundingAmountBtc: Scalars['String']['output'];
   fundingAmountSats: Scalars['Int']['output'];
   fundingGenesisTxId?: Maybe<Scalars['String']['output']>;
   fundingGenesisTxUrl?: Maybe<Scalars['String']['output']>;
-  fundingRevealTxIds?: Maybe<Array<Scalars['String']['output']>>;
-  fundingRevealTxUrls?: Maybe<Array<Scalars['String']['output']>>;
-  fundingTxId?: Maybe<Scalars['String']['output']>;
-  fundingTxUrl?: Maybe<Scalars['String']['output']>;
+  fundingRevealTxId?: Maybe<Scalars['String']['output']>;
+  fundingRevealTxUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   inscriptionContent: InscriptionData;
-  inscriptionTransaction: InscriptionTransaction;
+  inscriptionContents: Array<InscriptionData>;
   network: BitcoinNetwork;
+  overhead: Scalars['Int']['output'];
+  padding: Scalars['Int']['output'];
   qrSrc: Scalars['String']['output'];
   qrValue: Scalars['String']['output'];
   status: FundingStatus;
@@ -200,7 +255,7 @@ export type InscriptionFunding = {
 
 
 export type InscriptionFundingInscriptionContentArgs = {
-  tapKey: Scalars['String']['input'];
+  index: Scalars['Int']['input'];
 };
 
 export type InscriptionFundingProblem = {
@@ -224,34 +279,48 @@ export type InscriptionFundingsResult = {
   problems?: Maybe<Array<InscriptionFundingProblem>>;
 };
 
-export type InscriptionRequest = {
+export type InscriptionProblem = {
+  __typename?: 'InscriptionProblem';
+  code?: Maybe<Scalars['Int']['output']>;
+  fileName: Scalars['String']['output'];
+  message?: Maybe<Scalars['String']['output']>;
+};
+
+export type InscriptionRequestInput = {
   destinationAddress: Scalars['String']['input'];
   feeLevel?: InputMaybe<FeeLevel>;
   feePerByte?: InputMaybe<Scalars['Int']['input']>;
   files: Array<InscriptionDataInput>;
   network: BitcoinNetwork;
+  parentInscriptionId?: InputMaybe<Scalars['String']['input']>;
 };
 
-export type InscriptionTransaction = {
-  __typename?: 'InscriptionTransaction';
-  count: Scalars['Int']['output'];
-  initCBlock: Scalars['String']['output'];
-  initLeaf: Scalars['String']['output'];
-  initScript: Array<BitcoinScriptItem>;
-  initTapKey: Scalars['String']['output'];
-  inscriptions: Array<InscriptionTransactionContent>;
-  overhead: Scalars['Int']['output'];
-  padding: Scalars['Int']['output'];
+export type InscriptionUploadData = {
+  __typename?: 'InscriptionUploadData';
+  files: Array<InscriptionUploadFileData>;
 };
 
-export type InscriptionTransactionContent = {
-  __typename?: 'InscriptionTransactionContent';
-  cblock: Scalars['String']['output'];
-  fee: Scalars['Int']['output'];
-  leaf: Scalars['String']['output'];
-  script: Array<BitcoinScriptItem>;
-  tapKey: Scalars['String']['output'];
-  txsize: Scalars['Int']['output'];
+export type InscriptionUploadFileData = {
+  __typename?: 'InscriptionUploadFileData';
+  fileName: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  multipartUploadId?: Maybe<Scalars['String']['output']>;
+  uploadUrl?: Maybe<Scalars['String']['output']>;
+};
+
+export type InscriptionUploadFileRequest = {
+  contentType: Scalars['String']['input'];
+  fileName: Scalars['String']['input'];
+};
+
+export type InscriptionUploadRequest = {
+  files: Array<InscriptionUploadFileRequest>;
+};
+
+export type InscriptionUploadResponse = {
+  __typename?: 'InscriptionUploadResponse';
+  data?: Maybe<InscriptionUploadData>;
+  problems?: Maybe<Array<InscriptionProblem>>;
 };
 
 export type KeyValue = {
@@ -270,15 +339,20 @@ export type Mutation = {
   axolotlFundingOpenEditionRequest: AxolotlOpenEditionResponse;
   collection: Collection;
   createCollection: Collection;
+  createCollectionParentInscription: InscriptionFunding;
+  createInscriptionRequest: CreateInscriptionResponse;
   createRole: Role;
   deleteCollection: Scalars['Boolean']['output'];
   nonceBitcoin: Nonce;
   nonceEthereum: Nonce;
+  nonceFrame: Nonce;
+  presale: PresaleResponse;
   role: Role;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
   siwb: Web3LoginUser;
   siwe: Web3LoginUser;
+  uploadInscription: InscriptionUploadResponse;
 };
 
 
@@ -294,6 +368,17 @@ export type MutationCollectionArgs = {
 
 export type MutationCreateCollectionArgs = {
   input: CollectionInput;
+};
+
+
+export type MutationCreateCollectionParentInscriptionArgs = {
+  bitcoinNetwork: BitcoinNetwork;
+  collectionId: Scalars['ID']['input'];
+};
+
+
+export type MutationCreateInscriptionRequestArgs = {
+  input: InscriptionRequestInput;
 };
 
 
@@ -319,6 +404,16 @@ export type MutationNonceEthereumArgs = {
 };
 
 
+export type MutationNonceFrameArgs = {
+  trustedBytes: Scalars['String']['input'];
+};
+
+
+export type MutationPresaleArgs = {
+  request: PresaleRequest;
+};
+
+
 export type MutationRoleArgs = {
   id: Scalars['ID']['input'];
 };
@@ -333,6 +428,11 @@ export type MutationSiwbArgs = {
 export type MutationSiweArgs = {
   address: Scalars['ID']['input'];
   jwe: Scalars['String']['input'];
+};
+
+
+export type MutationUploadInscriptionArgs = {
+  input: InscriptionUploadRequest;
 };
 
 export type Nonce = {
@@ -381,6 +481,63 @@ export enum PermissionResource {
   User = 'USER'
 }
 
+export type PresaleProblem = {
+  __typename?: 'PresaleProblem';
+  code: Scalars['String']['output'];
+  message: Scalars['String']['output'];
+};
+
+export type PresaleQuery = {
+  collectionId?: InputMaybe<Scalars['ID']['input']>;
+  destinationAddress?: InputMaybe<Scalars['String']['input']>;
+  farcasterVerifiedAddress?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  next?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<PresaleStatus>;
+};
+
+export type PresaleRequest = {
+  collectionId: Scalars['ID']['input'];
+  count: Scalars['Int']['input'];
+  destinationAddress: Scalars['String']['input'];
+  farcasterFid?: InputMaybe<Scalars['Int']['input']>;
+  farcasterVerifiedPayload?: InputMaybe<Scalars['String']['input']>;
+  feeRate?: InputMaybe<Scalars['Int']['input']>;
+  network: BitcoinNetwork;
+};
+
+export type PresaleResponse = {
+  __typename?: 'PresaleResponse';
+  data?: Maybe<PresaleResponseData>;
+  problems?: Maybe<Array<PresaleProblem>>;
+};
+
+export type PresaleResponseData = {
+  __typename?: 'PresaleResponseData';
+  destinationAddress: Scalars['String']['output'];
+  farcasterVerifiedAddress?: Maybe<Scalars['String']['output']>;
+  fundingAddress: Scalars['String']['output'];
+  fundingAmountBtc: Scalars['String']['output'];
+  fundingAmountSats: Scalars['Int']['output'];
+  id: Scalars['ID']['output'];
+  network: BitcoinNetwork;
+  status: PresaleStatus;
+};
+
+export enum PresaleStatus {
+  Funded = 'FUNDED',
+  Funding = 'FUNDING',
+  Pending = 'PENDING',
+  Sweeping = 'SWEEPING',
+  Swept = 'SWEPT'
+}
+
+export type PresalesResult = {
+  __typename?: 'PresalesResult';
+  next?: Maybe<Scalars['String']['output']>;
+  presales?: Maybe<Array<PresaleResponseData>>;
+};
+
 export type Query = {
   __typename?: 'Query';
   appInfo: AppInfo;
@@ -388,13 +545,15 @@ export type Query = {
   axolotlEstimateFee: AxolotlFeeEstimate;
   collection: Collection;
   collections: Array<Collection>;
-  currentBitcoinFees: Scalars['Int']['output'];
+  currentBitcoinFees: FeeEstimate;
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
-  inscriptionTransaction?: Maybe<InscriptionTransaction>;
+  presale?: Maybe<PresaleResponse>;
+  presales: PresalesResult;
   role?: Maybe<Role>;
   roles: Array<Role>;
   self?: Maybe<Web3User>;
+  signMultipartUpload: Scalars['String']['output'];
   userByAddress: Web3User;
 };
 
@@ -418,9 +577,7 @@ export type QueryCollectionArgs = {
 
 
 export type QueryCurrentBitcoinFeesArgs = {
-  feePerByte?: InputMaybe<Scalars['Int']['input']>;
   network: BitcoinNetwork;
-  speed?: InputMaybe<FeeLevel>;
 };
 
 
@@ -434,13 +591,24 @@ export type QueryInscriptionFundingsArgs = {
 };
 
 
-export type QueryInscriptionTransactionArgs = {
+export type QueryPresaleArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryPresalesArgs = {
+  query: PresaleQuery;
 };
 
 
 export type QueryRoleArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QuerySignMultipartUploadArgs = {
+  partNumber: Scalars['Int']['input'];
+  uploadId: Scalars['String']['input'];
 };
 
 
@@ -490,11 +658,11 @@ export type Web3LoginUser = {
 
 export type Web3User = {
   __typename?: 'Web3User';
-  address: Scalars['ID']['output'];
   allowedActions: Array<Permission>;
+  associatedAddresses: AssociatedAddresses;
+  id: Scalars['ID']['output'];
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;
-  type: BlockchainNetwork;
 };
 
 export type BindRoleToUSerMutationVariables = Exact<{
@@ -557,17 +725,18 @@ export type SiweMutation = { __typename?: 'Mutation', siwe: { __typename?: 'Web3
 
 export type RevealedQueryVariables = Exact<{
   collectionId: Scalars['ID']['input'];
+  next?: InputMaybe<Scalars['String']['input']>;
 }>;
 
 
-export type RevealedQuery = { __typename?: 'Query', inscriptionFundings: { __typename?: 'InscriptionFundingsResult', next?: string | null, count?: number | null, fundings?: Array<{ __typename?: 'InscriptionFunding', fundingRevealTxIds?: Array<string> | null }> | null, problems?: Array<{ __typename?: 'InscriptionFundingProblem', code?: string | null, message?: string | null }> | null } };
+export type RevealedQuery = { __typename?: 'Query', inscriptionFundings: { __typename?: 'InscriptionFundingsResult', next?: string | null, count?: number | null, fundings?: Array<{ __typename?: 'InscriptionFunding', fundingRevealTxId?: string | null }> | null, problems?: Array<{ __typename?: 'InscriptionFundingProblem', code?: string | null, message?: string | null }> | null } };
 
 export type ListFundingsQueryVariables = Exact<{
   query: InscriptionFundingQuery;
 }>;
 
 
-export type ListFundingsQuery = { __typename?: 'Query', inscriptionFundings: { __typename?: 'InscriptionFundingsResult', next?: string | null, count?: number | null, fundings?: Array<{ __typename?: 'InscriptionFunding', id: string, fundingAmountSats: number, fundingAddress: string, destinationAddress: string, network: BitcoinNetwork, status: FundingStatus, fundingTxId?: string | null, fundingGenesisTxId?: string | null, fundingRevealTxIds?: Array<string> | null }> | null, problems?: Array<{ __typename?: 'InscriptionFundingProblem', code?: string | null, message?: string | null }> | null } };
+export type ListFundingsQuery = { __typename?: 'Query', inscriptionFundings: { __typename?: 'InscriptionFundingsResult', next?: string | null, count?: number | null, fundings?: Array<{ __typename?: 'InscriptionFunding', id: string, fundingAmountSats: number, fundingAddress: string, destinationAddress: string, network: BitcoinNetwork, status: FundingStatus, fundingGenesisTxId?: string | null, fundingRevealTxId?: string | null }> | null, problems?: Array<{ __typename?: 'InscriptionFundingProblem', code?: string | null, message?: string | null }> | null } };
 
 
 export const BindRoleToUSerDocument = gql`
@@ -669,12 +838,12 @@ export const SiweDocument = gql`
 }
     `;
 export const RevealedDocument = gql`
-    query Revealed($collectionId: ID!) {
+    query Revealed($collectionId: ID!, $next: String) {
   inscriptionFundings(
-    query: {collectionId: $collectionId, fundingStatus: REVEALED}
+    query: {collectionId: $collectionId, fundingStatus: REVEALED, next: $next}
   ) {
     fundings {
-      fundingRevealTxIds
+      fundingRevealTxId
     }
     problems {
       code
@@ -695,9 +864,8 @@ export const ListFundingsDocument = gql`
       destinationAddress
       network
       status
-      fundingTxId
       fundingGenesisTxId
-      fundingRevealTxIds
+      fundingRevealTxId
     }
     problems {
       code
@@ -709,42 +877,42 @@ export const ListFundingsDocument = gql`
 }
     `;
 
-export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, string>) => Promise<T>, operationName: string, operationType?: string) => Promise<T>;
+export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, string>) => Promise<T>, operationName: string, operationType?: string, variables?: any) => Promise<T>;
 
 
-const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationType) => action();
+const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationType, _variables) => action();
 
 export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = defaultWrapper) {
   return {
     BindRoleToUSer(variables: BindRoleToUSerMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<BindRoleToUSerMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<BindRoleToUSerMutation>(BindRoleToUSerDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'BindRoleToUSer', 'mutation');
+      return withWrapper((wrappedRequestHeaders) => client.request<BindRoleToUSerMutation>(BindRoleToUSerDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'BindRoleToUSer', 'mutation', variables);
     },
     CreateRole(variables?: CreateRoleMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<CreateRoleMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<CreateRoleMutation>(CreateRoleDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'CreateRole', 'mutation');
+      return withWrapper((wrappedRequestHeaders) => client.request<CreateRoleMutation>(CreateRoleDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'CreateRole', 'mutation', variables);
     },
     CreateCollection(variables: CreateCollectionMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<CreateCollectionMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<CreateCollectionMutation>(CreateCollectionDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'CreateCollection', 'mutation');
+      return withWrapper((wrappedRequestHeaders) => client.request<CreateCollectionMutation>(CreateCollectionDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'CreateCollection', 'mutation', variables);
     },
     UpdateMetadata(variables: UpdateMetadataMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<UpdateMetadataMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<UpdateMetadataMutation>(UpdateMetadataDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'UpdateMetadata', 'mutation');
+      return withWrapper((wrappedRequestHeaders) => client.request<UpdateMetadataMutation>(UpdateMetadataDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'UpdateMetadata', 'mutation', variables);
     },
     AxolotlFundingRequest(variables: AxolotlFundingRequestMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<AxolotlFundingRequestMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<AxolotlFundingRequestMutation>(AxolotlFundingRequestDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'AxolotlFundingRequest', 'mutation');
+      return withWrapper((wrappedRequestHeaders) => client.request<AxolotlFundingRequestMutation>(AxolotlFundingRequestDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'AxolotlFundingRequest', 'mutation', variables);
     },
     BitcoinNonce(variables: BitcoinNonceMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<BitcoinNonceMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<BitcoinNonceMutation>(BitcoinNonceDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'BitcoinNonce', 'mutation');
+      return withWrapper((wrappedRequestHeaders) => client.request<BitcoinNonceMutation>(BitcoinNonceDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'BitcoinNonce', 'mutation', variables);
     },
     EthereumNonce(variables: EthereumNonceMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<EthereumNonceMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<EthereumNonceMutation>(EthereumNonceDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'EthereumNonce', 'mutation');
+      return withWrapper((wrappedRequestHeaders) => client.request<EthereumNonceMutation>(EthereumNonceDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'EthereumNonce', 'mutation', variables);
     },
     SIWE(variables: SiweMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<SiweMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<SiweMutation>(SiweDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'SIWE', 'mutation');
+      return withWrapper((wrappedRequestHeaders) => client.request<SiweMutation>(SiweDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'SIWE', 'mutation', variables);
     },
     Revealed(variables: RevealedQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<RevealedQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<RevealedQuery>(RevealedDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'Revealed', 'query');
+      return withWrapper((wrappedRequestHeaders) => client.request<RevealedQuery>(RevealedDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'Revealed', 'query', variables);
     },
     ListFundings(variables: ListFundingsQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<ListFundingsQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<ListFundingsQuery>(ListFundingsDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ListFundings', 'query');
+      return withWrapper((wrappedRequestHeaders) => client.request<ListFundingsQuery>(ListFundingsDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'ListFundings', 'query', variables);
     }
   };
 }

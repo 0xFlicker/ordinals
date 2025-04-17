@@ -11,8 +11,8 @@ import {
 } from "@0xflick/inscriptions";
 import { lookup } from "mime-types";
 import fs from "fs";
-import { Address, Tx, Tap } from "@0xflick/tapscript";
-import { SecretKey, KeyPair } from "@0xflick/crypto-utils";
+import { Address, Tx, Tap } from "@cmdcode/tapscript";
+import { SecretKey, KeyPair } from "@cmdcode/crypto-tools";
 import { sendBitcoin } from "../bitcoin.js";
 import { createMempoolBitcoinClient } from "../mempool.js";
 

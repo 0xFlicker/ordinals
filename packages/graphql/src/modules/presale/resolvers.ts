@@ -12,7 +12,7 @@ import {
   toGraphqlBitcoinNetworkName,
 } from "../bitcoin/transforms.js";
 import { toGraphqlPresaleStatus } from "../axolotl/transforms.js";
-import { Address } from "@0xflick/tapscript";
+import { Address } from "@cmdcode/tapscript";
 import { BitcoinNetwork } from "../../generated-types/graphql.js";
 
 interface IPresaleCollectionMeta {

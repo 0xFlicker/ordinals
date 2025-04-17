@@ -2,7 +2,7 @@
 import { catchError, from, mergeMap, tap, filter, map, EMPTY } from "rxjs";
 import { FundingDao, MempoolClient, createLogger } from "../index.js";
 import { BitcoinNetworkNames, ID_Collection } from "@0xflick/ordinals-models";
-import { Address } from "@0xflick/tapscript";
+import { Address } from "@cmdcode/tapscript";
 import { NoVoutFound, enqueueCheckTxo } from "./mempool.js";
 
 const logger = createLogger({ name: "watch/resolve" });

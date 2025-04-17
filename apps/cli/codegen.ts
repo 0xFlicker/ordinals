@@ -11,6 +11,10 @@ const config: CodegenConfig = {
         "typescript-operations",
         "typescript-graphql-request",
       ],
+      config: {
+        useTypeImports: true,
+        emitLegacyCommonJSImports: false,
+      },
     },
   },
 };

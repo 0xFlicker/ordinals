@@ -1,11 +1,11 @@
-import { Address, Signer, Tap, Tx } from "@0xflick/tapscript";
-import * as cryptoUtils from "@0xflick/crypto-utils";
+import { Address, Signer, Tap, Tx } from "@cmdcode/tapscript";
+import { get_pubkey } from "@cmdcode/crypto-tools/keys";
 
 export interface RefundTransactionRequest {
   feeRate: number;
   refundTapKey: string;
   refundCBlock: string;
-  secKey: cryptoUtils.SecretKey;
+  secKey: Uint8Array;
   txid: string;
   vout: number;
   amount: number | bigint;
@@ -22,7 +22,7 @@ export async function generateRefundTransaction({
   amount,
   address,
 }: RefundTransactionRequest) {
-  let pubKey = secKey.pub.x;
+  const pubKey = get_pubkey(secKey);
   const refundScript = [pubKey, "OP_CHECKSIG"];
 
   // Create template tx with full amount to calculate size with witness
@@ -80,7 +80,7 @@ export async function generateRefundTransaction({
   });
   refundTx.vin[0].witness = [sig.hex, refundScript, refundCBlock];
 
-  const isValid = Signer.taproot.verifyTx(refundTx, 0, {
+  const isValid = Signer.taproot.verify(refundTx, 0, {
     pubkey: pubKey,
   });
   if (!isValid) {

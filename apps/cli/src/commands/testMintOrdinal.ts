@@ -66,8 +66,9 @@ export async function testMintOrdinals({
       {
         leaf: response.genesisLeaf,
         tapkey: response.genesisTapKey,
-        cblock: response.genesisCblock,
+        cblock: response.genesisCBlock,
         script: response.genesisScript,
+        rootTapKey: response.rootTapKey,
         vout,
         txid,
         amount,

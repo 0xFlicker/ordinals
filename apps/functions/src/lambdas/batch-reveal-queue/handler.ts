@@ -1,5 +1,5 @@
 import { Handler } from "aws-lambda";
-import { KeyPair } from "@0xflick/crypto-utils";
+import { KeyPair } from "@cmdcode/crypto-tools";
 import {
   createDynamoDbBatchDao,
   createDynamoDbFundingDao,

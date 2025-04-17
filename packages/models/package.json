@@ -12,6 +12,6 @@
   },
   "dependencies": {
     "@0xflick/graphql-modules": "2.1.3-0xflick.1",
-    "@0xflick/tapscript": "^2.0.1"
+    "@cmdcode/tapscript": "^1.5.3"
   }
 }

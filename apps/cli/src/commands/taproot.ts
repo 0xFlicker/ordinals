@@ -1,10 +1,10 @@
-import { Address, Tx, Tap, Signer } from "@0xflick/tapscript";
+import { Address, Tx, Tap, Signer } from "@cmdcode/tapscript";
 import {
   BitcoinNetworkNames,
   generatePrivKey,
   networkNamesToTapScriptName,
 } from "@0xflick/inscriptions";
-import { KeyPair } from "@0xflick/crypto-utils";
+import { get_seckey, get_pubkey } from "@cmdcode/crypto-tools/keys";
 
 export function generateReceiverAddress({
   network,
@@ -12,8 +12,8 @@ export function generateReceiverAddress({
   network: BitcoinNetworkNames;
 }) {
   const privKey = generatePrivKey();
-  const secKey = new KeyPair(privKey);
-  const pubkey = secKey.pub.x;
+  const secKey = get_seckey(privKey);
+  const pubkey = get_pubkey(secKey);
   const [tpubkey] = Tap.getPubKey(pubkey);
   const address = Address.p2tr.encode(
     tpubkey,
