@@ -9,8 +9,8 @@
     "test": "yarn node --experimental-vm-modules $(yarn bin jest)"
   },
   "dependencies": {
-    "@0xflick/crypto-utils": "^1.10.3-0xflick.0",
-    "@0xflick/tapscript": "^2.0.1",
+    "@cmdcode/crypto-tools": "^2.8.0",
+    "@cmdcode/tapscript": "^1.5.3",
     "@noble/secp256k1": "^2.0.0",
     "bitcoin-address-validation": "^2.2.1",
     "cbor": "^9.0.1",

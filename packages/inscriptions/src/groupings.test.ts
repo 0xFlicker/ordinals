@@ -1,5 +1,9 @@
-import { KeyPair, SecretKey } from "@0xflick/crypto-utils";
-import { Address, Tap, Tx } from "@0xflick/tapscript";
+import {
+  get_keypair,
+  get_pubkey,
+  get_seckey,
+} from "@cmdcode/crypto-tools/keys";
+import { Address, Tap, Tx } from "@cmdcode/tapscript";
 import { groupFundings, GroupableFunding } from "./groupings.js";
 
 import {
@@ -47,8 +51,8 @@ function generateTapscriptAddress(privateKey?: string): string {
   if (!privateKey) {
     privateKey = generatePrivKey();
   }
-  const secKey = new KeyPair(privateKey);
-  const pubKey = secKey.pub.x;
+  const secKey = get_seckey(privateKey);
+  const pubKey = get_pubkey(secKey);
   return Address.p2tr.encode(
     Tap.getPubKey(pubKey)[0],
     networkNamesToTapScriptName(TEST_NETWORK),
@@ -90,12 +94,13 @@ async function createFunding(
   const input: RevealTransactionInput = {
     leaf: funding.genesisLeaf,
     tapkey: funding.genesisTapKey,
-    cblock: funding.genesisCblock,
+    cblock: funding.genesisCBlock,
     script: funding.genesisScript,
+    rootTapKey: funding.rootTapKey,
     vout: 0,
     txid,
     amount: Number(bitcoinToSats(funding.amount)),
-    secKey: new Uint8Array(funding.secKey),
+    secKey: funding.secKey,
     padding: funding.padding,
     inscriptions: funding.inscriptionsToWrite,
   };
@@ -106,12 +111,12 @@ async function createFunding(
     const parentVout = parseInt(parentInscriptionId.split("i")[1]) || 0;
     // Use a valid private key for parent transactions
     const parentPrivKey = generatePrivKey();
-    const secKey = new KeyPair(parentPrivKey);
+    const secKey = get_seckey(parentPrivKey);
 
     parentTx = {
       vin: { txid: parentTxid, vout: parentVout },
       value: 546,
-      secKey: new SecretKey(Buffer.from(secKey.raw)),
+      secKey,
       destinationAddress: parentAddress,
     };
   }
