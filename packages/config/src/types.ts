@@ -1,7 +1,7 @@
 import { Chain } from "@wagmi/core/chains";
 import type { config } from "./wagmi/index.js";
 
-export type TDeployment = "localstack" | "aws";
+export type TDeployment = "localstack" | "aws" | "test";
 
 export interface IDeploymentConfig {
   name: TDeployment;

@@ -11,10 +11,15 @@ export function createDb(opts?: DynamoDBClientConfig) {
     ...(process.env.MOCK_DYNAMODB_ENDPOINT && {
       endpoint: process.env.MOCK_DYNAMODB_ENDPOINT,
       sslEnabled: false,
-      region: "local",
+      region: "us-east-1",
+      credentials: {
+        accessKeyId: "test",
+        secretAccessKey: "test",
+      },
     }),
     ...opts,
   };
+  console.log(config);
   const ddb = new DynamoDBClient(config);
   return DynamoDBDocumentClient.from(ddb, {
     marshallOptions: {

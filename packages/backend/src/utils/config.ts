@@ -6,6 +6,8 @@ const deploymentName = config.deployment.name;
 export const awsEndpoint = lazySingleton(() => {
   return process.env.AWS_ENDPOINT_URL ?? deploymentName === "localstack"
     ? "http://localhost.localstack.cloud:4566"
+    : deploymentName === "test"
+    ? "http://localhost:8000"
     : undefined;
 });
 

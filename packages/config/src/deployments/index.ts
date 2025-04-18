@@ -19,8 +19,10 @@ export const deployment = lazySingleton(() => {
   if (!process.env.DEPLOYMENT) {
     throw new Error("DEPLOYMENT env var not defined");
   }
-  if (!["localstack", "aws"].includes(process.env.DEPLOYMENT)) {
-    throw new Error(`${process.env.DEPLOYMENT} is not one of localstack, aws`);
+  if (!["localstack", "aws", "test"].includes(process.env.DEPLOYMENT)) {
+    throw new Error(
+      `${process.env.DEPLOYMENT} is not one of localstack, aws, test`,
+    );
   }
   return process.env.DEPLOYMENT;
 });
