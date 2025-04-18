@@ -304,7 +304,7 @@ function buildTxAtFeeRate(
     ];
   }
   const step = 5;
-  const feePercentCandidates = [];
+  const feePercentCandidates: number[] = [];
   for (
     let percent = maxPlatformFeePercent;
     percent >= minPlatformFeePercent;
