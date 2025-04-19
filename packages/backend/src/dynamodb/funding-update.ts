@@ -197,12 +197,12 @@ export async function updateCollectionFunding({
       type: "address-inscription",
       createdAt: new Date(),
     }),
-    ...writableInscriptions.map((f, index) =>
+    ...writableInscriptions.map((f) =>
       fundingDocDao.saveInscriptionContent({
         id: {
           fundingAddress,
           id,
-          inscriptionIndex: index,
+          inscriptionIndex: f.pointerIndex ?? 0,
         },
         content: f.file!.content,
         mimetype: f.file!.mimetype,

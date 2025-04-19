@@ -1,3 +1,5 @@
-import { IAwsConfig } from "../types.js";
+import { IAwsConfig, TDeployment } from "../types.js";
 
-export const awsConfig: IAwsConfig = {};
+export const awsConfig: IAwsConfig = {
+  name: "default" as TDeployment,
+};

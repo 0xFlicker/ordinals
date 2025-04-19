@@ -4,7 +4,7 @@ const { compilerOptions } = require("./tsconfig.json");
 // Add any custom config to be passed to Jest
 /** @type { import('@jest/types').Config.InitialOptions } */
 module.exports = {
-  // preset: "jest-dynalite",
+  preset: "@0xflick/jest-dynamodb",
   testEnvironment: "node",
   // also treat .mjs as ESM so your jest.setup.mjs import gets picked up
   extensionsToTreatAsEsm: [".ts"],

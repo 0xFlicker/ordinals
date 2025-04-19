@@ -31,7 +31,7 @@ export interface DestinationInscriptionFile {
 
 export interface WritableInscription {
   destinationAddress: string;
-  pointerIndex?: number;
+  pointerIndex: number;
   file: InscriptionFile;
 }
 

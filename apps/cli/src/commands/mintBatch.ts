@@ -3,7 +3,6 @@ import {
   generatePrivKey,
   broadcastTx,
   BitcoinNetworkNames,
-  waitForInscriptionFunding,
   networkNamesToTapScriptName,
   generateFundableGenesisTransaction,
   bitcoinToSats,
@@ -12,10 +11,9 @@ import {
 import { lookup } from "mime-types";
 import fs from "fs";
 import { Address, Tx, Tap } from "@cmdcode/tapscript";
-import { SecretKey, KeyPair } from "@cmdcode/crypto-tools";
 import { sendBitcoin } from "../bitcoin.js";
 import { createMempoolBitcoinClient } from "../mempool.js";
-
+import { get_seckey, get_pubkey } from "@cmdcode/crypto-tools/keys";
 export async function mintChild({
   address,
   network,
@@ -55,8 +53,8 @@ export async function mintChild({
 }) {
   if (destinationParentAddress === "auto") {
     const privKey = generatePrivKey();
-    const secKey = new KeyPair(privKey);
-    const pubkey = secKey.pub.x;
+    const secKey = get_seckey(privKey);
+    const pubkey = get_pubkey(secKey);
     const [tseckey] = Tap.getSecKey(secKey);
     const [tpubkey, cblock] = Tap.getPubKey(pubkey);
     const address = Address.p2tr.encode(
@@ -96,10 +94,15 @@ export async function mintChild({
         value: voutAmount,
         scriptPubKey: destinationParentAddressScript,
       },
-      secKey: new SecretKey(Buffer.from(parentSecKey, "hex")),
+      secKey: parentSecKey,
       txid: parentTxid,
       value: voutAmount,
-      vout: parentIndex,
+      vout: [
+        {
+          index: parentIndex,
+          scriptPubKey: destinationParentAddressScript,
+        },
+      ],
       inscriptionId: parentInscription,
     },
   ];
@@ -154,11 +157,11 @@ export async function mintChild({
     feeRateRange: [fastestFee, hourFee],
     inputs: [
       {
-        address: address,
         amount: Number(bitcoinToSats(response.amount)),
-        cblock: response.genesisCblock,
+        cblock: response.genesisCBlock,
         leaf: response.genesisLeaf,
         script: response.genesisScript,
+        rootTapKey: response.rootTapKey,
         tapkey: response.genesisTapKey,
         vout,
         txid,

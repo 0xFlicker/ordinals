@@ -700,7 +700,6 @@ export class FundingDao<
   }
 
   public async createFunding(item: IAddressInscriptionModel<ItemMeta>) {
-    console.log(FundingDao.TABLE_NAME);
     const db = this.toFundingDb(item);
     await this.client.send(
       new PutCommand({

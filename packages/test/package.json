@@ -9,6 +9,8 @@
     "test": "AWS_SECRET_ACCESS_KEY=test AWS_ACCESS_KEY_ID=test node --experimental-vm-modules $(yarn bin jest)"
   },
   "devDependencies": {
+    "@0xflick/jest-dynamodb": "^4.0.1-pre.2",
+    "@shelf/jest-dynamodb": "^3.5.0",
     "@types/s3rver": "^3.7.4",
     "dotenv": "^16.5.0",
     "jest": "^29.7.0",

@@ -19,7 +19,6 @@ export function createDb(opts?: DynamoDBClientConfig) {
     }),
     ...opts,
   };
-  console.log(config);
   const ddb = new DynamoDBClient(config);
   return DynamoDBDocumentClient.from(ddb, {
     marshallOptions: {

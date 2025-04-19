@@ -9,6 +9,7 @@ export interface IDeploymentConfig {
 }
 
 export interface IAwsConfig {
+  name: TDeployment;
   region?: string;
   accessKeyId?: string;
   secretAccessKey?: string;

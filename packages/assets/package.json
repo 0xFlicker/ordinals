@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^1.7.2",
-    "canvas": "^2.11.2",
+    "canvas": "github:Automattic/node-canvas#1234a86f65b2318906334ce0790cd12401c67a25",
     "ethers": "^5.7.2",
     "ipfs-http-client": "^60.0.0",
     "minimist": "^1.2.5"

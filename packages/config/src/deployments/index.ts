@@ -2,6 +2,7 @@ import { TDeployment } from "../types.js";
 import { awsConfig as defaultAwsConfig } from "./default.js";
 import { awsConfig as localAwsConfig } from "./local.js";
 import { awsConfig as awsAwsConfig } from "./aws.js";
+import { awsConfig as testAwsConfig } from "./test.js";
 import { lazySingleton } from "../lazy.js";
 
 export function getAwsConfig(_deployment?: TDeployment) {
@@ -10,6 +11,8 @@ export function getAwsConfig(_deployment?: TDeployment) {
       return localAwsConfig;
     case "aws":
       return awsAwsConfig;
+    case "test":
+      return testAwsConfig;
     default:
       return defaultAwsConfig;
   }

@@ -1,0 +1,88 @@
+# docker-compose.yml
+version: "3.7"
+
+services:
+  bitcoind:
+    build: ./docker/bitcoind
+    container_name: bitcoind
+    command: >
+      -conf=/home/bitcoin/.bitcoin/bitcoin.conf
+      -regtest
+    ports:
+      - "18443:18443"
+      - "28332:28332"
+      - "28333:28333"
+    volumes:
+      - bitcoind_data:/bitcoin
+
+  electrs:
+    build: ./docker/electrs
+    container_name: electrs
+    ports:
+      - "60001:60001"
+    environment:
+      BITCOIN_RPC_HOST: bitcoind
+      BITCOIN_RPC_PORT: "18443"
+      BITCOIN_RPC_USER: test
+      BITCOIN_RPC_PASS: test
+    depends_on:
+      - bitcoind
+
+  db:
+    image: mariadb:10.5.21
+    container_name: mempool_db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: mempool
+      MYSQL_USER: mempool
+      MYSQL_PASSWORD: mempool
+    restart: on-failure
+    stop_grace_period: 1m
+    volumes:
+      - mempool_db_data:/var/lib/mysql
+
+  api:
+    image: mempool/backend:latest
+    container_name: mempool_api
+    environment:
+      MEMPOOL_NETWORK: "regtest"
+      MEMPOOL_BACKEND: "electrum"
+      ELECTRUM_HOST: electrs
+      ELECTRUM_PORT: "60001"
+      ELECTRUM_TLS_ENABLED: "false"
+      CORE_RPC_HOST: bitcoind
+      CORE_RPC_PORT: "18443"
+      CORE_RPC_USERNAME: "test"
+      CORE_RPC_PASSWORD: "test"
+      DATABASE_ENABLED: "true"
+      DATABASE_HOST: db
+      DATABASE_DATABASE: mempool
+      DATABASE_USERNAME: mempool
+      DATABASE_PASSWORD: mempool
+      STATISTICS_ENABLED: "true"
+    depends_on:
+      - db
+      - electrs
+      - bitcoind
+    command: >
+      ./wait-for-it.sh db:3306 --timeout=720 --strict -- ./start.sh
+    volumes:
+      - mempool_cache_data:/backend/cache
+
+  web:
+    image: mempool/frontend:latest
+    container_name: mempool_web
+    environment:
+      BACKEND_MAINNET_HTTP_HOST: api
+      FRONTEND_HTTP_PORT: "8080"
+    ports:
+      - "4080:8080"
+    depends_on:
+      - api
+    command: >
+      ./wait-for db:3306 --timeout=720 -- nginx -g 'daemon off;'
+
+volumes:
+  bitcoind_data:
+  mempool_db_data:
+  mempool_cache_data:
