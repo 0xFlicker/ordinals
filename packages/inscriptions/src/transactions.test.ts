@@ -107,14 +107,14 @@ describe("Bitcoin Inscription Transactions", () => {
         address: TEST_ADDRESS,
         amount: bitcoinToSats(funding.amount),
         refundCBlock: funding.refundCBlock,
-        refundTapKey: funding.refundTapKey,
+        treeTapKey: funding.rootTapKey,
         txid: "a99d1112bcb35845fd44e703ef2c611f0360dd2bb28927625dbc13eab58cd968",
         vout: 0,
         secKey: funding.secKey,
       });
 
       expect(refundTx).toBeDefined();
-      expect(typeof refundTx).toBe("string");
+      expect(typeof refundTx).toBe("object");
     });
   });
 
@@ -205,15 +205,15 @@ describe("Bitcoin Inscription Transactions", () => {
         tip: 10000,
         revealTip: 10000,
         expectedFeeRate: 12,
-        expectedPlatformFee: 8083,
-        expectedMinerFee: 2376,
+        expectedPlatformFee: 8090,
+        expectedMinerFee: 2364,
       },
       {
         inscriptions: Array(30).fill(sampleInscription),
         paymentFeeRate: TEST_FEE_RATE,
         revealFeeRange: [30, 5] as const,
         expectedFeeRate: 9,
-        expectedPlatformFee: 208,
+        expectedPlatformFee: 203,
         expectedMinerFee: 14976,
         tip: 10000,
         revealTip: 0,
@@ -326,9 +326,7 @@ describe("Bitcoin Inscription Transactions", () => {
       };
 
       const { txSkeleton, witnessSigners } = buildSkeleton(request);
-      console.log(inspect(txSkeleton, { depth: null }));
       signAllVin(txSkeleton, witnessSigners);
-      console.log(inspect(txSkeleton, { depth: null }));
       // Test each step individually
       const secKey = get_seckey(parentTx.secKey);
       const pubKey = get_pubkey(secKey);

@@ -3,28 +3,24 @@ import { get_pubkey } from "@cmdcode/crypto-tools/keys";
 
 export interface RefundTransactionRequest {
   feeRate: number;
-  refundTapKey: string;
   refundCBlock: string;
-  tweakedTreeTapKey: string;
+  treeTapKey: string;
   secKey: Uint8Array;
   txid: string;
   vout: number;
   amount: number | bigint;
   address: string;
-  scriptPubKey: string;
 }
 
 export async function generateRefundTransaction({
   feeRate,
-  refundTapKey,
   refundCBlock,
-  tweakedTreeTapKey,
+  treeTapKey,
   secKey,
   txid,
   vout,
   amount,
   address,
-  scriptPubKey,
 }: RefundTransactionRequest) {
   const pubKey = get_pubkey(secKey, true);
 
@@ -38,7 +34,7 @@ export async function generateRefundTransaction({
         vout: vout,
         prevout: {
           value: amount,
-          scriptPubKey: ["OP_1", tweakedTreeTapKey],
+          scriptPubKey: ["OP_1", treeTapKey],
         },
       },
     ],
@@ -68,7 +64,7 @@ export async function generateRefundTransaction({
         vout: vout,
         prevout: {
           value: amount,
-          scriptPubKey: ["OP_1", tweakedTreeTapKey],
+          scriptPubKey: ["OP_1", treeTapKey],
         },
       },
     ],
