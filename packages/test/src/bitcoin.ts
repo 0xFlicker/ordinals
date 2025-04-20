@@ -12,7 +12,6 @@ const createClient = ({
   rpcwallet?: string;
 } = {}) =>
   new Client({
-    network,
     username: rpcuser!,
     password: rpcpassword!,
     wallet: rpcwallet,
@@ -36,10 +35,12 @@ export async function createWallet({
   avoidReuse?: boolean;
 }): Promise<{ name: string; warning: string | null }> {
   const client = createClient({ network, rpcuser, rpcpassword });
-  return await client.createWallet(walletName, {
+  return await client.command("createwallet", {
+    wallet_name: walletName,
     disable_private_keys: disablePrivateKeys,
     blank,
     avoid_reuse: avoidReuse,
+    network,
   });
 }
 
@@ -55,7 +56,10 @@ export async function loadWallet({
   rpcpassword?: string;
 }): Promise<void> {
   const client = createClient({ network, rpcuser, rpcpassword });
-  await client.loadWallet(walletName);
+  await client.command("loadwallet", {
+    wallet_name: walletName,
+    network,
+  });
 }
 
 export async function sendRawTransaction({
@@ -70,7 +74,10 @@ export async function sendRawTransaction({
   rpcpassword?: string;
 }): Promise<string> {
   const client = createClient({ network, rpcuser, rpcpassword });
-  return await client.sendRawTransaction(txhex);
+  return await client.command("sendrawtransaction", {
+    txhex,
+    network,
+  });
 }
 
 export async function sendBitcoin({
@@ -96,6 +103,7 @@ export async function sendBitcoin({
   const txid = await client.command("send", {
     outputs,
     fee_rate,
+    network,
   });
 
   return { txid };
@@ -117,7 +125,11 @@ export async function generateBlock({
   amount?: number;
 }): Promise<string[]> {
   const client = createClient({ network, rpcuser, rpcpassword, rpcwallet });
-  return await client.generateToAddress(amount, address);
+  return await client.command("generatetoaddress", {
+    amount,
+    address,
+    network,
+  });
 }
 
 export async function getNewAddress({
@@ -132,5 +144,8 @@ export async function getNewAddress({
   rpcwallet?: string;
 }): Promise<string> {
   const client = createClient({ network, rpcuser, rpcpassword, rpcwallet });
-  return await client.getNewAddress("", "bech32m");
+  return await client.command("getnewaddress", {
+    address_type: "bech32",
+    network,
+  });
 }
