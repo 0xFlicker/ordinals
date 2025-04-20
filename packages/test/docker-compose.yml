@@ -3,7 +3,9 @@ version: "3.7"
 
 services:
   bitcoind:
-    build: ./docker/bitcoind
+    build: 
+      context: ./docker/bitcoind
+      dockerfile: Dockerfile
     container_name: bitcoind
     command: >
       -conf=/home/bitcoin/.bitcoin/bitcoin.conf
@@ -15,9 +17,17 @@ services:
     volumes:
       - bitcoind_data:/bitcoin
     stop_grace_period: 1s
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-regtest", "-rpcuser=test", "-rpcpassword=test", "getblockchaininfo"]
+      interval: 1s
+      timeout: 10s
+      retries: 30
+      start_period: 1s
 
   electrs:
-    build: ./docker/electrs
+    build: 
+      context: ./docker/electrs
+      dockerfile: Dockerfile
     container_name: electrs
     ports:
       - "60001:60001"
@@ -25,7 +35,8 @@ services:
       BITCOIN_RPC_HOST: bitcoind
       BITCOIN_RPC_PORT: "18443"
     depends_on:
-      - bitcoind
+      bitcoind:
+        condition: service_healthy
     stop_grace_period: 1s
 
   db:
@@ -61,9 +72,12 @@ services:
       DATABASE_PASSWORD: mempool
       STATISTICS_ENABLED: "true"
     depends_on:
-      - db
-      - electrs
-      - bitcoind
+      db:
+        condition: service_started
+      electrs:
+        condition: service_started
+      bitcoind:
+        condition: service_healthy
     command: >
       ./wait-for-it.sh db:3306 --timeout=720 --strict -- ./start.sh
     volumes:
