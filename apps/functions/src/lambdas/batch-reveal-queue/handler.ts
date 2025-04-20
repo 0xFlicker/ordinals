@@ -1,5 +1,4 @@
 import { Handler } from "aws-lambda";
-import { KeyPair } from "@cmdcode/crypto-tools";
 import {
   createDynamoDbBatchDao,
   createDynamoDbFundingDao,
@@ -166,12 +165,13 @@ export const handler: Handler = async () => {
         sizeEstimate: funding.sizeEstimate,
         input: {
           amount: funding.fundingAmountSat,
-          leaf: doc.initLeaf,
-          tapkey: doc.initTapKey,
-          cblock: doc.initCBlock,
+          leaf: doc.genesisLeaf,
+          tapkey: doc.genesisTapKey,
+          cblock: doc.genesisCBlock,
           padding: doc.padding,
-          script: doc.initScript,
-          secKey: new KeyPair(doc.secKey),
+          script: doc.genesisScript,
+          secKey: Buffer.from(doc.secKey, "base64"),
+          rootTapKey: doc.rootTapKey,
           inscriptions: doc.writableInscriptions,
           txid: funding.fundingTxid,
           vout: funding.fundingVout,
