@@ -18,6 +18,7 @@ export interface RevealTransactionInput {
   tapkey: string;
   cblock: string;
   rootTapKey: string;
+  genesisTweakedPubKey: string;
   script: BitcoinScriptData[];
   vout: number;
   txid: string;
@@ -501,19 +502,17 @@ export function buildSkeleton(request: RevealTransactionRequest): {
   // Inputs & Inscriptions
   let indexOffset = parentTxs?.length ?? 0;
   for (let i = indexOffset; i < inputs.length + indexOffset; i++) {
-    let index = i;
-    const input = inputs[index - indexOffset];
-    const secKey = get_seckey(input.secKey);
+    const input = inputs[i - indexOffset];
     witnessSigners.push(() => {
-      const [tseckey] = Tap.getSecKey(secKey);
-      const script = serializedScriptToScriptData(input.script);
-      const target = Tap.encodeScript(script);
-
-      const sig = Signer.taproot.sign(tseckey, txSkeleton, index, {
-        extension: target,
+      const secKey = get_seckey(input.secKey);
+      const sig = Signer.taproot.sign(secKey.to_bytes(), txSkeleton, i, {
+        extension: input.leaf,
       });
-
-      return [sig.hex, script, input.cblock];
+      return [
+        sig.hex,
+        serializedScriptToScriptData(input.script),
+        input.cblock,
+      ];
     });
 
     vin.push({
@@ -521,7 +520,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
       vout: input.vout,
       prevout: {
         value: input.amount,
-        scriptPubKey: ["OP_1", input.rootTapKey],
+        scriptPubKey: ["OP_1", input.genesisTweakedPubKey],
       },
     });
 

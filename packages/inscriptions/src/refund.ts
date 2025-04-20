@@ -5,24 +5,29 @@ export interface RefundTransactionRequest {
   feeRate: number;
   refundTapKey: string;
   refundCBlock: string;
+  tweakedTreeTapKey: string;
   secKey: Uint8Array;
   txid: string;
   vout: number;
   amount: number | bigint;
   address: string;
+  scriptPubKey: string;
 }
 
 export async function generateRefundTransaction({
   feeRate,
   refundTapKey,
   refundCBlock,
+  tweakedTreeTapKey,
   secKey,
   txid,
   vout,
   amount,
   address,
+  scriptPubKey,
 }: RefundTransactionRequest) {
-  const pubKey = get_pubkey(secKey);
+  const pubKey = get_pubkey(secKey, true);
+
   const refundScript = [pubKey, "OP_CHECKSIG"];
 
   // Create template tx with full amount to calculate size with witness
@@ -33,7 +38,7 @@ export async function generateRefundTransaction({
         vout: vout,
         prevout: {
           value: amount,
-          scriptPubKey: ["OP_1", refundTapKey],
+          scriptPubKey: ["OP_1", tweakedTreeTapKey],
         },
       },
     ],
@@ -63,7 +68,7 @@ export async function generateRefundTransaction({
         vout: vout,
         prevout: {
           value: amount,
-          scriptPubKey: ["OP_1", refundTapKey],
+          scriptPubKey: ["OP_1", tweakedTreeTapKey],
         },
       },
     ],
@@ -86,5 +91,5 @@ export async function generateRefundTransaction({
   if (!isValid) {
     throw new Error("Invalid signature");
   }
-  return Tx.encode(refundTx).hex;
+  return refundTx;
 }
