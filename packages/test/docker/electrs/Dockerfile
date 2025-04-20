@@ -30,10 +30,12 @@ RUN git clone --depth 1 --branch v${ELECTRS_VERSION} \
 # Build in release mode
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
   --mount=type=cache,target=/usr/src/electrs/target \
+  --mount=type=tmpfs,target=/tmp/build-output \
   CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-4} \
   RUSTFLAGS="${RUSTFLAGS:--C target-cpu=native}" \
   cargo build --release && \
-  ls -la /usr/src/electrs/target/release/electrs
+  cp /usr/src/electrs/target/release/electrs /tmp/build-output/ && \
+  ls -la /tmp/build-output/electrs
 
 ########################################
 # Stage 2: Runtime image
@@ -50,7 +52,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
   rm -rf /var/lib/apt/lists/*
 
 # Copy the statically-built binary
-COPY --from=builder /usr/src/electrs/target/release/electrs /usr/local/bin/electrs
+COPY --from=builder /tmp/build-output/electrs /usr/local/bin/electrs
 
 # Copy your electrs config
 COPY config/electrs.toml /etc/electrs/config.toml
