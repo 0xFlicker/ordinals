@@ -14,8 +14,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           buildkitd-flags: --debug
-          driver-opts: |
-            image=moby/buildkit:latest
 
       - name: Cache Docker layers
         uses: actions/cache@v3
@@ -47,7 +45,6 @@ jobs:
           build-args: |
             CARGO_BUILD_JOBS=4
             RUSTFLAGS="-C target-cpu=native"
-          platforms: linux/amd64
 
       - name: Move cache
         run: |

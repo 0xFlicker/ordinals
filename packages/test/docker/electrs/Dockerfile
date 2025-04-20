@@ -6,9 +6,7 @@
 FROM rust:1.72 AS builder
 
 # Install dependencies for building + bindgen (libclang)
-RUN --mount=type=cache,target=/var/cache/apt \
-  --mount=type=cache,target=/var/lib/apt \
-  apt-get update && \
+RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   pkg-config \
   libssl-dev \
@@ -29,13 +27,10 @@ RUN git clone --depth 1 --branch v${ELECTRS_VERSION} \
 
 # Build in release mode
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-  --mount=type=cache,target=/usr/src/electrs/target \
-  --mount=type=tmpfs,target=/tmp/build-output \
   CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-4} \
   RUSTFLAGS="${RUSTFLAGS:--C target-cpu=native}" \
   cargo build --release && \
-  cp /usr/src/electrs/target/release/electrs /tmp/build-output/ && \
-  ls -la /tmp/build-output/electrs
+  ls -la /usr/src/electrs/target/release/electrs
 
 ########################################
 # Stage 2: Runtime image
@@ -43,16 +38,14 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM debian:bookworm-slim
 
 # Runtime deps for electrs
-RUN --mount=type=cache,target=/var/cache/apt \
-  --mount=type=cache,target=/var/lib/apt \
-  apt-get update && \
+RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   libssl3 \
   ca-certificates && \
   rm -rf /var/lib/apt/lists/*
 
 # Copy the statically-built binary
-COPY --from=builder /tmp/build-output/electrs /usr/local/bin/electrs
+COPY --from=builder /usr/src/electrs/target/release/electrs /usr/local/bin/electrs
 
 # Copy your electrs config
 COPY config/electrs.toml /etc/electrs/config.toml
