@@ -90,19 +90,6 @@ export async function upgradeJwtTokenNewAddress({
   return newJws;
 }
 
-export const promisePrivateKey = new Promise<KeyLike>(
-  async (resolve, reject) => {
-    if ((global as any).promisePrivateKeys) {
-      await (global as any).promisePrivateKeys;
-    }
-    process.env.JWT_PRIVATE_KEY &&
-      importPKCS8(process.env.JWT_PRIVATE_KEY, "ECDH-ES+A128KW").then(
-        resolve,
-        reject,
-      );
-  },
-);
-
 export const jwkKey = new Promise<KeyLike>(async (resolve, reject) => {
   if ((global as any).promisePrivateKeys) {
     await (global as any).promisePrivateKeys;

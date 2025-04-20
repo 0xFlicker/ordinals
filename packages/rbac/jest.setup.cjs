@@ -1,11 +1,22 @@
+const jose = require("jose");
+const dotenv = require("dotenv");
+const path = require("path");
+dotenv.config({
+  path: path.resolve(__dirname, ".env.test"),
+});
 
-const jose = require('jose');
+if (process.env.AWS_PROFILE) {
+  delete process.env.AWS_PROFILE;
+}
 
 async function doIt() {
-  const { publicKey, privateKey } = await jose.generateKeyPair('ECDH-ES+A128KW', {
-    extractable: true,
-    crv: 'P-521',
-  })
+  const { publicKey, privateKey } = await jose.generateKeyPair(
+    "ECDH-ES+A128KW",
+    {
+      extractable: true,
+      crv: "P-521",
+    },
+  );
   const pkcs8Pem = await jose.exportPKCS8(privateKey);
   const spkiPem = await jose.exportSPKI(publicKey);
   const JWK = await jose.exportJWK(privateKey);

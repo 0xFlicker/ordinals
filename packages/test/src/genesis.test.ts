@@ -38,6 +38,7 @@ import {
   sendRawTransaction,
 } from "./bitcoin";
 import { checkTxo, fetchFunding } from "./mempool";
+import { retryWithBackOff } from "@0xflick/ordinals-backend/src/utils/retry";
 
 async function waitForFunding(
   address: string,
@@ -47,18 +48,39 @@ async function waitForFunding(
   const mempoolBitcoinClient = createMempoolBitcoinClient({
     network,
   });
-  while (true) {
-    try {
-      return await checkTxo({
-        address,
-        mempoolBitcoinClient,
-        findValue: value,
-      });
-    } catch (e) {
-      console.log("Waiting for funding...");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    }
-  }
+
+  // Use retryWithBackOff to handle 5xx errors with exponential backoff
+  return retryWithBackOff(
+    async () => {
+      try {
+        return await checkTxo({
+          address,
+          mempoolBitcoinClient,
+          findValue: value,
+        });
+      } catch (e) {
+        // Check if the error is a 5xx status code error
+        if (e instanceof Error) {
+          const statusCode = parseInt(e.message);
+          if (!isNaN(statusCode) && statusCode >= 500 && statusCode < 600) {
+            console.log(`Received ${statusCode} error, retrying...`);
+            throw e; // Rethrow to trigger retry
+          }
+        }
+
+        // For other errors, just wait and try again
+        console.log("Waiting for funding...");
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        return await checkTxo({
+          address,
+          mempoolBitcoinClient,
+          findValue: value,
+        });
+      }
+    },
+    5, // maxRetries
+    1000, // initial backoff in ms
+  );
 }
 
 const generateInscriptionAddress = (
@@ -352,13 +374,11 @@ describe("genesis", () => {
       address: TIP_DESTINATION.inscriptionAddress,
       amount,
       feeRate: 1,
-      refundTapKey: genesisResponse.refundTapKey,
       refundCBlock: genesisResponse.refundCBlock,
-      tweakedTreeTapKey: genesisResponse.rootTapKey,
+      treeTapKey: genesisResponse.rootTapKey,
       secKey: genesisResponse.secKey,
       txid,
       vout,
-      scriptPubKey,
     });
 
     // broadcast the refund transaction

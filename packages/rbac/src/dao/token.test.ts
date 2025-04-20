@@ -1,7 +1,7 @@
 import { getDb } from "@0xflick/ordinals-backend";
 import { v4 as createUuid } from "uuid";
 import { UserDAO } from "./user.js";
-import { createJwtTokenSingleSubject, promisePrivateKey } from "./token.js";
+import { createJwtTokenSingleSubject, jwkKey } from "./token.js";
 import {
   TokenModel,
   promisePublicKey,
@@ -22,7 +22,7 @@ describe("#Token DAO", () => {
       ),
     );
     const pubKey = await promisePublicKey;
-    const privKey = await promisePrivateKey;
+    const privKey = await jwkKey;
 
     const jwe = await ge
       .setProtectedHeader({
