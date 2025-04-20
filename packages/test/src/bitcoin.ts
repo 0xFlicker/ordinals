@@ -1,14 +1,28 @@
-import { exec as execCallback } from "child_process";
-import { promisify } from "util";
+import Client from "bitcoin-core";
 
-const exec = promisify(execCallback);
-
-// Function to create a new Bitcoin wallet
-export async function createWallet({
-  walletName,
+const createClient = ({
   network = "regtest",
   rpcuser = process.env.RPC_USER,
   rpcpassword = process.env.RPC_PASSWORD,
+  rpcwallet = process.env.RPC_WALLET,
+}: {
+  network?: string;
+  rpcuser?: string;
+  rpcpassword?: string;
+  rpcwallet?: string;
+} = {}) =>
+  new Client({
+    network,
+    username: rpcuser!,
+    password: rpcpassword!,
+    wallet: rpcwallet,
+  });
+
+export async function createWallet({
+  walletName,
+  network,
+  rpcuser,
+  rpcpassword,
   disablePrivateKeys = false,
   blank = false,
   avoidReuse = false,
@@ -21,81 +35,51 @@ export async function createWallet({
   blank?: boolean;
   avoidReuse?: boolean;
 }): Promise<{ name: string; warning: string | null }> {
-  const networkFlag = network === "regtest" ? "-regtest" : "";
-  const args = [
-    networkFlag,
-    ...(rpcuser ? ["-rpcuser=" + rpcuser] : []),
-    ...(rpcpassword ? ["-rpcpassword=" + rpcpassword] : []),
-    "createwallet",
-    walletName,
-    ...(disablePrivateKeys ? ["disable_private_keys"] : []),
-    ...(blank ? ["blank"] : []),
-    ...(avoidReuse ? ["avoid_reuse"] : []),
-  ].filter(Boolean);
-
-  console.log("bitcoin-cli", args.join(" "));
-  const { stdout } = await exec("bitcoin-cli " + args.join(" "));
-  return JSON.parse(stdout);
+  const client = createClient({ network, rpcuser, rpcpassword });
+  return await client.createWallet(walletName, {
+    disable_private_keys: disablePrivateKeys,
+    blank,
+    avoid_reuse: avoidReuse,
+  });
 }
 
-// Function to load an existing Bitcoin wallet
 export async function loadWallet({
   walletName,
-  network = "regtest",
-  rpcuser = process.env.RPC_USER,
-  rpcpassword = process.env.RPC_PASSWORD,
+  network,
+  rpcuser,
+  rpcpassword,
 }: {
   walletName: string;
   network?: string;
   rpcuser?: string;
   rpcpassword?: string;
 }): Promise<void> {
-  const networkFlag = network === "regtest" ? "-regtest" : "";
-  const args = [
-    networkFlag,
-    ...(rpcuser ? ["-rpcuser=" + rpcuser] : []),
-    ...(rpcpassword ? ["-rpcpassword=" + rpcpassword] : []),
-    "loadwallet",
-    walletName,
-  ].filter(Boolean);
-
-  console.log("bitcoin-cli", args.join(" "));
-  await exec("bitcoin-cli " + args.join(" "));
+  const client = createClient({ network, rpcuser, rpcpassword });
+  await client.loadWallet(walletName);
 }
 
 export async function sendRawTransaction({
   txhex,
-  network = "regtest",
-  rpcuser = process.env.RPC_USER,
-  rpcpassword = process.env.RPC_PASSWORD,
+  network,
+  rpcuser,
+  rpcpassword,
 }: {
   txhex: string;
   network?: string;
   rpcuser?: string;
   rpcpassword?: string;
 }): Promise<string> {
-  const networkFlag = network === "regtest" ? "-regtest" : "";
-  const args = [
-    networkFlag,
-    ...(rpcuser ? ["-rpcuser=" + rpcuser] : []),
-    ...(rpcpassword ? ["-rpcpassword=" + rpcpassword] : []),
-    "sendrawtransaction",
-    txhex,
-  ].filter(Boolean);
-
-  console.log("bitcoin-cli", args.join(" "));
-  const { stdout } = await exec("bitcoin-cli " + args.join(" "));
-  return stdout.trim();
+  const client = createClient({ network, rpcuser, rpcpassword });
+  return await client.sendRawTransaction(txhex);
 }
 
-// Function to send bitcoin using bitcoin-cli
 export async function sendBitcoin({
   address,
   amount,
-  network = "regtest",
-  rpcuser = process.env.RPC_USER,
-  rpcpassword = process.env.RPC_PASSWORD,
-  rpcwallet = process.env.RPC_WALLET,
+  network,
+  rpcuser,
+  rpcpassword,
+  rpcwallet,
   fee_rate = 1,
 }: {
   address: string;
@@ -106,29 +90,22 @@ export async function sendBitcoin({
   rpcwallet?: string;
   fee_rate?: number;
 }): Promise<{ txid: string }> {
-  const networkFlag = network === "regtest" ? "-regtest" : "";
-  const args = [
-    networkFlag,
-    ...(rpcuser ? ["-rpcuser=" + rpcuser] : []),
-    ...(rpcpassword ? ["-rpcpassword=" + rpcpassword] : []),
-    ...(rpcwallet ? ["-rpcwallet=" + rpcwallet] : []),
-    "-named",
-    "send",
-    "outputs='" + JSON.stringify({ [address]: amount.toString() }) + "'",
-    "fee_rate=" + fee_rate,
-  ].filter(Boolean);
+  const client = createClient({ network, rpcuser, rpcpassword, rpcwallet });
 
-  console.log("bitcoin-cli", args.join(" "));
-  const { stdout } = await exec("bitcoin-cli " + args.join(" "));
-  return JSON.parse(stdout);
+  const outputs = { [address]: parseFloat(amount) };
+  const txid = await client.command("send", {
+    outputs,
+    fee_rate,
+  });
+
+  return { txid };
 }
 
-// Function to generate a new block
 export async function generateBlock({
-  network = "regtest",
-  rpcuser = process.env.RPC_USER,
-  rpcpassword = process.env.RPC_PASSWORD,
-  rpcwallet = process.env.RPC_WALLET,
+  network,
+  rpcuser,
+  rpcpassword,
+  rpcwallet,
   address,
   amount = 1,
 }: {
@@ -138,46 +115,22 @@ export async function generateBlock({
   rpcwallet?: string;
   address: string;
   amount?: number;
-}): Promise<void> {
-  const networkFlag = network === "regtest" ? "-regtest" : "";
-  const args = [
-    networkFlag,
-    ...(rpcuser ? ["-rpcuser=" + rpcuser] : []),
-    ...(rpcpassword ? ["-rpcpassword=" + rpcpassword] : []),
-    ...(rpcwallet ? ["-rpcwallet=" + rpcwallet] : []),
-    "-named",
-    "generatetoaddress",
-    "address=" + address,
-    "nblocks=" + amount,
-  ].filter(Boolean);
-
-  console.log("bitcoin-cli", args.join(" "));
-  await exec("bitcoin-cli " + args.join(" "));
+}): Promise<string[]> {
+  const client = createClient({ network, rpcuser, rpcpassword, rpcwallet });
+  return await client.generateToAddress(amount, address);
 }
 
-// Function to get a new Bitcoin address
 export async function getNewAddress({
-  network = "regtest",
-  rpcuser = process.env.RPC_USER,
-  rpcpassword = process.env.RPC_PASSWORD,
-  rpcwallet = process.env.RPC_WALLET,
+  network,
+  rpcuser,
+  rpcpassword,
+  rpcwallet,
 }: {
   network?: string;
   rpcuser?: string;
   rpcpassword?: string;
   rpcwallet?: string;
 }): Promise<string> {
-  const networkFlag = network === "regtest" ? "-regtest" : "";
-  const args = [
-    networkFlag,
-    ...(rpcuser ? ["-rpcuser=" + rpcuser] : []),
-    ...(rpcpassword ? ["-rpcpassword=" + rpcpassword] : []),
-    ...(rpcwallet ? ["-rpcwallet=" + rpcwallet] : []),
-    "getnewaddress",
-    "-addresstype=bech32m",
-  ].filter(Boolean);
-
-  console.log("bitcoin-cli", args.join(" "));
-  const { stdout } = await exec("bitcoin-cli " + args.join(" "));
-  return stdout.trim();
+  const client = createClient({ network, rpcuser, rpcpassword, rpcwallet });
+  return await client.getNewAddress("", "bech32m");
 }
