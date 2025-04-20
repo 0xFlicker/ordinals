@@ -48,7 +48,6 @@ jobs:
             CARGO_BUILD_JOBS=4
             RUSTFLAGS="-C target-cpu=native"
           platforms: linux/amd64
-          progress: plain
 
       - name: Move cache
         run: |
