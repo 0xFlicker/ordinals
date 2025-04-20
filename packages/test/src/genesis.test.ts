@@ -133,14 +133,11 @@ describe("genesis", () => {
   beforeAll(async () => {
     await createWallet({
       walletName: "test",
-      network: "regtest",
     });
     generationAddress = await getNewAddress({
-      network: "regtest",
       rpcwallet: "test",
     });
     await generateBlock({
-      network: "regtest",
       rpcwallet: "test",
       address: generationAddress,
       amount: 101,
@@ -188,12 +185,10 @@ describe("genesis", () => {
     await sendBitcoin({
       address,
       amount: "0.0001",
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
     });
 
     await generateBlock({
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       address: generationAddress,
     });
@@ -237,7 +232,6 @@ describe("genesis", () => {
 
     const spendTxId = await sendRawTransaction({
       txhex: txHex,
-      network: NETWORK,
     });
 
     console.log(`TxID: ${spendTxId}`);
@@ -262,12 +256,10 @@ describe("genesis", () => {
     await sendBitcoin({
       address,
       amount: "0.0001",
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
     });
 
     await generateBlock({
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       address: generationAddress,
     });
@@ -313,7 +305,6 @@ describe("genesis", () => {
 
     const spendTxId = await sendRawTransaction({
       txhex: txHex,
-      network: NETWORK,
     });
 
     console.log(`TxID: ${spendTxId}`);
@@ -349,7 +340,6 @@ describe("genesis", () => {
     const fundingResult = await sendBitcoin({
       address: genesisResponse.fundingAddress,
       amount: genesisResponse.amount,
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
     });
 
@@ -357,7 +347,6 @@ describe("genesis", () => {
 
     // generate a new block
     await generateBlock({
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress,
     });
@@ -386,13 +375,11 @@ describe("genesis", () => {
     console.log(`Refund transaction hex: ${refundTxHex}`);
     const refundResult = await sendRawTransaction({
       txhex: refundTxHex,
-      network: NETWORK,
     });
     console.log(`Refund transaction ID: ${refundResult}`);
 
     // generate a new block
     await generateBlock({
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       address: generationAddress,
     });
@@ -441,7 +428,6 @@ describe("genesis", () => {
     const fundingResult = await sendBitcoin({
       address: genesisResponse.fundingAddress,
       amount: genesisResponse.amount,
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       fee_rate: 1,
     });
@@ -451,7 +437,6 @@ describe("genesis", () => {
     // Generate a new block to confirm the transaction
     console.log(`\nGenerating a new block to confirm the transaction...`);
     await generateBlock({
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress, // Use the tip destination address to receive the block reward
     });
@@ -504,7 +489,6 @@ describe("genesis", () => {
 
     const revealTxId = await sendRawTransaction({
       txhex: revealTx.hex,
-      network: NETWORK,
     });
     console.log(`Reveal transaction ID: ${revealTxId}`);
 
@@ -513,7 +497,6 @@ describe("genesis", () => {
       `\nGenerating a new block to confirm the reveal transaction...`,
     );
     await generateBlock({
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress,
     });
@@ -633,7 +616,6 @@ describe("genesis", () => {
     const fundingResult = await sendBitcoin({
       address: genesisResponse.fundingAddress,
       amount: genesisResponse.amount,
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       fee_rate: 1,
     });
@@ -643,7 +625,6 @@ describe("genesis", () => {
     // Generate a new block to confirm the transaction
     console.log(`\nGenerating a new block to confirm the transaction...`);
     await generateBlock({
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress, // Use the tip destination address to receive the block reward
     });
@@ -729,7 +710,6 @@ describe("genesis", () => {
     console.log(`\nBroadcasting the reveal transaction...`);
     const revealTxId = await sendRawTransaction({
       txhex: revealTx.hex,
-      network: NETWORK,
     });
     console.log(`Reveal transaction ID: ${revealTxId}`);
 
@@ -738,7 +718,6 @@ describe("genesis", () => {
       `\nGenerating a new block to confirm the reveal transaction...`,
     );
     await generateBlock({
-      network: NETWORK,
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress,
     });
