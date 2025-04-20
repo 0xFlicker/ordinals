@@ -46,7 +46,11 @@ COPY --from=builder /usr/src/electrs/target/release/electrs /usr/local/bin/elect
 # Copy your electrs config
 COPY config/electrs.toml /etc/electrs/config.toml
 
+# Copy the entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 60001
 
-ENTRYPOINT ["electrs"]
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--conf=/etc/electrs/config.toml"]

@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "prepare": "./download-dynamodb-local.sh",
-    "test": "AWS_SECRET_ACCESS_KEY=test AWS_ACCESS_KEY_ID=test node --experimental-vm-modules $(yarn bin jest)"
+    "test": "node --experimental-vm-modules $(yarn bin jest)",
+    "test:fix": "TEARDOWN=false node --experimental-vm-modules $(yarn bin jest)"
   },
   "devDependencies": {
     "@0xflick/jest-dynamodb": "^4.0.1-pre.2",

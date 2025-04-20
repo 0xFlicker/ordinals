@@ -23,10 +23,12 @@ export interface IInscriptionDocCommon {
   genesisLeaf: string;
   genesisCBlock: string;
   genesisScript: BitcoinScriptData[];
+  genesisTweakedPubKey: string;
   refundTapKey: string;
   refundLeaf: string;
   refundCBlock: string;
   rootTapKey: string;
+  refundTweakedPubKey: string;
   refundScript: BitcoinScriptData[];
   secKey: string;
   totalFee: number;

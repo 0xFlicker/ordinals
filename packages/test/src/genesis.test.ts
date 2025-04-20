@@ -4,6 +4,7 @@ import {
   createDynamoDbFundingDao,
   createStorageFundingDocDao,
   createS3Client,
+  createMempoolBitcoinClient,
 } from "@0xflick/ordinals-backend";
 import {
   generateFundableGenesisTransaction,
@@ -13,9 +14,18 @@ import {
   broadcastTx,
   generatePrivKey,
   networkNamesToTapScriptName,
+  bitcoinToSats,
+  generateRefundTransaction,
+  serializedScriptToScriptData,
+  textToHex,
 } from "@0xflick/inscriptions";
-import { get_seckey, get_pubkey } from "@cmdcode/crypto-tools/keys";
-import { Address, Tap } from "@cmdcode/tapscript";
+import {
+  get_seckey,
+  get_pubkey,
+  tweak_pubkey,
+  tweak_seckey,
+} from "@cmdcode/crypto-tools/keys";
+import { Address, Tap, Tx, Script, Signer } from "@cmdcode/tapscript";
 import { randomBytes } from "crypto";
 import { promisify } from "util";
 import { exec as execCallback } from "child_process";
@@ -25,18 +35,40 @@ import {
   createWallet,
   getNewAddress,
   loadWallet,
+  sendRawTransaction,
 } from "./bitcoin";
+import { checkTxo, fetchFunding } from "./mempool";
 
-const exec = promisify(execCallback);
+async function waitForFunding(
+  address: string,
+  network: BitcoinNetworkNames,
+  value: number,
+) {
+  const mempoolBitcoinClient = createMempoolBitcoinClient({
+    network,
+  });
+  while (true) {
+    try {
+      return await checkTxo({
+        address,
+        mempoolBitcoinClient,
+        findValue: value,
+      });
+    } catch (e) {
+      console.log("Waiting for funding...");
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+}
 
 const generateInscriptionAddress = (
   network: BitcoinNetworkNames = "regtest",
 ) => {
   const privKey = generatePrivKey();
   const secKey = get_seckey(privKey);
-  const pubkey = get_pubkey(secKey);
+  const pubKey = get_pubkey(secKey, true);
   const [tseckey] = Tap.getSecKey(secKey);
-  const [tpubkey, cblock] = Tap.getPubKey(pubkey);
+  const [tpubkey, cblock] = Tap.getPubKey(pubKey);
   const inscriptionAddress = Address.p2tr.encode(
     tpubkey,
     networkNamesToTapScriptName(network),
@@ -44,7 +76,7 @@ const generateInscriptionAddress = (
   return {
     privKey,
     secKey,
-    pubkey,
+    pubKey,
     tseckey,
     tpubkey,
     cblock,
@@ -89,7 +121,7 @@ describe("genesis", () => {
       network: "regtest",
       rpcwallet: "test",
       address: generationAddress,
-      amount: 100,
+      amount: 101,
     });
 
     // create the test-bucket
@@ -105,33 +137,171 @@ describe("genesis", () => {
     }
   });
 
-  it("should perform a complete inscription flow end-to-end", async () => {
-    // Step 0: Some constants
-    const TIP_AMOUNT = 5000;
-    // Generate a random tip destination address
-    const TIP_DESTINATION = generateInscriptionAddress();
-    const NETWORK = "regtest";
-    const RPC_WALLET = "test";
+  // Generate a random tip destination address
+  const TIP_DESTINATION = generateInscriptionAddress();
+  const TIP_AMOUNT = 5000;
 
-    // Step 1: Set up DAOs
-    const fundingDao = createDynamoDbFundingDao();
-    const s3Dao = createStorageFundingDocDao({
-      bucketName: "test-bucket",
+  const NETWORK = "regtest";
+  const RPC_WALLET = "test";
+  const mempoolBitcoinClient = createMempoolBitcoinClient({
+    network: NETWORK,
+  });
+
+  it("Can spend a simple pay to public taproot output", async () => {
+    const { pubKey, secKey, privKey, tseckey, inscriptionAddress } =
+      generateInscriptionAddress("regtest");
+
+    const script = [pubKey.to_bytes(), "OP_CHECKSIG"];
+    console.log(`Script: ${script}`);
+    const tapLeaf = Tap.encodeScript(script);
+    const [tweakedSecKey] = Tap.getSecKey(secKey);
+    const [tweakedPubKey] = Tap.getPubKey(pubKey);
+    const address = Address.p2tr.fromPubKey(
+      tweakedPubKey,
+      networkNamesToTapScriptName(NETWORK),
+    );
+
+    console.log(`Address: ${address}`);
+
+    await sendBitcoin({
+      address,
+      amount: "0.0001",
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
     });
 
-    // Step 2: Generate a key pair for the inscription
+    await generateBlock({
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
+      address: generationAddress,
+    });
+
+    const { txid, vout, amount } = await waitForFunding(
+      address,
+      NETWORK,
+      Number(bitcoinToSats("0.0001")),
+    );
+
+    console.log(`TxID: ${txid}`);
+    console.log(`Vout: ${vout}`);
+    console.log(`Amount: ${amount}`);
+
+    const txData = Tx.create({
+      vin: [
+        {
+          txid,
+          vout,
+          prevout: {
+            value: amount,
+            scriptPubKey: ["OP_1", tweakedPubKey],
+          },
+        },
+      ],
+      vout: [
+        {
+          value: amount - 1000,
+          scriptPubKey: Address.toScriptPubKey(inscriptionAddress),
+        },
+      ],
+    });
+
+    console.log(`Tweaked seckey: ${tweakedSecKey}`);
+
+    const sig = Signer.taproot.sign(tweakedSecKey, txData, 0);
+
+    txData.vin[0].witness = [sig.hex];
+
+    const txHex = Tx.encode(txData).hex;
+
+    const spendTxId = await sendRawTransaction({
+      txhex: txHex,
+      network: NETWORK,
+    });
+
+    console.log(`TxID: ${spendTxId}`);
+  });
+
+  it("Can spend a simple pay to tapscript output with a cblock", async () => {
+    const { pubKey, secKey, privKey, tseckey, inscriptionAddress } =
+      generateInscriptionAddress("regtest");
+
+    const script = [pubKey, "OP_CHECKSIG"];
+    console.log(`Script: ${script}`);
+    const tapLeaf = Tap.encodeScript(script);
+    const [tweakedSecKey] = Tap.getSecKey(secKey, { target: tapLeaf });
+    const [tweakedPubKey, cblock] = Tap.getPubKey(pubKey, { target: tapLeaf });
+    const address = Address.p2tr.fromPubKey(
+      tweakedPubKey,
+      networkNamesToTapScriptName(NETWORK),
+    );
+
+    console.log(`Address: ${address}`);
+
+    await sendBitcoin({
+      address,
+      amount: "0.0001",
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
+    });
+
+    await generateBlock({
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
+      address: generationAddress,
+    });
+
+    const { txid, vout, amount } = await waitForFunding(
+      address,
+      NETWORK,
+      Number(bitcoinToSats("0.0001")),
+    );
+
+    console.log(`TxID: ${txid}`);
+    console.log(`Vout: ${vout}`);
+    console.log(`Amount: ${amount}`);
+
+    const txData = Tx.create({
+      vin: [
+        {
+          txid,
+          vout,
+          prevout: {
+            value: amount,
+            scriptPubKey: ["OP_1", tweakedPubKey],
+          },
+        },
+      ],
+      vout: [
+        {
+          value: amount - 500,
+          scriptPubKey: Address.toScriptPubKey(inscriptionAddress),
+        },
+      ],
+    });
+
+    console.log(`Tweaked seckey: ${tweakedSecKey}`);
+
+    const sig = Signer.taproot.sign(secKey, txData, 0, {
+      extension: tapLeaf,
+    });
+
+    txData.vin[0].witness = [sig.hex, script, cblock];
+
+    const txHex = Tx.encode(txData).hex;
+
+    const spendTxId = await sendRawTransaction({
+      txhex: txHex,
+      network: NETWORK,
+    });
+
+    console.log(`TxID: ${spendTxId}`);
+  });
+
+  it("Can refund", async () => {
     const { privKey, tseckey, tpubkey, cblock, inscriptionAddress } =
-      generateInscriptionAddress(NETWORK);
+      generateInscriptionAddress("regtest");
 
-    console.log(`\nInscription Address:`);
-    console.log(`Private key: ${privKey}`);
-    console.log(`Address: ${inscriptionAddress}`);
-    console.log(`TapRoot secret key: ${tseckey}`);
-    console.log(`TapRoot public key: ${tpubkey}`);
-    console.log(`Control block: ${cblock}`);
-
-    // Step 3: Create a test inscription content
-    const testContent = randomBytes(100); // 100 bytes of random data
+    const testContent = Buffer.from("Hello, world!", "utf-8");
     const inscriptions = [
       {
         content: testContent,
@@ -148,7 +318,230 @@ describe("genesis", () => {
       padding: 546,
       tip: TIP_AMOUNT,
       network: NETWORK,
-      privKey,
+      privKey: sharedPrivKey,
+      feeRate: 1,
+    });
+
+    // pay the genesis transaction
+    const fundingResult = await sendBitcoin({
+      address: genesisResponse.fundingAddress,
+      amount: genesisResponse.amount,
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
+    });
+
+    console.log(`Funding transaction ID: ${fundingResult.txid}`);
+
+    // generate a new block
+    await generateBlock({
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
+      address: TIP_DESTINATION.inscriptionAddress,
+    });
+
+    // wait for the funding transaction to be confirmed
+    const { txid, vout, amount, scriptPubKey } = await waitForFunding(
+      genesisResponse.fundingAddress,
+      NETWORK,
+      Number(bitcoinToSats(genesisResponse.amount)),
+    );
+
+    // Generate the refund transaction
+    const refundTx = await generateRefundTransaction({
+      address: TIP_DESTINATION.inscriptionAddress,
+      amount,
+      feeRate: 1,
+      refundTapKey: genesisResponse.refundTapKey,
+      refundCBlock: genesisResponse.refundCBlock,
+      tweakedTreeTapKey: genesisResponse.rootTapKey,
+      secKey: genesisResponse.secKey,
+      txid,
+      vout,
+      scriptPubKey,
+    });
+
+    // broadcast the refund transaction
+    const refundTxHex = Tx.encode(refundTx).hex;
+    console.log(`Refund transaction hex: ${refundTxHex}`);
+    const refundResult = await sendRawTransaction({
+      txhex: refundTxHex,
+      network: NETWORK,
+    });
+    console.log(`Refund transaction ID: ${refundResult}`);
+
+    // generate a new block
+    await generateBlock({
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
+      address: generationAddress,
+    });
+
+    console.log(`Refunded transaction ID: ${refundResult}`);
+  });
+
+  // Generate a single set of keys to use for both tests
+  const sharedKeys = generateInscriptionAddress("regtest");
+  const sharedPrivKey = generatePrivKey();
+
+  it("can inscribe in-memory", async () => {
+    // Step 2: Use shared keys for the inscription
+    const { privKey, tseckey, tpubkey, cblock, inscriptionAddress } =
+      sharedKeys;
+
+    console.log(`\nInscription Address:`);
+    console.log(`Private key: ${privKey}`);
+    console.log(`Address: ${inscriptionAddress}`);
+    console.log(`TapRoot secret key: ${tseckey}`);
+    console.log(`TapRoot public key: ${tpubkey}`);
+    console.log(`Control block: ${cblock}`);
+
+    // Step 3: Create a test inscription content
+    const testContent = Buffer.from("Hello, world!", "utf-8");
+    const inscriptions = [
+      {
+        content: testContent,
+        mimeType: "text/plain",
+        metadata: { name: "Test Inscription" },
+        compress: false,
+      },
+    ];
+
+    // Step 4: Generate the genesis transaction
+    const genesisResponse = await generateFundableGenesisTransaction({
+      address: inscriptionAddress,
+      inscriptions,
+      padding: 546,
+      tip: TIP_AMOUNT,
+      network: NETWORK,
+      privKey: sharedPrivKey,
+      feeRate: 1,
+    });
+
+    console.log(`Funding Address: ${genesisResponse.fundingAddress}`);
+    console.log(`Amount: ${genesisResponse.amount}`);
+    console.log(`Total Fee: ${genesisResponse.totalFee}`);
+    console.log(`Overhead: ${genesisResponse.overhead}`);
+    console.log(`Padding: ${genesisResponse.padding}`);
+
+    // Step 5: Fund the transaction
+    const fundingResult = await sendBitcoin({
+      address: genesisResponse.fundingAddress,
+      amount: genesisResponse.amount,
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
+      fee_rate: 1,
+    });
+
+    console.log(`Funding transaction ID: ${fundingResult.txid}`);
+
+    // Generate a new block to confirm the transaction
+    console.log(`\nGenerating a new block to confirm the transaction...`);
+    await generateBlock({
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
+      address: TIP_DESTINATION.inscriptionAddress, // Use the tip destination address to receive the block reward
+    });
+
+    // Wait for the funding transaction to be confirmed
+    const { txid, vout, amount } = await waitForFunding(
+      genesisResponse.fundingAddress,
+      NETWORK,
+      Number(bitcoinToSats(genesisResponse.amount)),
+    );
+
+    // Step 6. Generate the reveal transaction
+    const revealTx = generateRevealTransaction({
+      inputs: [
+        {
+          leaf: genesisResponse.genesisLeaf,
+          tapkey: genesisResponse.genesisTapKey,
+          cblock: genesisResponse.genesisCBlock,
+          rootTapKey: genesisResponse.rootTapKey,
+          script: genesisResponse.genesisScript,
+          vout,
+          txid,
+          amount,
+          secKey: genesisResponse.secKey,
+          padding: genesisResponse.padding,
+          genesisTweakedPubKey: genesisResponse.genesisTweakedPubKey,
+          inscriptions: [
+            {
+              destinationAddress: inscriptionAddress,
+            },
+          ],
+        },
+      ],
+      feeDestinations: [
+        {
+          address: TIP_DESTINATION.inscriptionAddress,
+          weight: 100,
+        },
+      ],
+      feeTarget: TIP_AMOUNT,
+      feeRateRange: [10, 1],
+    });
+
+    console.log(`\nReveal Transaction:`);
+    console.log(`Hex: ${revealTx.hex}`);
+    console.log(`Miner Fee: ${revealTx.minerFee}`);
+    console.log(`Platform Fee: ${revealTx.platformFee}`);
+
+    // Step 7: Broadcast the reveal transaction
+    console.log(`\nBroadcasting the reveal transaction...`);
+
+    const revealTxId = await mempoolBitcoinClient.transactions.postTx({
+      txhex: revealTx.hex,
+    });
+    console.log(`Reveal transaction ID: ${revealTxId}`);
+
+    // Generate another block to confirm the reveal transaction
+    console.log(
+      `\nGenerating a new block to confirm the reveal transaction...`,
+    );
+    await generateBlock({
+      network: NETWORK,
+      rpcwallet: RPC_WALLET,
+      address: TIP_DESTINATION.inscriptionAddress,
+    });
+  }, 60000);
+
+  it("should perform a complete inscription flow end-to-end", async () => {
+    // Step 1: Set up DAOs
+    const fundingDao = createDynamoDbFundingDao();
+    const s3Dao = createStorageFundingDocDao({
+      bucketName: "test-bucket",
+    });
+
+    // Step 2: Use shared keys for the inscription
+    const { privKey, tseckey, tpubkey, cblock, inscriptionAddress } =
+      sharedKeys;
+
+    console.log(`\nInscription Address: ${inscriptionAddress}`);
+    console.log(`Private key: ${privKey}`);
+    console.log(`Address: ${inscriptionAddress}`);
+    console.log(`TapRoot secret key: ${tseckey}`);
+    console.log(`TapRoot public key: ${tpubkey}`);
+    console.log(`Control block: ${cblock}`);
+
+    // Step 3: Create a test inscription content
+    const testContent = Buffer.from("Hello, world!", "utf-8");
+    const inscriptions = [
+      {
+        content: testContent,
+        mimeType: "text/plain",
+        metadata: { name: "Test Inscription" },
+        compress: false,
+      },
+    ];
+
+    // Step 4: Generate the genesis transaction
+    const genesisResponse = await generateFundableGenesisTransaction({
+      address: inscriptionAddress,
+      inscriptions,
+      padding: 546,
+      tip: TIP_AMOUNT,
+      network: NETWORK,
+      privKey: sharedPrivKey,
       feeRate: 1,
     });
 
@@ -187,11 +580,13 @@ describe("genesis", () => {
         genesisLeaf: genesisResponse.genesisLeaf,
         genesisCBlock: genesisResponse.genesisCBlock,
         genesisScript: genesisResponse.genesisScript,
+        genesisTweakedPubKey: genesisResponse.genesisTweakedPubKey,
         refundTapKey: genesisResponse.refundTapKey,
         refundLeaf: genesisResponse.refundLeaf,
         refundCBlock: genesisResponse.refundCBlock,
         rootTapKey: genesisResponse.rootTapKey,
         refundScript: genesisResponse.refundScript,
+        refundTweakedPubKey: genesisResponse.refundTweakedPubKey,
         secKey: Buffer.from(genesisResponse.secKey).toString("base64"),
         totalFee: genesisResponse.totalFee,
         overhead: genesisResponse.overhead,
@@ -243,20 +638,11 @@ describe("genesis", () => {
     });
 
     // Wait for the funding transaction to be confirmed
-    let funded: readonly [string | null, number | null, number | null] = [
-      null,
-      null,
-      null,
-    ];
-    do {
-      funded = await addressReceivedMoneyInThisTx(
-        inscriptionAddress,
-        "regtest",
-      );
-      if (funded[0] === null) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    } while (funded[0] === null);
+    const { txid, vout, amount } = await waitForFunding(
+      genesisResponse.fundingAddress,
+      "regtest",
+      Number(bitcoinToSats(genesisResponse.amount)),
+    );
 
     // Get the funded inscription transaction from S3
     const fundedInscriptionTx = await s3Dao.getInscriptionTransaction({
@@ -271,12 +657,12 @@ describe("genesis", () => {
     // Update the funding status
     await fundingDao.addressFunded({
       id: fundingId,
-      fundingTxid: funded[0] as string,
-      fundingVout: funded[1] as number,
+      fundingTxid: txid,
+      fundingVout: vout,
     });
 
     // Generate the reveal transaction
-    const revealTx = await generateRevealTransaction({
+    const revealTx = generateRevealTransaction({
       inputs: [
         {
           leaf: fundedInscriptionTx.genesisLeaf,
@@ -284,11 +670,12 @@ describe("genesis", () => {
           cblock: fundedInscriptionTx.genesisCBlock,
           rootTapKey: fundedInscriptionTx.rootTapKey,
           script: fundedInscriptionTx.genesisScript,
-          vout: funded[1] as number,
-          txid: funded[0] as string,
-          amount: funded[2] as number,
+          vout,
+          txid,
+          amount,
           secKey: Buffer.from(fundedInscriptionTx.secKey, "base64"),
           padding: fundedInscriptionTx.padding,
+          genesisTweakedPubKey: fundedInscriptionTx.genesisTweakedPubKey,
           inscriptions: [
             {
               destinationAddress: inscriptionAddress,
@@ -296,7 +683,14 @@ describe("genesis", () => {
           ],
         },
       ],
-      feeRateRange: [100, 1],
+      feeRateRange: [10, 1],
+      feeDestinations: [
+        {
+          address: TIP_DESTINATION.inscriptionAddress,
+          weight: 100,
+        },
+      ],
+      feeTarget: TIP_AMOUNT,
     });
 
     console.log(`\nReveal Transaction:`);
@@ -306,7 +700,9 @@ describe("genesis", () => {
 
     // Step 11: Broadcast the reveal transaction
     console.log(`\nBroadcasting the reveal transaction...`);
-    const revealTxId = await broadcastTx(revealTx.hex, NETWORK);
+    const revealTxId = (await mempoolBitcoinClient.transactions.postTx({
+      txhex: revealTx.hex,
+    })) as string;
     console.log(`Reveal transaction ID: ${revealTxId}`);
 
     // Generate another block to confirm the reveal transaction
@@ -330,5 +726,5 @@ describe("genesis", () => {
     expect(updatedFunding).toBeDefined();
     expect(updatedFunding?.fundingStatus).toBe("revealed");
     expect(updatedFunding?.revealTxid).toBe(revealTxId);
-  });
+  }, 60000);
 });

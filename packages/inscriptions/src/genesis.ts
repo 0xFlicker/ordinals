@@ -63,11 +63,13 @@ export interface GenesisFundingResponse {
   genesisLeaf: string;
   genesisCBlock: string;
   genesisScript: BitcoinScriptData[];
+  genesisTweakedPubKey: string;
   refundTapKey: string;
   refundLeaf: string;
   refundCBlock: string;
   rootTapKey: string;
   refundScript: BitcoinScriptData[];
+  refundTweakedPubKey: string;
   secKey: Uint8Array;
 }
 
@@ -105,7 +107,7 @@ export async function generateFundableGenesisTransaction(
     throw new PaddingTooLowError(padding, minPadding);
   }
   const secKey = get_seckey(privKey);
-  const pubKey = get_pubkey(privKey);
+  const pubKey = get_pubkey(secKey, true);
 
   // 5) Compress or not compress each inscription
   const datas = await Promise.all(
@@ -196,8 +198,18 @@ export async function generateFundableGenesisTransaction(
     // This is the actual inscription script
     genesisLeaf,
   ];
+
   const [tapKey] = Tap.getPubKey(pubKey, {
     tree,
+  });
+  const [genesisTweakedPubKey] = Tap.getPubKey(pubKey, {
+    tree,
+    target: genesisLeaf,
+  });
+
+  const [refundTweakedPubKey] = Tap.getPubKey(pubKey, {
+    tree,
+    target: refundLeaf,
   });
 
   // This is the actual address to which the user will send the EXACT funds
@@ -292,11 +304,13 @@ export async function generateFundableGenesisTransaction(
     genesisLeaf,
     genesisCBlock,
     genesisScript: scriptDataToSerializedScript(masterScript),
+    genesisTweakedPubKey,
     refundTapKey,
     refundLeaf,
     refundCBlock,
     rootTapKey: tapKey,
     refundScript: scriptDataToSerializedScript(masterScript),
+    refundTweakedPubKey,
     secKey,
     partialHex: Tx.encode(partialTxData).hex, // so you can debug or show the user
   };

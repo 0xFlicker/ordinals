@@ -63,6 +63,31 @@ export async function loadWallet({
   await exec("bitcoin-cli " + args.join(" "));
 }
 
+export async function sendRawTransaction({
+  txhex,
+  network = "regtest",
+  rpcuser = process.env.RPC_USER,
+  rpcpassword = process.env.RPC_PASSWORD,
+}: {
+  txhex: string;
+  network?: string;
+  rpcuser?: string;
+  rpcpassword?: string;
+}): Promise<string> {
+  const networkFlag = network === "regtest" ? "-regtest" : "";
+  const args = [
+    networkFlag,
+    ...(rpcuser ? ["-rpcuser=" + rpcuser] : []),
+    ...(rpcpassword ? ["-rpcpassword=" + rpcpassword] : []),
+    "sendrawtransaction",
+    txhex,
+  ].filter(Boolean);
+
+  console.log("bitcoin-cli", args.join(" "));
+  const { stdout } = await exec("bitcoin-cli " + args.join(" "));
+  return stdout.trim();
+}
+
 // Function to send bitcoin using bitcoin-cli
 export async function sendBitcoin({
   address,
@@ -89,7 +114,7 @@ export async function sendBitcoin({
     ...(rpcwallet ? ["-rpcwallet=" + rpcwallet] : []),
     "-named",
     "send",
-    "outputs=" + JSON.stringify({ [address]: amount.toString() }),
+    "outputs='" + JSON.stringify({ [address]: amount.toString() }) + "'",
     "fee_rate=" + fee_rate,
   ].filter(Boolean);
 

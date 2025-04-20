@@ -25,7 +25,7 @@ const client = new ElectrumClient(
     onLog: (str: string) => {
       console.log(str);
     },
-  }
+  },
 );
 await client.initElectrum({
   client: "nodejs",
@@ -36,10 +36,10 @@ console.log(client.versionInfo);
 const balance = await client.blockchainScripthash_listunspent(
   Buffer.from(
     "5e029985cad773cc75877168c7588ab6741cfa42634a8c963e89f8f371830755",
-    "hex"
+    "hex",
   )
     .reverse()
-    .toString("hex")
+    .toString("hex"),
   // "f46ebcb0bc37224369f8841bfe0bf42742d2291581208920678bd9bea0552513"
   // Address.p2tr
   //   .decode("bcrt1qg7gq7ytj0nkde7p27tcvjrmw8q7gyvlqsy6pcw")
