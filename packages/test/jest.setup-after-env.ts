@@ -74,6 +74,7 @@ beforeAll(async () => {
         const line = chunk.toString();
         console.log(line);
         if (line.includes("The mempool is now in sync!")) {
+          console.log("Mempool synced");
           clearTimeout(timeout);
           composeProcess.stdout.removeListener("data", handler);
           composeProcess.removeListener("exit", exitHandler);
@@ -85,17 +86,14 @@ beforeAll(async () => {
         clearTimeout(timeout);
         composeProcess.stdout.removeListener("data", handler);
         composeProcess.removeListener("exit", exitHandler);
-        // reject(new Error(`docker compose exited with code ${code}`));
-        console.log("No idea why this is happening");
+        console.log(`docker compose exited with code ${code}`);
         resolve();
       };
 
-      composeProcess.stdout.on("data", handler);
-      composeProcess.on("exit", exitHandler);
+      composeProcess.stdout.addListener("data", handler);
+      composeProcess.addListener("exit", exitHandler);
     }),
   ]);
-
-  console.log("Mempool synced");
 }, 360000);
 
 afterAll(async () => {

@@ -853,12 +853,13 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, fundedAt = :fundedAt",
+          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, fundedAt = :fundedAt, revealTxids = :revealTxids",
         ExpressionAttributeValues: {
           ":fundingTxid": fundingTxid,
           ":fundingVout": fundingVout,
           ":fundingStatus": "funded",
           ":fundedAt": new Date().getTime(),
+          ":revealTxids": [],
         },
       }),
     );
@@ -947,12 +948,13 @@ export class FundingDao<
           sk: "funding",
         },
         ConditionExpression:
-          "attribute_exists(pk) AND NOT contains(revealTxids, :revealTxid)",
+          "attribute_exists(pk) AND attribute_not_exists(revealTxids) OR NOT contains(revealTxids, :revealTxid)",
         UpdateExpression:
-          "SET revealTxids = list_append(revealTxids, :revealTxid), fundingStatus = :fundingStatus",
+          "SET revealTxids = list_append(revealTxids, :revealTxids), fundingStatus = :fundingStatus",
         ExpressionAttributeValues: {
-          ":revealTxid": [revealTxid],
+          ":revealTxids": [revealTxid],
           ":fundingStatus": "revealed",
+          ":revealTxid": revealTxid,
         },
       }),
     );

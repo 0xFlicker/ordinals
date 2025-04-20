@@ -18,7 +18,6 @@ export interface RevealTransactionInput {
   tapkey: string;
   cblock: string;
   rootTapKey: string;
-  genesisTweakedPubKey: string;
   script: BitcoinScriptData[];
   vout: number;
   txid: string;
@@ -471,9 +470,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
   for (let i = 0; i < (parentTxs?.length ?? 0); i++) {
     const parentTx = parentTxs![i];
     const index = i;
-    const secKey = get_seckey(parentTx.secKey);
-    const pubKey = get_pubkey(secKey);
-    const [tapSecKey] = Tap.getSecKey(secKey);
+    const pubKey = get_pubkey(parentTx.secKey, true);
     const script = [pubKey, "OP_CHECKSIG"];
     const sbytes = Script.encode(script);
     const tapleaf = Tap.tree.getLeaf(sbytes);
@@ -481,7 +478,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
       target: tapleaf,
     });
     witnessSigners.push(() => {
-      const sig = Signer.taproot.sign(tapSecKey, txSkeleton, index, {
+      const sig = Signer.taproot.sign(parentTx.secKey, txSkeleton, index, {
         extension: tapleaf,
       });
       return [sig.hex, script, cBlock];
@@ -504,8 +501,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
   for (let i = indexOffset; i < inputs.length + indexOffset; i++) {
     const input = inputs[i - indexOffset];
     witnessSigners.push(() => {
-      const secKey = get_seckey(input.secKey);
-      const sig = Signer.taproot.sign(secKey.to_bytes(), txSkeleton, i, {
+      const sig = Signer.taproot.sign(input.secKey, txSkeleton, i, {
         extension: input.leaf,
       });
       return [
@@ -520,7 +516,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
       vout: input.vout,
       prevout: {
         value: input.amount,
-        scriptPubKey: ["OP_1", input.genesisTweakedPubKey],
+        scriptPubKey: ["OP_1", input.rootTapKey],
       },
     });
 
