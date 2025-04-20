@@ -30,11 +30,15 @@ RUN git clone --depth 1 --branch v${ELECTRS_VERSION} \
 # Create a dummy main.rs to cache dependencies
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
   --mount=type=cache,target=/usr/src/electrs/target \
+  CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-4} \
+  RUSTFLAGS="${RUSTFLAGS:--C target-cpu=native}" \
   cargo build --release || true
 
 # Build in release mode
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
   --mount=type=cache,target=/usr/src/electrs/target \
+  CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-4} \
+  RUSTFLAGS="${RUSTFLAGS:--C target-cpu=native}" \
   cargo build --release
 
 ########################################
