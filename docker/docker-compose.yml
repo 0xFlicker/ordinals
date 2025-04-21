@@ -1,0 +1,145 @@
+version: "3.7"
+
+services:
+  bitcoind:
+    build:
+      context: ./bitcoind
+      dockerfile: Dockerfile
+    container_name: bitcoind
+    command: >
+      -conf=/home/bitcoin/.bitcoin/bitcoin.conf
+      -regtest
+    ports:
+      - "18443:18443"
+      - "28332:28332"
+      - "28333:28333"
+    networks:
+      - appnet
+      - shared-lambda
+    volumes:
+      - bitcoind_data:/bitcoin
+    stop_grace_period: 1s
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bitcoin-cli",
+          "-regtest",
+          "-rpcuser=test",
+          "-rpcpassword=test",
+          "getblockchaininfo",
+        ]
+      interval: 1s
+      timeout: 10s
+      retries: 30
+      start_period: 1s
+
+  electrs:
+    build:
+      context: ./electrs
+      dockerfile: Dockerfile
+    container_name: electrs
+    ports:
+      - "60001:60001"
+    networks:
+      - appnet
+    environment:
+      BITCOIN_RPC_HOST: bitcoind
+      BITCOIN_RPC_PORT: "18443"
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    stop_grace_period: 1s
+
+  db:
+    image: mariadb:10.5.21
+    container_name: mempool_db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: mempool
+      MYSQL_USER: mempool
+      MYSQL_PASSWORD: mempool
+    restart: on-failure
+    networks:
+      - appnet
+    stop_grace_period: 1m
+    volumes:
+      - mempool_db_data:/var/lib/mysql
+
+  mempool-api:
+    image: mempool/backend:latest
+    environment:
+      MEMPOOL_NETWORK: "regtest"
+      MEMPOOL_BACKEND: "electrum"
+      ELECTRUM_HOST: electrs
+      ELECTRUM_PORT: "60001"
+      ELECTRUM_TLS_ENABLED: "false"
+      CORE_RPC_HOST: bitcoind
+      CORE_RPC_PORT: "18443"
+      CORE_RPC_USERNAME: "test"
+      CORE_RPC_PASSWORD: "test"
+      DATABASE_ENABLED: "true"
+      DATABASE_HOST: db
+      DATABASE_DATABASE: mempool
+      DATABASE_USERNAME: mempool
+      DATABASE_PASSWORD: mempool
+      STATISTICS_ENABLED: "true"
+    depends_on:
+      db:
+        condition: service_started
+      electrs:
+        condition: service_started
+      bitcoind:
+        condition: service_healthy
+    command: >
+      ./wait-for-it.sh db:3306 --timeout=720 --strict -- ./start.sh
+    networks:
+      - appnet
+    volumes:
+      - mempool_cache_data:/backend/cache
+    stop_grace_period: 1s
+
+  mempool-web:
+    container_name: mempool-web
+    image: mempool/frontend:latest
+    environment:
+      BACKEND_MAINNET_HTTP_HOST: mempool-api
+      FRONTEND_HTTP_PORT: "8080"
+    ports:
+      - 4080:8080
+    depends_on:
+      - mempool-api
+    command: >
+      ./wait-for db:3306 --timeout=720 -- nginx -g 'daemon off;'
+    networks:
+      - appnet
+      - shared-lambda
+    stop_grace_period: 1s
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - LAMBDA_EXECUTOR=docker
+      - LAMBDA_DOCKER_NETWORK=shared-lambda
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - appnet
+      - shared-lambda
+
+networks:
+  appnet:
+    driver: bridge
+  shared-lambda:
+    driver: bridge
+    name: shared-lambda
+
+volumes:
+  bitcoind_data:
+  mempool_db_data:
+  mempool_cache_data:
