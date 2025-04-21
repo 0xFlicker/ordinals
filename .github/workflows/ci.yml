@@ -84,7 +84,7 @@ jobs:
 
       - name: Run tests with reporting
         run: |
-          yarn test --json --outputFile=test-results.json
+          npx turbo test -- --json --outputFile=test-results.json
         continue-on-error: true
 
       - name: Upload test results
