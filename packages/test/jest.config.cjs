@@ -25,4 +25,21 @@ module.exports = {
   transformIgnorePatterns: [
     // "node_modules/(?!(?:@noble/secp256k1|jose|@wagmi/core)/)",
   ],
+  collectCoverage: process.env.COVERAGE === "true",
+  coverageDirectory: "coverage",
+  coverageReporters: ["text", "lcov", "html"],
+  collectCoverageFrom: [
+    "../backend/src/**/*.{ts,tsx}",
+    "../inscriptions/src/**/*.{ts,tsx}",
+    "../models/src/**/*.{ts,tsx}",
+    "!../backend/src/**/*.d.ts",
+    "!../backend/src/**/*.test.{ts,tsx}",
+    "!../backend/src/**/__tests__/**",
+    "!../inscriptions/src/**/*.d.ts",
+    "!../inscriptions/src/**/*.test.{ts,tsx}",
+    "!../inscriptions/src/**/__tests__/**",
+    "!../models/src/**/*.d.ts",
+    "!../models/src/**/*.test.{ts,tsx}",
+    "!../models/src/**/__tests__/**",
+  ],
 };

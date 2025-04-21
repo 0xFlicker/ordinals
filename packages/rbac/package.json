@@ -6,11 +6,13 @@
   "license": "MIT",
   "scripts": {
     "test": "yarn node --experimental-vm-modules $(yarn bin jest)",
+    "test:coverage": "COVERAGE=true yarn node --experimental-vm-modules $(yarn bin jest)",
     "build": "tsc --build"
   },
   "devDependencies": {
     "jest": "^29.6.0",
     "jest-dynalite": "^3.6.1",
+    "jest-junit": "^16.0.0",
     "prettier": "^3.0.0",
     "ts-jest": "^29.1.1",
     "typescript": "^5.1.6"
