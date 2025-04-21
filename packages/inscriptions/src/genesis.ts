@@ -63,13 +63,11 @@ export interface GenesisFundingResponse {
   genesisLeaf: string;
   genesisCBlock: string;
   genesisScript: BitcoinScriptData[];
-  genesisTweakedPubKey: string;
   refundTapKey: string;
   refundLeaf: string;
   refundCBlock: string;
   rootTapKey: string;
   refundScript: BitcoinScriptData[];
-  refundTweakedPubKey: string;
   secKey: Uint8Array;
 }
 
@@ -304,13 +302,11 @@ export async function generateFundableGenesisTransaction(
     genesisLeaf,
     genesisCBlock,
     genesisScript: scriptDataToSerializedScript(masterScript),
-    genesisTweakedPubKey,
     refundTapKey,
     refundLeaf,
     refundCBlock,
     rootTapKey: tapKey,
     refundScript: scriptDataToSerializedScript(masterScript),
-    refundTweakedPubKey,
     secKey,
     partialHex: Tx.encode(partialTxData).hex, // so you can debug or show the user
   };
