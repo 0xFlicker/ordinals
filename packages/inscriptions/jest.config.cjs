@@ -21,4 +21,13 @@ module.exports = {
     ],
   },
   transformIgnorePatterns: ["node_modules/(?!@noble/secp256k1)"],
+  collectCoverage: process.env.COVERAGE === "true",
+  coverageDirectory: "coverage",
+  coverageReporters: ["text", "lcov", "html"],
+  collectCoverageFrom: [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.d.ts",
+    "!src/**/*.test.{ts,tsx}",
+    "!src/**/__tests__/**",
+  ],
 };
