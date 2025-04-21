@@ -1,5 +1,5 @@
 import { FC, useCallback, useState } from "react";
-import { Address } from "@0xflick/tapscript";
+import { Address } from "@cmdcode/tapscript";
 import { FeeLevel } from "@/graphql/types";
 
 import Paper from "@mui/material/Paper";

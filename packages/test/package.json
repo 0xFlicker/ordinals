@@ -10,8 +10,7 @@
     "test:coverage": "COVERAGE=true node --experimental-vm-modules $(yarn bin jest)"
   },
   "devDependencies": {
-    "@0xflick/jest-dynamodb": "^4.0.1-pre.2",
-    "@shelf/jest-dynamodb": "^3.5.0",
+    "@0xflick/jest-dynamodb": "^4.0.1-pre.3",
     "@types/s3rver": "^3.7.4",
     "bitcoin-core": "^5.0.0",
     "dotenv": "^16.5.0",

@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@aws-sdk/hash-node": "^3.374.0",
-    "@aws-sdk/s3-presigned-post": "^3.782.0",
+    "@aws-sdk/s3-presigned-post": "^3.787.0",
     "@graphql-tools/load-files": "^7.0.0",
     "@mempool/mempool.js": "^3.0.0",
     "apollo-server": "^3.12.0",
