@@ -103,7 +103,7 @@ export async function deployOpLockCat({
     outfile: path.join(tmDir, "flick.js"),
     bundle: true,
     minify: true,
-    external: ["canvas"],
+    external: ["canvas", "dtrace-provider"],
     platform: "browser",
     target: "es2022",
   });

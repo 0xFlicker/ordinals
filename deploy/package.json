@@ -7,10 +7,11 @@
   "scripts": {
     "aws_docker_login": "aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws",
     "decrypt-secrets": "node ./scripts/decrypt-secrets.mjs",
-    "deploy:local:bootstrap": "bash ./scripts/bootstrap-local.sh",
+    "deploy:local:bootstrap": "yarn deploy:local:docker && bash ./scripts/bootstrap-local.sh",
     "deploy:local": "bash ./scripts/deploy-local.sh",
     "deploy": "DEPLOYMENT=aws AWS_REGION=us-east-1 cdk deploy",
-    "monitor-sqs": "node --loader ts-node/esm ./src/local-monitor-sqs.ts"
+    "monitor-sqs": "node --loader ts-node/esm ./src/local-monitor-sqs.ts",
+    "deploy:local:docker": "cd ../docker && docker compose -f docker-compose.yml up -d"
   },
   "dependencies": {
     "@aws-solutions-constructs/aws-dynamodbstreams-lambda": "^2.79.1",

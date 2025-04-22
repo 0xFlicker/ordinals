@@ -1,5 +1,9 @@
 import { CreateBucketCommand } from "@aws-sdk/client-s3";
-import { ID_AddressInscription } from "../../models/src";
+import {
+  ID_AddressInscription,
+  hashAddress,
+  toAddressInscriptionId,
+} from "@0xflick/ordinals-models";
 import {
   createDynamoDbFundingDao,
   createStorageFundingDocDao,
@@ -18,6 +22,7 @@ import {
   generateRefundTransaction,
   serializedScriptToScriptData,
   textToHex,
+  groupFundings,
 } from "@0xflick/inscriptions";
 import {
   get_seckey,
@@ -383,18 +388,12 @@ describe("genesis", () => {
       rpcwallet: RPC_WALLET,
       address: generationAddress,
     });
-
-    console.log(`Refunded transaction ID: ${refundResult}`);
   });
 
   it("can inscribe in-memory", async () => {
     // Step 2: Use shared keys for the inscription
     const { inscriptionAddress } = generateInscriptionAddress();
     const privKey = generatePrivKey();
-
-    console.log(`\nInscription Address:`);
-    console.log(`Private key: ${privKey}`);
-    console.log(`Address: ${inscriptionAddress}`);
 
     // Step 3: Create a test inscription content
     const testContent = Buffer.from("Hello, world!", "utf-8");
@@ -417,12 +416,6 @@ describe("genesis", () => {
       privKey,
       feeRate: 1,
     });
-
-    console.log(`Funding Address: ${genesisResponse.fundingAddress}`);
-    console.log(`Amount: ${genesisResponse.amount}`);
-    console.log(`Total Fee: ${genesisResponse.totalFee}`);
-    console.log(`Overhead: ${genesisResponse.overhead}`);
-    console.log(`Padding: ${genesisResponse.padding}`);
 
     // Step 5: Fund the transaction
     const fundingResult = await sendBitcoin({
@@ -574,14 +567,12 @@ describe("genesis", () => {
         genesisLeaf: genesisResponse.genesisLeaf,
         genesisCBlock: genesisResponse.genesisCBlock,
         genesisScript: genesisResponse.genesisScript,
-        genesisTweakedPubKey: genesisResponse.genesisTweakedPubKey,
         refundTapKey: genesisResponse.refundTapKey,
         refundLeaf: genesisResponse.refundLeaf,
         refundCBlock: genesisResponse.refundCBlock,
         rootTapKey: genesisResponse.rootTapKey,
         refundScript: genesisResponse.refundScript,
-        refundTweakedPubKey: genesisResponse.refundTweakedPubKey,
-        secKey: Buffer.from(genesisResponse.secKey).toString("base64"),
+        secKey: Buffer.from(genesisResponse.secKey).toString("hex"),
         totalFee: genesisResponse.totalFee,
         overhead: genesisResponse.overhead,
         padding: genesisResponse.padding,
@@ -667,7 +658,7 @@ describe("genesis", () => {
     console.log("Stored secKey:", fundedInscriptionTx.secKey);
     console.log(
       "Decoded secKey:",
-      Buffer.from(fundedInscriptionTx.secKey, "base64"),
+      Buffer.from(fundedInscriptionTx.secKey, "hex"),
     );
 
     // Generate the reveal transaction
@@ -682,7 +673,7 @@ describe("genesis", () => {
           vout,
           txid,
           amount,
-          secKey: Buffer.from(fundedInscriptionTx.secKey, "base64"),
+          secKey: Buffer.from(fundedInscriptionTx.secKey, "hex"),
           padding: fundedInscriptionTx.padding,
           inscriptions: [
             {
@@ -733,5 +724,201 @@ describe("genesis", () => {
     expect(updatedFunding).toBeDefined();
     expect(updatedFunding?.fundingStatus).toBe("revealed");
     // expect(updatedFunding?.revealTxid).toBe(revealTxId);
+  }, 60000);
+
+  it("Group transactions", async () => {
+    // Step 1: Set up DAOs
+    const fundingDao = createDynamoDbFundingDao();
+    const s3Dao = createStorageFundingDocDao({
+      bucketName: "test-bucket",
+    });
+
+    const { inscriptionAddress } = generateInscriptionAddress();
+    const privKey = generatePrivKey();
+    const testContent = Buffer.from("Hello, world!", "utf-8");
+    const inscriptions = [
+      {
+        content: testContent,
+        mimeType: "text/plain",
+        metadata: { name: "Test Inscription" },
+        compress: false,
+      },
+    ];
+
+    const genesisResponse = await generateFundableGenesisTransaction({
+      address: inscriptionAddress,
+      inscriptions,
+      padding: 546,
+      tip: TIP_AMOUNT,
+      network: NETWORK,
+      privKey,
+      feeRate: 1,
+    });
+
+    // Step 5: Create a funding record in DynamoDB
+    const fundingId = toAddressInscriptionId(
+      hashAddress(genesisResponse.fundingAddress),
+    );
+    await fundingDao.createFunding({
+      id: fundingId,
+      address: genesisResponse.fundingAddress,
+      destinationAddress: inscriptionAddress,
+      fundingAmountBtc: genesisResponse.amount,
+      fundingAmountSat: parseInt(genesisResponse.amount),
+      createdAt: new Date(),
+      fundingStatus: "funding",
+      network: NETWORK,
+      timesChecked: 0,
+      sizeEstimate: genesisResponse.totalFee + genesisResponse.overhead,
+      type: "address-inscription",
+      meta: {},
+    });
+
+    // Step 6: Save the inscription transaction to S3
+    await s3Dao.updateOrSaveInscriptionTransaction(
+      {
+        id: fundingId,
+        network: NETWORK,
+        fundingAddress: genesisResponse.fundingAddress,
+        fundingAmountBtc: genesisResponse.amount,
+        genesisTapKey: genesisResponse.genesisTapKey,
+        genesisLeaf: genesisResponse.genesisLeaf,
+        genesisCBlock: genesisResponse.genesisCBlock,
+        genesisScript: genesisResponse.genesisScript,
+        refundTapKey: genesisResponse.refundTapKey,
+        refundLeaf: genesisResponse.refundLeaf,
+        refundCBlock: genesisResponse.refundCBlock,
+        rootTapKey: genesisResponse.rootTapKey,
+        refundScript: genesisResponse.refundScript,
+        secKey: Buffer.from(genesisResponse.secKey).toString("hex"),
+        totalFee: genesisResponse.totalFee,
+        overhead: genesisResponse.overhead,
+        padding: genesisResponse.padding,
+        writableInscriptions: genesisResponse.inscriptionsToWrite,
+        tip: TIP_AMOUNT,
+        tipAmountDestination: TIP_DESTINATION.inscriptionAddress,
+      },
+      {
+        skipEncryption: true, // Skip encryption for testing
+      },
+    );
+
+    // Step 7: Save the inscription content to S3
+    for (let i = 0; i < genesisResponse.inscriptionsToWrite.length; i++) {
+      const inscription = genesisResponse.inscriptionsToWrite[i];
+      await s3Dao.saveInscriptionContent({
+        id: {
+          fundingAddress: genesisResponse.fundingAddress,
+          id: fundingId,
+          inscriptionIndex: inscription.pointerIndex ?? 0,
+        },
+        content: inscription.file.content,
+        mimetype: inscription.file.mimetype,
+        metadata: inscription.file.metadata,
+      });
+    }
+
+    // Step 8: Actually fund the transaction using bitcoin-cli
+    console.log(
+      `\nFunding the transaction with ${genesisResponse.amount} BTC...`,
+    );
+    const fundingResult = await sendBitcoin({
+      address: genesisResponse.fundingAddress,
+      amount: genesisResponse.amount,
+      rpcwallet: RPC_WALLET,
+      fee_rate: 1,
+    });
+
+    console.log(`Funding transaction ID: ${fundingResult.txid}`);
+
+    // Generate a new block to confirm the transaction
+    console.log(`\nGenerating a new block to confirm the transaction...`);
+    await generateBlock({
+      rpcwallet: RPC_WALLET,
+      address: TIP_DESTINATION.inscriptionAddress, // Use the tip destination address to receive the block reward
+    });
+
+    // Wait for the funding transaction to be confirmed
+    const { txid, vout, amount } = await waitForFunding(
+      genesisResponse.fundingAddress,
+      "regtest",
+      Number(bitcoinToSats(genesisResponse.amount)),
+    );
+
+    // Get the funded inscription transaction from S3
+    const fundedInscriptionTx = await s3Dao.getInscriptionTransaction({
+      fundingAddress: genesisResponse.fundingAddress,
+      id: fundingId,
+      skipDecryption: true,
+    });
+    if (!fundedInscriptionTx) {
+      throw new Error("Failed to get funded inscription transaction");
+    }
+
+    // Add validation after retrieving from S3
+    if (
+      !fundedInscriptionTx.genesisLeaf ||
+      !fundedInscriptionTx.genesisTapKey ||
+      !fundedInscriptionTx.genesisCBlock
+    ) {
+      throw new Error("Missing required transaction data from S3");
+    }
+
+    // Update the funding status
+    await fundingDao.addressFunded({
+      id: fundingId,
+      fundingTxid: txid,
+      fundingVout: vout,
+    });
+
+    // Add logging before reveal transaction generation
+    console.log("Original secKey:", genesisResponse.secKey);
+    console.log("Stored secKey:", fundedInscriptionTx.secKey);
+    console.log(
+      "Decoded secKey:",
+      Buffer.from(fundedInscriptionTx.secKey, "hex"),
+    );
+
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+    const groupingResult = groupFundings(
+      [
+        {
+          id: fundingId,
+          fundedAt: thirtyMinutesAgo,
+          sizeEstimate: genesisResponse.totalFee + genesisResponse.overhead,
+          input: {
+            amount: parseInt(genesisResponse.amount),
+            leaf: fundedInscriptionTx.genesisLeaf,
+            tapkey: fundedInscriptionTx.genesisTapKey,
+            cblock: fundedInscriptionTx.genesisCBlock,
+            padding: fundedInscriptionTx.padding,
+            script: fundedInscriptionTx.genesisScript,
+            secKey: Buffer.from(fundedInscriptionTx.secKey, "hex"),
+            rootTapKey: fundedInscriptionTx.rootTapKey,
+            inscriptions: fundedInscriptionTx.writableInscriptions,
+            txid,
+            vout,
+          },
+          ...(fundedInscriptionTx.tipAmountDestination &&
+          fundedInscriptionTx.tip
+            ? {
+                feeDestinations: [
+                  {
+                    address: fundedInscriptionTx.tipAmountDestination,
+                    weight: 100,
+                  },
+                ],
+                feeTarget: fundedInscriptionTx.tip,
+              }
+            : {
+                feeDestinations: [],
+              }),
+        },
+      ],
+      [1, 20],
+    );
+
+    console.log(groupingResult);
   }, 60000);
 });

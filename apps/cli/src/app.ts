@@ -17,7 +17,23 @@ import { mintChildMany } from "./commands/mintChildMany.js";
 import { deployOpLockCat } from "./commands/op-lock-cat/deploy.js";
 import { sendBitcoinToAddress } from "./commands/sendBitcoin.js";
 import { parentMintTest } from "./commands/parentMintTest.js";
+import { revealFunding } from "./commands/reveal.js";
+import { BitcoinNetworkNames } from "@0xflick/inscriptions";
+
 const program = new Command();
+
+program
+  .command("reveal-single <fundingId>")
+  .description("Reveal a funding")
+  .option("-n, --network <network>", "Bitcoin network", "regtest")
+  .option("-r, --fee-rate-range <fee-rate-range>", "Fee rate range", "1,10")
+  .action(async (fundingId, { network, feeRateRange }) => {
+    await revealFunding({
+      fundingId,
+      feeRateRange: feeRateRange.split(",").map(Number),
+      network: network as BitcoinNetworkNames,
+    });
+  });
 
 program
   .command("privkey")

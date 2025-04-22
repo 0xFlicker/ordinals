@@ -33,7 +33,7 @@ function compileMetadata() {
     platform: "node",
     target: "node20",
     format: "esm",
-    external: ["aws-sdk", "canvas"],
+    external: ["aws-sdk", "canvas", "dtrace-provider"],
     inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
     sourcemap: true,
   });
@@ -52,7 +52,7 @@ function prepareDockerBuild(filename: string) {
     platform: "node",
     target: "node20",
     format: "esm",
-    external: ["aws-sdk", "canvas"],
+    external: ["aws-sdk", "canvas", "dtrace-provider"],
     inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
     sourcemap: true,
   });

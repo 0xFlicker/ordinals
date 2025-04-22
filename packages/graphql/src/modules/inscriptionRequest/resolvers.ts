@@ -114,18 +114,8 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         inscriptions,
         tipAmountDestination: tipDestination,
       });
-      const id = toAddressInscriptionId(
-        hashAddress(inscriptionTransaction.fundingAddress),
-      );
-      const secKey = serializeEnvelope(
-        await encryptEnvelope({
-          plaintext: inscriptionTransaction.secKey,
-          kmsClient,
-          keyId: fundingSecKeyEnvelopeKeyId,
-        }),
-      );
       const doc: TInscriptionDoc = {
-        id,
+        id: inscriptionTransaction.id,
         fundingAddress: inscriptionTransaction.fundingAddress,
         fundingAmountBtc: inscriptionTransaction.fundingAmountBtc,
         genesisCBlock: inscriptionTransaction.genesisCBlock,
@@ -140,14 +130,14 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         refundScript: inscriptionTransaction.refundScript,
         refundTapKey: inscriptionTransaction.refundTapKey,
         rootTapKey: inscriptionTransaction.rootTapKey,
-        secKey,
+        secKey: inscriptionTransaction.secKey,
         totalFee: inscriptionTransaction.totalFee,
         writableInscriptions: inscriptionTransaction.writableInscriptions,
         tip: inscriptionTip,
         tipAmountDestination: tipDestination,
       };
       const inscriptionFundingModel = new InscriptionFundingModel({
-        id,
+        id: inscriptionTransaction.id,
         bucket: inscriptionBucket,
         document: doc,
         fundingAddress: inscriptionTransaction.fundingAddress,
@@ -157,12 +147,12 @@ const resolvers: InscriptionRequestModule.Resolvers = {
 
       await Promise.all([
         fundingDocDao.updateOrSaveInscriptionTransaction(doc, {
-          skipEncryption: true,
+          secKeyEnvelopeKeyId: fundingSecKeyEnvelopeKeyId,
         }),
         fundingDao.createFunding({
           address: inscriptionTransaction.fundingAddress,
           network: toBitcoinNetworkName(network),
-          id,
+          id: inscriptionTransaction.id,
           destinationAddress,
           fundingStatus: "funding",
           timesChecked: 0,
@@ -181,7 +171,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
           fundingDocDao.saveInscriptionContent({
             id: {
               fundingAddress: inscriptionTransaction.fundingAddress,
-              id,
+              id: inscriptionTransaction.id,
               inscriptionIndex: index,
             },
             content: f.file!.content,

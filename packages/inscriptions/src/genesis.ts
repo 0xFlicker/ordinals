@@ -169,7 +169,7 @@ export async function generateFundableGenesisTransaction(
     if (metadata) {
       const metadataCbor = cborEncode(metadata);
       for (let j = 0; j < metadataCbor.byteLength; j += 520) {
-        const chunk = Buffer.from(metadataCbor.subarray(j, j + 520));
+        const chunk = metadataCbor.subarray(j, j + 520);
         masterScript.push("05", new Uint8Array(chunk));
       }
     }
@@ -199,15 +199,6 @@ export async function generateFundableGenesisTransaction(
 
   const [tapKey] = Tap.getPubKey(pubKey, {
     tree,
-  });
-  const [genesisTweakedPubKey] = Tap.getPubKey(pubKey, {
-    tree,
-    target: genesisLeaf,
-  });
-
-  const [refundTweakedPubKey] = Tap.getPubKey(pubKey, {
-    tree,
-    target: refundLeaf,
   });
 
   // This is the actual address to which the user will send the EXACT funds

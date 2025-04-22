@@ -170,7 +170,7 @@ export const handler: Handler = async () => {
           cblock: doc.genesisCBlock,
           padding: doc.padding,
           script: doc.genesisScript,
-          secKey: Buffer.from(doc.secKey, "base64"),
+          secKey: Buffer.from(doc.secKey, "hex"),
           rootTapKey: doc.rootTapKey,
           inscriptions: doc.writableInscriptions,
           txid: funding.fundingTxid,

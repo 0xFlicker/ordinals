@@ -25,7 +25,7 @@ export class InscriptionsBus extends Construct {
     // Create the SQS queues for metadata fetch and metadata query operations
     const newFundingRequestQueue = new sqs.Queue(
       this,
-      "NewFundingRequestQueue"
+      "NewFundingRequestQueue",
     );
     this.newFundingRequestQueue = newFundingRequestQueue;
 
@@ -38,7 +38,7 @@ export class InscriptionsBus extends Construct {
         eventPattern: {
           detailType: ["ordinal_funding_request_start"],
         },
-      }
+      },
     );
     newFundingStartRule.addTarget(
       new events_targets.SqsQueue(newFundingRequestQueue, {
@@ -46,7 +46,7 @@ export class InscriptionsBus extends Construct {
           type: events.EventField.fromPath("$.detail-type"),
           data: events.EventField.fromPath("$.detail"),
         }),
-      })
+      }),
     );
     if (lambdas) {
       const fundingRequestStartLambda = new lambda.Function(
@@ -66,7 +66,7 @@ export class InscriptionsBus extends Construct {
                     platform: "node",
                     target: "node16",
                     format: "esm",
-                    external: ["aws-sdk"],
+                    external: ["aws-sdk", "dtrace-provider"],
                   });
                   return !!result;
                 },
@@ -75,7 +75,7 @@ export class InscriptionsBus extends Construct {
             },
           }),
           timeout: cdk.Duration.seconds(5),
-        }
+        },
       );
     }
 

@@ -244,7 +244,7 @@ export class Graphql extends Construct {
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
         bundling: {
-          externalModules: ["aws-sdk", "@aws-sdk/*"],
+          externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,
           inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
         },

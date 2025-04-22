@@ -327,7 +327,6 @@ export class AxolotlModel implements IAxolotlMeta {
       genesisLeaf,
       genesisScript,
       genesisTapKey,
-
       rootTapKey,
       refundCBlock,
       refundLeaf,

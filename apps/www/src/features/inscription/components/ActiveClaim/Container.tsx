@@ -32,7 +32,7 @@ export const Container: FC<{
       if (!destinationAddress) {
         networkSelect({
           network,
-          purpose: AddressPurpose.Ordinals,
+          purpose: [AddressPurpose.Ordinals],
         });
         connect({
           message: "Please connect your wallet to continue",

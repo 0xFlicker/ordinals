@@ -93,6 +93,8 @@ export class InscriptionFunding extends Construct {
         bundling: {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,
+          minify: true,
+          sourcesContent: true,
           inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
           format: lambdaNodejs.OutputFormat.ESM,
           target: "node20",
@@ -178,6 +180,8 @@ export class InscriptionFunding extends Construct {
         bundling: {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,
+          minify: true,
+          sourcesContent: true,
           inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
           format: lambdaNodejs.OutputFormat.ESM,
           target: "node20",
