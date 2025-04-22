@@ -44,6 +44,7 @@ import {
 } from "./bitcoin";
 import { checkTxo, fetchFunding } from "./mempool";
 import { retryWithBackOff } from "@0xflick/ordinals-backend/src/utils/retry";
+import { UnableToFindFeasibleFeeRateError } from "../../inscriptions/src/errors";
 
 async function waitForFunding(
   address: string,
@@ -68,13 +69,11 @@ async function waitForFunding(
         if (e instanceof Error) {
           const statusCode = parseInt(e.message);
           if (!isNaN(statusCode) && statusCode >= 500 && statusCode < 600) {
-            console.log(`Received ${statusCode} error, retrying...`);
             throw e; // Rethrow to trigger retry
           }
         }
 
         // For other errors, just wait and try again
-        console.log("Waiting for funding...");
         await new Promise((resolve) => setTimeout(resolve, 2000));
         return await checkTxo({
           address,
@@ -176,7 +175,7 @@ describe("genesis", () => {
       generateInscriptionAddress("regtest");
 
     const script = [pubKey.to_bytes(), "OP_CHECKSIG"];
-    console.log(`Script: ${script}`);
+
     const tapLeaf = Tap.encodeScript(script);
     const [tweakedSecKey] = Tap.getSecKey(secKey);
     const [tweakedPubKey] = Tap.getPubKey(pubKey);
@@ -204,10 +203,6 @@ describe("genesis", () => {
       Number(bitcoinToSats("0.0001")),
     );
 
-    console.log(`TxID: ${txid}`);
-    console.log(`Vout: ${vout}`);
-    console.log(`Amount: ${amount}`);
-
     const txData = Tx.create({
       vin: [
         {
@@ -227,8 +222,6 @@ describe("genesis", () => {
       ],
     });
 
-    console.log(`Tweaked seckey: ${tweakedSecKey}`);
-
     const sig = Signer.taproot.sign(tweakedSecKey, txData, 0);
 
     txData.vin[0].witness = [sig.hex];
@@ -247,16 +240,13 @@ describe("genesis", () => {
       generateInscriptionAddress("regtest");
 
     const script = [pubKey, "OP_CHECKSIG"];
-    console.log(`Script: ${script}`);
+
     const tapLeaf = Tap.encodeScript(script);
-    const [tweakedSecKey] = Tap.getSecKey(secKey, { target: tapLeaf });
     const [tweakedPubKey, cblock] = Tap.getPubKey(pubKey, { target: tapLeaf });
     const address = Address.p2tr.fromPubKey(
       tweakedPubKey,
       networkNamesToTapScriptName(NETWORK),
     );
-
-    console.log(`Address: ${address}`);
 
     await sendBitcoin({
       address,
@@ -274,10 +264,6 @@ describe("genesis", () => {
       NETWORK,
       Number(bitcoinToSats("0.0001")),
     );
-
-    console.log(`TxID: ${txid}`);
-    console.log(`Vout: ${vout}`);
-    console.log(`Amount: ${amount}`);
 
     const txData = Tx.create({
       vin: [
@@ -297,8 +283,6 @@ describe("genesis", () => {
         },
       ],
     });
-
-    console.log(`Tweaked seckey: ${tweakedSecKey}`);
 
     const sig = Signer.taproot.sign(secKey, txData, 0, {
       extension: tapLeaf,
@@ -377,7 +361,6 @@ describe("genesis", () => {
 
     // broadcast the refund transaction
     const refundTxHex = Tx.encode(refundTx).hex;
-    console.log(`Refund transaction hex: ${refundTxHex}`);
     const refundResult = await sendRawTransaction({
       txhex: refundTxHex,
     });
@@ -428,7 +411,6 @@ describe("genesis", () => {
     console.log(`Funding transaction ID: ${fundingResult.txid}`);
 
     // Generate a new block to confirm the transaction
-    console.log(`\nGenerating a new block to confirm the transaction...`);
     await generateBlock({
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress, // Use the tip destination address to receive the block reward
@@ -472,23 +454,13 @@ describe("genesis", () => {
       feeRateRange: [10, 1],
     });
 
-    console.log(`\nReveal Transaction:`);
-    console.log(`Hex: ${revealTx.hex}`);
-    console.log(`Miner Fee: ${revealTx.minerFee}`);
-    console.log(`Platform Fee: ${revealTx.platformFee}`);
-
     // Step 7: Broadcast the reveal transaction
-    console.log(`\nBroadcasting the reveal transaction...`);
-
     const revealTxId = await sendRawTransaction({
       txhex: revealTx.hex,
     });
     console.log(`Reveal transaction ID: ${revealTxId}`);
 
     // Generate another block to confirm the reveal transaction
-    console.log(
-      `\nGenerating a new block to confirm the reveal transaction...`,
-    );
     await generateBlock({
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress,
@@ -506,9 +478,6 @@ describe("genesis", () => {
     const { inscriptionAddress } = generateInscriptionAddress();
 
     const privKey = generatePrivKey();
-
-    console.log(`\nInscription Address: ${inscriptionAddress}`);
-    console.log(`Private key: ${privKey}`);
 
     // Step 3: Create a test inscription content
     const testContent = Buffer.from("Hello, world!", "utf-8");
@@ -532,13 +501,6 @@ describe("genesis", () => {
       feeRate: 1,
     });
 
-    console.log(`\nGenesis Transaction:`);
-    console.log(`Funding Address: ${genesisResponse.fundingAddress}`);
-    console.log(`Amount: ${genesisResponse.amount}`);
-    console.log(`Total Fee: ${genesisResponse.totalFee}`);
-    console.log(`Overhead: ${genesisResponse.overhead}`);
-    console.log(`Padding: ${genesisResponse.padding}`);
-
     // Step 5: Create a funding record in DynamoDB
     const fundingId = ("test-funding-" + Date.now()) as ID_AddressInscription;
     await fundingDao.createFunding({
@@ -546,7 +508,7 @@ describe("genesis", () => {
       address: genesisResponse.fundingAddress,
       destinationAddress: inscriptionAddress,
       fundingAmountBtc: genesisResponse.amount,
-      fundingAmountSat: parseInt(genesisResponse.amount),
+      fundingAmountSat: Number(bitcoinToSats(genesisResponse.amount)),
       createdAt: new Date(),
       fundingStatus: "funding",
       network: NETWORK,
@@ -601,9 +563,6 @@ describe("genesis", () => {
     }
 
     // Step 8: Actually fund the transaction using bitcoin-cli
-    console.log(
-      `\nFunding the transaction with ${genesisResponse.amount} BTC...`,
-    );
     const fundingResult = await sendBitcoin({
       address: genesisResponse.fundingAddress,
       amount: genesisResponse.amount,
@@ -611,10 +570,7 @@ describe("genesis", () => {
       fee_rate: 1,
     });
 
-    console.log(`Funding transaction ID: ${fundingResult.txid}`);
-
     // Generate a new block to confirm the transaction
-    console.log(`\nGenerating a new block to confirm the transaction...`);
     await generateBlock({
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress, // Use the tip destination address to receive the block reward
@@ -653,14 +609,6 @@ describe("genesis", () => {
       fundingVout: vout,
     });
 
-    // Add logging before reveal transaction generation
-    console.log("Original secKey:", genesisResponse.secKey);
-    console.log("Stored secKey:", fundedInscriptionTx.secKey);
-    console.log(
-      "Decoded secKey:",
-      Buffer.from(fundedInscriptionTx.secKey, "hex"),
-    );
-
     // Generate the reveal transaction
     const revealTx = generateRevealTransaction({
       inputs: [
@@ -692,22 +640,12 @@ describe("genesis", () => {
       feeTarget: TIP_AMOUNT,
     });
 
-    console.log(`\nReveal Transaction:`);
-    console.log(`Hex: ${revealTx.hex}`);
-    console.log(`Miner Fee: ${revealTx.minerFee}`);
-    console.log(`Platform Fee: ${revealTx.platformFee}`);
-
     // Step 11: Broadcast the reveal transaction
-    console.log(`\nBroadcasting the reveal transaction...`);
     const revealTxId = await sendRawTransaction({
       txhex: revealTx.hex,
     });
-    console.log(`Reveal transaction ID: ${revealTxId}`);
 
     // Generate another block to confirm the reveal transaction
-    console.log(
-      `\nGenerating a new block to confirm the reveal transaction...`,
-    );
     await generateBlock({
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress,
@@ -764,7 +702,7 @@ describe("genesis", () => {
       address: genesisResponse.fundingAddress,
       destinationAddress: inscriptionAddress,
       fundingAmountBtc: genesisResponse.amount,
-      fundingAmountSat: parseInt(genesisResponse.amount),
+      fundingAmountSat: Number(bitcoinToSats(genesisResponse.amount)),
       createdAt: new Date(),
       fundingStatus: "funding",
       network: NETWORK,
@@ -819,9 +757,6 @@ describe("genesis", () => {
     }
 
     // Step 8: Actually fund the transaction using bitcoin-cli
-    console.log(
-      `\nFunding the transaction with ${genesisResponse.amount} BTC...`,
-    );
     const fundingResult = await sendBitcoin({
       address: genesisResponse.fundingAddress,
       amount: genesisResponse.amount,
@@ -829,10 +764,7 @@ describe("genesis", () => {
       fee_rate: 1,
     });
 
-    console.log(`Funding transaction ID: ${fundingResult.txid}`);
-
     // Generate a new block to confirm the transaction
-    console.log(`\nGenerating a new block to confirm the transaction...`);
     await generateBlock({
       rpcwallet: RPC_WALLET,
       address: TIP_DESTINATION.inscriptionAddress, // Use the tip destination address to receive the block reward
@@ -871,14 +803,6 @@ describe("genesis", () => {
       fundingVout: vout,
     });
 
-    // Add logging before reveal transaction generation
-    console.log("Original secKey:", genesisResponse.secKey);
-    console.log("Stored secKey:", fundedInscriptionTx.secKey);
-    console.log(
-      "Decoded secKey:",
-      Buffer.from(fundedInscriptionTx.secKey, "hex"),
-    );
-
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
 
     const groupingResult = groupFundings(
@@ -888,7 +812,7 @@ describe("genesis", () => {
           fundedAt: thirtyMinutesAgo,
           sizeEstimate: genesisResponse.totalFee + genesisResponse.overhead,
           input: {
-            amount: parseInt(genesisResponse.amount),
+            amount: Number(bitcoinToSats(genesisResponse.amount)),
             leaf: fundedInscriptionTx.genesisLeaf,
             tapkey: fundedInscriptionTx.genesisTapKey,
             cblock: fundedInscriptionTx.genesisCBlock,
@@ -916,9 +840,10 @@ describe("genesis", () => {
               }),
         },
       ],
-      [1, 20],
+      [20, 1],
     );
 
-    console.log(groupingResult);
+    expect(groupingResult.rejectedFundings).toHaveLength(0);
+    expect(Object.values(groupingResult.feeDestinationGroups)).toHaveLength(1);
   }, 60000);
 });

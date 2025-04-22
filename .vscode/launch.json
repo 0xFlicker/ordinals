@@ -9,6 +9,20 @@
       "port": 9229,
       "request": "attach",
       "type": "node"
+    },
+    {
+      "name": "Debug Jest Tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--experimental-vm-modules",
+        "${workspaceRoot}/node_modules/.bin/jest"
+      ],
+      "args": ["--runInBand", "--watchAll=false", "${file}"],
+      "cwd": "${workspaceRoot}/packages/test",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
     }
   ]
 }

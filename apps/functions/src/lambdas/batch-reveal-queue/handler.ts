@@ -154,11 +154,28 @@ export const handler: Handler = async () => {
     fundingsByNetwork.get(network)?.push(funding);
   }
 
+  if (fundingsByNetwork.size !== 0) {
+    logger.info(
+      {
+        networks: fundingsByNetwork.keys(),
+      },
+      "Fundings by network",
+    );
+  }
+
   for (const [network, requests] of fundingsByNetwork.entries()) {
     const batchId = uuidv4();
     const { fastestFee, hourFee } = await getFeeEstimates(network);
     const fundings: GroupableFunding[] = [];
     for (const { doc, funding } of requests) {
+      logger.info(
+        {
+          amount: funding.fundingAmountSat,
+          tipAmount: doc.tip,
+          tipDestination: doc.tipAmountDestination,
+        },
+        "Funding",
+      );
       fundings.push({
         id: funding.id,
         fundedAt: funding.fundedAt,
@@ -176,17 +193,19 @@ export const handler: Handler = async () => {
           txid: funding.fundingTxid,
           vout: funding.fundingVout,
         },
-        feeDestinations: [
-          ...(doc.tipAmountDestination && doc.tip
-            ? [
+        ...(doc.tipAmountDestination && doc.tip
+          ? {
+              feeDestinations: [
                 {
                   address: doc.tipAmountDestination,
                   weight: 100,
                 },
-              ]
-            : []),
-        ],
-        feeTarget: funding.fundingAmountSat,
+              ],
+              feeTarget: doc.tip,
+            }
+          : {
+              feeDestinations: [],
+            }),
         parentInscriptionId: doc.parentInscriptionId,
       });
     }

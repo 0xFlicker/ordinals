@@ -9,7 +9,10 @@ import {
   TxTemplate,
 } from "@cmdcode/tapscript";
 import { get_pubkey, get_seckey } from "@cmdcode/crypto-tools/keys";
-import { CannotFitInscriptionsError } from "./errors.js";
+import {
+  CannotFitInscriptionsError,
+  UnableToFindFeasibleFeeRateError,
+} from "./errors.js";
 import { BitcoinScriptData } from "./types.js";
 import { serializedScriptToScriptData } from "./utils.js";
 
@@ -195,7 +198,7 @@ export function generateRevealTransactionDataIteratively(
   }
 
   // If everything fails
-  throw new CannotFitInscriptionsError();
+  throw new UnableToFindFeasibleFeeRateError(request);
 }
 
 export class TransactionTooLargeError extends Error {
@@ -262,6 +265,12 @@ function buildTxAtFeeRate(
   }
   const baseMinerFee = Math.ceil(feeRate * baseVSize);
 
+  // console.log(
+  //   `baseVSize: ${baseVSize}, baseMinerFee: ${baseMinerFee}, totalInputAmount: ${getTotalInputAmount(
+  //     request,
+  //   )}, requiredPadding: ${getRequiredPaddingAmount(request)}`,
+  // );
+
   // 4) Check that we have enough input to pay for required padding + base miner fee
   const totalInputAmount = getTotalInputAmount(request);
   const requiredPadding = getRequiredPaddingAmount(request);
@@ -282,6 +291,10 @@ function buildTxAtFeeRate(
     try {
       finalVSize = Tx.util.getTxSize(txSkeleton).vsize;
     } catch {
+      console.log(
+        "Invalid or can't estimate",
+        JSON.stringify(txSkeleton, null, 2),
+      );
       return null;
     }
     const finalMinerFee = Math.ceil(feeRate * finalVSize);
@@ -418,6 +431,10 @@ function tryPlatformFeeDistribution(
   try {
     newVSize = Tx.util.getTxSize(tempTxData).vsize;
   } catch {
+    console.log(
+      "Invalid or can't estimate, need to revert",
+      JSON.stringify(tempTxData, null, 2),
+    );
     tempTxData.vout.splice(-platformOutputs.length);
     return null;
   }

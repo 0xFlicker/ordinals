@@ -1,3 +1,5 @@
+import { RevealTransactionRequest } from "./reveal";
+
 export class RateLimitedError extends Error {}
 export class PaddingTooLowError extends Error {
   public minPaddingNeeded: number;
@@ -21,6 +23,14 @@ export class CannotFitInscriptionsError extends Error {
       `Cannot fit inscriptions into transaction.${
         fundingId ? ` Funding ID: ${fundingId}` : ""
       }`,
+    );
+  }
+}
+
+export class UnableToFindFeasibleFeeRateError extends Error {
+  constructor(public readonly request: RevealTransactionRequest) {
+    super(
+      `Unable to find a feasible fee rate for the transaction. Fee rate: ${request.feeRateRange[0]} - ${request.feeRateRange[1]}`,
     );
   }
 }
