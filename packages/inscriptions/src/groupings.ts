@@ -1,5 +1,6 @@
 // groupings.ts
 import { Tx } from "@cmdcode/tapscript";
+import { createLogger } from "@0xflick/ordinals-backend";
 import {
   generateRevealTransactionDataIteratively,
   RevealTransactionFeeDestination,
@@ -8,6 +9,14 @@ import {
   RevealTransactionParentTx,
   TransactionTooLargeError,
 } from "./reveal.js";
+import {
+  createInscriptionFundingAggregator,
+  FundingAggregator,
+} from "./aggregators.js";
+
+const logger = createLogger({
+  name: "groupings",
+});
 
 /**
  * InscriptionFunding represents a funding record.
@@ -62,7 +71,7 @@ export interface GroupingResult {
 }
 
 const MAX_BATCH_SIZE = 100000; // 100K size threshold
-const RECENT_THRESHOLD = 15 * 60 * 1000; // 15 minutes in milliseconds
+const RECENT_THRESHOLD = 1 * 60 * 1000; // 15 minutes in milliseconds
 
 /**
  * Returns the size of a funding.
@@ -73,12 +82,13 @@ export function sizeOfTransaction(funding: InscriptionFunding): number {
 
 /**
  * validateBatch aggregates unique inputs, parentTxs, and feeDestinations from the candidate fundings,
- * then tries to generate a reveal transaction. If the transaction’s size (vsize * 4) is within MAX_BATCH_SIZE,
+ * then tries to generate a reveal transaction. If the transaction's size (vsize * 4) is within MAX_BATCH_SIZE,
  * returns an object with tx hex and fee info; otherwise returns false.
  */
 export function validateBatch(
   fundings: InscriptionFunding[],
   feeRateRange: RevealTransactionFeeRateRange,
+  aggregator: FundingAggregator<InscriptionFunding>,
 ):
   | false
   | {
@@ -87,43 +97,33 @@ export function validateBatch(
       minerFee: number;
       underpriced?: boolean;
     } {
-  // For inputs and feeDestinations we can use JSON-based deduplication.
-  const createKey = (obj: any): string => JSON.stringify(obj);
-  const uniqueInputs = Array.from(
-    new Set(fundings.flatMap((f) => f.inputs).map(createKey)),
-  ).map((key) => JSON.parse(key));
-
-  const uniqueFeeDestinations = Array.from(
-    new Set(fundings.flatMap((f) => f.feeDestinations || []).map(createKey)),
-  ).map((key) => JSON.parse(key));
-
-  // For parentTxs, deduplicate by a unique key (txid:vout) without serialization.
-  const uniqueParentTxsMap = new Map<string, RevealTransactionParentTx>();
-  for (const f of fundings) {
-    for (const ptx of f.parentTxs || []) {
-      const key = `${ptx.vin.txid}:${ptx.vin.vout}`;
-      if (!uniqueParentTxsMap.has(key)) {
-        uniqueParentTxsMap.set(key, ptx);
-      }
-    }
-  }
-  const uniqueParentTxs = Array.from(uniqueParentTxsMap.values());
-
   const totalFeeTarget = fundings.reduce(
     (acc, f) => acc + (f.feeTarget ?? 0),
     0,
   );
 
+  aggregator.clear();
+  for (const f of fundings) {
+    aggregator.add(f);
+  }
+
   try {
     const tx = generateRevealTransactionDataIteratively({
       feeRateRange,
-      inputs: uniqueInputs,
-      parentTxs: uniqueParentTxs,
-      feeDestinations: uniqueFeeDestinations,
+      inputs: fundings.flatMap((f) => f.inputs),
+      parentTxs: aggregator.getUniqueParentInscriptions(),
+      feeDestinations: fundings.flatMap((f) => f.feeDestinations || []),
       feeTarget: totalFeeTarget,
     });
     const { size } = Tx.util.getTxSize(tx.txData);
     if (size > MAX_BATCH_SIZE) {
+      logger.debug(
+        {
+          fundingIds: fundings.map((f) => f.id),
+        },
+        "Transaction too large:",
+        size,
+      );
       throw new TransactionTooLargeError();
     }
     return {
@@ -133,7 +133,7 @@ export function validateBatch(
       underpriced: tx.underpriced,
     };
   } catch (e) {
-    console.error("Error validating batch:", e);
+    console.error(e, "Error validating batch");
     return false;
   }
 }
@@ -145,12 +145,11 @@ export function validateBatch(
 function feeDestinationsKey(
   funding: GroupableFunding | InscriptionFunding,
 ): string {
-  if (!funding.feeDestinations || funding.feeDestinations.length === 0) {
-    return "nofee";
-  }
   const sorted = funding.feeDestinations
-    .slice()
-    .sort((a, b) => a.address.localeCompare(b.address));
+    ? funding.feeDestinations
+        .slice()
+        .sort((a, b) => a.address.localeCompare(b.address))
+    : [];
   return JSON.stringify(sorted);
 }
 
@@ -170,6 +169,7 @@ function canJoinBatch(
   batch: InscriptionFunding,
   funding: GroupableFunding,
   feeRateRange: RevealTransactionFeeRateRange,
+  aggregator: FundingAggregator<InscriptionFunding>,
 ): boolean {
   // Add the funding to the batch and validate the batch.
   // first clone the batch
@@ -180,7 +180,7 @@ function canJoinBatch(
   newBatch.feeTarget = funding.feeTarget
     ? funding.feeTarget + (batch.feeTarget ?? 0)
     : funding.feeTarget;
-  return !!validateBatch([newBatch], feeRateRange);
+  return !!validateBatch([newBatch], feeRateRange, aggregator);
 }
 
 /**
@@ -191,10 +191,15 @@ function canJoinBatch(
  * - Fundings that are recent (<15 minutes old) are placed into laterFundings.
  * - Fundings that can't form a valid batch even on their own are rejected.
  */
-export function groupFundings(
-  fundings: GroupableFunding[],
-  feeRateRange: RevealTransactionFeeRateRange,
-): GroupingResult {
+export function groupFundings({
+  fundings,
+  feeRateRange,
+  inscriptionAggregator = createInscriptionFundingAggregator(),
+}: {
+  fundings: GroupableFunding[];
+  feeRateRange: RevealTransactionFeeRateRange;
+  inscriptionAggregator?: FundingAggregator<InscriptionFunding>;
+}): GroupingResult {
   const now = Date.now();
 
   const laterFundings: GroupableFunding[] = [];
@@ -206,6 +211,8 @@ export function groupFundings(
   // Separate parent and non-parent fundings.
   const parentFundings = fundings.filter((f) => f.parentInscriptionId);
   const nonParentFundings = fundings.filter((f) => !f.parentInscriptionId);
+
+  inscriptionAggregator.clear();
 
   // Process fundings with parentInscriptionId.
   const parentGroups = new Map<string, InscriptionFunding[]>();
@@ -222,7 +229,8 @@ export function groupFundings(
       const batch = parentGroups.get(key)!;
       let joined = false;
       for (const b of batch) {
-        if (canJoinBatch(b, f, feeRateRange)) {
+        if (canJoinBatch(b, f, feeRateRange, inscriptionAggregator)) {
+          inscriptionAggregator.add(f);
           b.inputs.push(f.input);
           b.feeTarget = f.feeTarget
             ? f.feeTarget + (b.feeTarget ?? 0)
@@ -249,7 +257,11 @@ export function groupFundings(
     for (const funding of group) {
       const fundSize = sizeOfTransaction(funding);
       if (!currentBatch.length) {
-        if (!validateBatch([funding], feeRateRange)) {
+        if (!validateBatch([funding], feeRateRange, inscriptionAggregator)) {
+          logger.debug(
+            { fundingId: funding.id },
+            "Rejecting funding - failed validation",
+          );
           rejectedFundings.push(funding);
           continue;
         }
@@ -257,40 +269,72 @@ export function groupFundings(
         currentSize = fundSize;
       } else {
         if (currentSize + fundSize > MAX_BATCH_SIZE) {
-          const validated = validateBatch(currentBatch, feeRateRange);
+          const validated = validateBatch(
+            currentBatch,
+            feeRateRange,
+            inscriptionAggregator,
+          );
           if (validated) {
             batches.push({ fundings: [...currentBatch], hex: validated.hex });
           } else {
-            currentBatch.forEach((f) => rejectedFundings.push(f));
+            currentBatch.forEach((f) => {
+              logger.debug(
+                { fundingId: f.id },
+                "Rejecting funding - batch validation failed",
+              );
+              rejectedFundings.push(f);
+            });
           }
           currentBatch = [];
           currentSize = 0;
-          if (validateBatch([funding], feeRateRange)) {
+          if (validateBatch([funding], feeRateRange, inscriptionAggregator)) {
             currentBatch.push(funding);
             currentSize = fundSize;
           } else {
+            logger.debug(
+              { fundingId: funding.id },
+              "Rejecting funding - failed validation",
+            );
             rejectedFundings.push(funding);
           }
         } else {
           const candidate = [...currentBatch, funding];
-          const validated = validateBatch(candidate, feeRateRange);
+          const validated = validateBatch(
+            candidate,
+            feeRateRange,
+            inscriptionAggregator,
+          );
           if (validated) {
             currentBatch.push(funding);
             currentSize += fundSize;
           } else {
-            const batchValidated = validateBatch(currentBatch, feeRateRange);
+            const batchValidated = validateBatch(
+              currentBatch,
+              feeRateRange,
+              inscriptionAggregator,
+            );
             if (batchValidated) {
               batches.push({
                 fundings: [...currentBatch],
                 hex: batchValidated.hex,
               });
             } else {
-              currentBatch.forEach((f) => rejectedFundings.push(f));
+              currentBatch.forEach((f) => {
+                logger.debug(
+                  { fundingId: f.id },
+                  "Rejecting funding - batch validation failed",
+                );
+                rejectedFundings.push(f);
+              });
             }
-            if (validateBatch([funding], feeRateRange)) {
+            if (validateBatch([funding], feeRateRange, inscriptionAggregator)) {
               currentBatch = [funding];
               currentSize = fundSize;
             } else {
+              logger.debug(
+                { fundingId: funding.id },
+                "Rejecting funding - failed validation",
+              );
               rejectedFundings.push(funding);
               currentBatch = [];
               currentSize = 0;
@@ -300,11 +344,21 @@ export function groupFundings(
       }
     }
     if (currentBatch.length) {
-      const validated = validateBatch(currentBatch, feeRateRange);
+      const validated = validateBatch(
+        currentBatch,
+        feeRateRange,
+        inscriptionAggregator,
+      );
       if (validated) {
         batches.push({ fundings: [...currentBatch], hex: validated.hex });
       } else {
-        currentBatch.forEach((f) => rejectedFundings.push(f));
+        currentBatch.forEach((f) => {
+          logger.debug(
+            { fundingId: f.id },
+            "Rejecting funding - final batch validation failed",
+          );
+          rejectedFundings.push(f);
+        });
       }
     }
     if (batches.length > 0) {
@@ -322,26 +376,45 @@ export function groupFundings(
       laterFundings.push(f);
       continue;
     }
+    const soloFunding = createNewInscriptionFunding(f);
+    // First check the funding by itself to see if it's valid
+    if (!validateBatch([soloFunding], feeRateRange, inscriptionAggregator)) {
+      logger.debug(
+        { soloFunding },
+        "Rejecting solo funding - failed validation",
+      );
+      rejectedFundings.push({
+        id: f.id,
+        fundedAt: f.fundedAt,
+        inputs: [f.input],
+        sizeEstimate: f.sizeEstimate,
+        parentInscriptionId: f.parentInscriptionId,
+        feeDestinations: f.feeDestinations,
+        feeTarget: f.feeTarget,
+        ...(f.parentTx ? { parentTxs: [f.parentTx] } : {}),
+      });
+      continue;
+    }
     const key = feeDestinationsKey(f);
     if (!feeGroups.has(key)) {
-      feeGroups.set(key, [createNewInscriptionFunding(f)]);
+      feeGroups.set(key, [soloFunding]);
     } else {
       // look for a batch that we can join
       const batch = feeGroups.get(key)!;
       let joined = false;
       for (const b of batch) {
-        if (canJoinBatch(b, f, feeRateRange)) {
+        if (canJoinBatch(b, f, feeRateRange, inscriptionAggregator)) {
           b.inputs.push(f.input);
           b.feeTarget = f.feeTarget
             ? f.feeTarget + (b.feeTarget ?? 0)
             : f.feeTarget;
-          joined = true;
           b.sizeEstimate += f.sizeEstimate;
+          joined = true;
           break;
         }
       }
       if (!joined) {
-        batch.push(createNewInscriptionFunding(f));
+        batch.push(soloFunding);
       }
     }
   }
@@ -356,49 +429,101 @@ export function groupFundings(
     const batches: RevealedTransaction[] = [];
     for (const funding of group) {
       const fundSize = sizeOfTransaction(funding);
+
       if (!currentBatch.length) {
-        if (!validateBatch([funding], feeRateRange)) {
+        if (!validateBatch([funding], feeRateRange, inscriptionAggregator)) {
+          logger.debug(
+            { fundingId: funding.id },
+            "Rejecting funding - failed validation",
+          );
           rejectedFundings.push(funding);
           continue;
         }
         currentBatch.push(funding);
         currentSize = fundSize;
       } else {
+        // First check the funding by itself to see if it's valid
+        if (!validateBatch([funding], feeRateRange, inscriptionAggregator)) {
+          logger.debug(
+            { fundingId: funding.id },
+            "Rejecting solo funding - failed validation",
+          );
+          rejectedFundings.push(funding);
+          continue;
+        }
         if (currentSize + fundSize > MAX_BATCH_SIZE) {
-          const validated = validateBatch(currentBatch, feeRateRange);
+          logger.debug(
+            {
+              fundingIds: currentBatch.map((f) => f.id),
+            },
+            "The next funding would be too large, splitting the batch",
+          );
+          const validated = validateBatch(
+            currentBatch,
+            feeRateRange,
+            inscriptionAggregator,
+          );
           if (validated) {
             batches.push({ fundings: [...currentBatch], hex: validated.hex });
           } else {
-            currentBatch.forEach((f) => rejectedFundings.push(f));
+            currentBatch.forEach((f) => {
+              logger.debug(
+                { fundingId: f.id },
+                "Rejecting funding - batch validation failed",
+              );
+              rejectedFundings.push(f);
+            });
           }
           currentBatch = [];
           currentSize = 0;
-          if (validateBatch([funding], feeRateRange)) {
+          if (validateBatch([funding], feeRateRange, inscriptionAggregator)) {
             currentBatch.push(funding);
             currentSize = fundSize;
           } else {
+            logger.debug(
+              { fundingId: funding.id },
+              "Rejecting funding - failed validation",
+            );
             rejectedFundings.push(funding);
           }
         } else {
           const candidate = [...currentBatch, funding];
-          const validated = validateBatch(candidate, feeRateRange);
+          const validated = validateBatch(
+            candidate,
+            feeRateRange,
+            inscriptionAggregator,
+          );
           if (validated) {
             currentBatch.push(funding);
             currentSize += fundSize;
           } else {
-            const batchValidated = validateBatch(currentBatch, feeRateRange);
+            const batchValidated = validateBatch(
+              currentBatch,
+              feeRateRange,
+              inscriptionAggregator,
+            );
             if (batchValidated) {
               batches.push({
                 fundings: [...currentBatch],
                 hex: batchValidated.hex,
               });
             } else {
-              currentBatch.forEach((f) => rejectedFundings.push(f));
+              currentBatch.forEach((f) => {
+                logger.debug(
+                  { fundingId: f.id },
+                  "Rejecting funding - batch validation failed",
+                );
+                rejectedFundings.push(f);
+              });
             }
-            if (validateBatch([funding], feeRateRange)) {
+            if (validateBatch([funding], feeRateRange, inscriptionAggregator)) {
               currentBatch = [funding];
               currentSize = fundSize;
             } else {
+              logger.debug(
+                { fundingId: funding.id },
+                "Rejecting funding - failed validation",
+              );
               rejectedFundings.push(funding);
               currentBatch = [];
               currentSize = 0;
@@ -408,11 +533,21 @@ export function groupFundings(
       }
     }
     if (currentBatch.length) {
-      const validated = validateBatch(currentBatch, feeRateRange);
+      const validated = validateBatch(
+        currentBatch,
+        feeRateRange,
+        inscriptionAggregator,
+      );
       if (validated) {
         batches.push({ fundings: [...currentBatch], hex: validated.hex });
       } else {
-        currentBatch.forEach((f) => rejectedFundings.push(f));
+        currentBatch.forEach((f) => {
+          logger.debug(
+            { fundingId: f.id },
+            "Rejecting funding - final batch validation failed",
+          );
+          rejectedFundings.push(f);
+        });
       }
     }
     feeDestinationGroups[key] = batches;
