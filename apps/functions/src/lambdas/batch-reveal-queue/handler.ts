@@ -11,6 +11,7 @@ import {
   submitTx,
   createSqsClient,
   createS3Client,
+  sendRawTransaction,
 } from "@0xflick/ordinals-backend";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -26,8 +27,8 @@ import {
   sendBatchSubmittedEvent,
   sendCouldNotSubmitBatchEvent,
   sendRemainingFundingsEvent,
-} from "./events";
-import { uploadTransaction } from "./storage";
+} from "./events.js";
+import { uploadTransaction } from "./storage.js";
 const logger = createLogger({ name: "scheduled-batch-processor" });
 
 type StatusFunding = {
@@ -63,50 +64,47 @@ async function submitBatchTransaction(
   network: BitcoinNetworkNames,
 ): Promise<string> {
   const id = uuidv4();
-  const [_, txid] = await Promise.all([
-    batchDao.createBatch(
-      fundings.map(({ id }) => id),
-      id,
-    ),
-    submitTx({
-      txhex: hex,
-      mempoolBitcoinClient: createMempoolBitcoinClient({
-        network,
+  let txid: string | undefined;
+  try {
+    logger.info(
+      { batchId: id, fundingIds: fundings.map(({ id }) => id) },
+      "Funding IDs",
+    );
+    await batchDao.createBatch({
+      fundingIds: fundings.map(({ id }) => id),
+      batchId: id,
+      network,
+    });
+    logger.info(
+      {
+        batchId: id,
+      },
+      "Sending raw transaction",
+    );
+    txid = await sendRawTransaction(hex);
+    await Promise.all([
+      sendBatchSubmittedEvent(sqsClient, {
+        batchId: id,
+        txid,
+        fundingIds: fundings.map(({ id }) => id),
       }),
-    }).then(async (txid) => {
-      logger.info({ txid }, `Submitted batch ${id}`);
-      try {
-        try {
-          await sendBatchSubmittedEvent(sqsClient, {
-            batchId: id,
-            txid,
-            fundingIds: fundings.map(({ id }) => id),
-          });
-        } catch (error: any) {
-          logger.error({ error }, `Could not submit batch ${id}`);
-          await sendCouldNotSubmitBatchEvent(sqsClient, {
-            batchId: id,
-            error: error.message,
-            fundings,
-          });
-        }
-      } finally {
-        if (txid) {
-          uploadTransaction(s3Client, transactionBucket.get(), txid, hex);
-        }
-      }
-      logger.info({ txid }, `Submitted batch ${id}`);
-      await Promise.all([
-        fundingDao.revealFunded({
-          id,
-          revealTxid: txid,
-        }),
-        batchDao.updateBatch(id, txid),
-      ]);
-      return txid;
-    }),
-  ]);
-  return txid;
+      batchDao.updateBatch(id, txid),
+    ]);
+    return txid;
+  } catch (error: any) {
+    logger.error(error, `Could not submit batch ${id}`);
+    await sendCouldNotSubmitBatchEvent(sqsClient, {
+      batchId: id,
+      error: error.message,
+      fundings,
+    });
+    logger.info(`Revoking batch ${id}`);
+    await batchDao.revokeBatch(id);
+    logger.info(`Revoked batch ${id}`);
+    throw error;
+  } finally {
+    await uploadTransaction(s3Client, transactionBucket.get(), id, hex);
+  }
 }
 
 // Our scheduled Lambda handler
@@ -119,6 +117,7 @@ export const handler: Handler = async () => {
     fundingStatus: "funded",
     fundedAt: new Date(),
   })) {
+    logger.info({ funding }, "Funding");
     allReadFundings.push(
       fundingDocDao
         .getInscriptionTransaction({
@@ -137,6 +136,13 @@ export const handler: Handler = async () => {
     logger.info("No ready fundings to batch; exiting.");
     return;
   }
+
+  logger.info(
+    {
+      fundings: readyFundings.length,
+    },
+    "Ready fundings",
+  );
 
   // Group all fundings by network
   const fundingsByNetwork: Map<
@@ -157,7 +163,12 @@ export const handler: Handler = async () => {
   if (fundingsByNetwork.size !== 0) {
     logger.info(
       {
-        networks: fundingsByNetwork.keys(),
+        networks: Object.fromEntries(
+          Array.from(fundingsByNetwork.entries()).map(([network, fundings]) => [
+            network,
+            fundings.length,
+          ]),
+        ),
       },
       "Fundings by network",
     );
@@ -170,9 +181,12 @@ export const handler: Handler = async () => {
     for (const { doc, funding } of requests) {
       logger.info(
         {
+          address: funding.address,
           amount: funding.fundingAmountSat,
           tipAmount: doc.tip,
           tipDestination: doc.tipAmountDestination,
+          txid: funding.fundingTxid,
+          vout: funding.fundingVout,
         },
         "Funding",
       );
@@ -216,7 +230,13 @@ export const handler: Handler = async () => {
       laterParentInscription,
       nextParentInscription,
       rejectedFundings,
-    } = groupFundings(fundings, [fastestFee, hourFee]);
+    } = groupFundings(
+      fundings,
+      [fastestFee, hourFee],
+      process.env.BATCH_REVEAL_TIME_MINUTES
+        ? parseInt(process.env.BATCH_REVEAL_TIME_MINUTES) * 60 * 1000
+        : undefined,
+    );
     const [
       remainingFundingsEvent,
       rejectedFundingsEvent,

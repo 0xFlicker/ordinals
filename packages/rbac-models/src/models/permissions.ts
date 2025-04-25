@@ -17,6 +17,7 @@ export enum EResource {
   AFFILIATE = "AFFILIATE",
   ROLE = "ROLE",
   COLLECTION = "COLLECTION",
+  INSCRIPTION = "INSCRIPTION",
 }
 
 export type TResource = keyof typeof EResource;

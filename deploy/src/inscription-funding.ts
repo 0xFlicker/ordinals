@@ -25,6 +25,9 @@ export interface IInscriptionFundingProps {
   readonly openEditionClaimsTable: dynamodb.Table;
   readonly parentInscriptionSecKeyEnvelope: Envelope;
   readonly inscriptionBucket: s3.Bucket;
+  readonly rpcLambda: lambda.Function;
+  readonly batchRevealTimeMinutes: number;
+  readonly transactionBucket: s3.Bucket;
 }
 
 export class InscriptionFunding extends Construct {
@@ -102,6 +105,7 @@ export class InscriptionFunding extends Construct {
         },
         environment: {
           LOG_LEVEL: "debug",
+          NODE_OPTIONS: "--enable-source-maps",
           TABLE_NAMES: JSON.stringify({
             rbac: props.rbacTable.tableName,
             userNonce: props.userNonceTable.tableName,
@@ -189,6 +193,7 @@ export class InscriptionFunding extends Construct {
         },
         environment: {
           LOG_LEVEL: "debug",
+          NODE_OPTIONS: "--enable-source-maps",
           TABLE_NAMES: JSON.stringify({
             funding: props.fundingTable?.tableName ?? "null",
             batch: props.batchTable?.tableName ?? "null",
@@ -199,9 +204,15 @@ export class InscriptionFunding extends Construct {
           BATCH_REMAINING_FUNDINGS_QUEUE_URL:
             this.batchRemainingFundingsQueue.queueUrl,
           INSCRIPTION_BUCKET: props.inscriptionBucket.bucketName,
+          RPC_LAMBDA_ARN: props.rpcLambda.functionArn,
+          BATCH_REVEAL_TIME_MINUTES: props.batchRevealTimeMinutes.toString(),
+          TRANSACTION_BUCKET: props.transactionBucket.bucketName,
         },
       },
     );
+
+    // Grant permission to the lambda function to call the rpc lambda
+    props.rpcLambda.grantInvoke(this.batchRevealLambda);
 
     // Grant permissions to the Lambda function to read/write from the funding table
     props.fundingTable?.grantReadWriteData(this.batchRevealLambda);
@@ -214,6 +225,9 @@ export class InscriptionFunding extends Construct {
     props.inscriptionBucket.grantReadWrite(this.batchRevealLambda);
     // When the genesis queue receives a message, trigger the batch reveal lambda
     this.genesisQueue.grantConsumeMessages(this.batchRevealLambda);
+
+    // Grant permissions to the Lambda function to read/write from the transaction bucket to store transactions
+    props.transactionBucket.grantReadWrite(this.batchRevealLambda);
 
     // Grant permissions to the Lambda function to decrypt the parent inscription sec key envelope
     props.parentInscriptionSecKeyEnvelope.key.grantDecrypt(

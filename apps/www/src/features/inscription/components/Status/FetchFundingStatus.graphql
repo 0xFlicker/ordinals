@@ -3,11 +3,9 @@ query FetchFundingStatus($id: ID!) {
     id
     network
     status
-    fundingTxId: fundingGenesisTxId
-    fundingTxUrl: fundingGenesisTxUrl
     fundingGenesisTxId
     fundingGenesisTxUrl
-    fundingRevealTxIds
-    fundingRevealTxUrls
+    fundingRevealTxId
+    fundingRevealTxUrl
   }
 }

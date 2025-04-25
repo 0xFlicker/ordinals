@@ -384,6 +384,8 @@ export const resolvers: AxolotlModule.Resolvers = {
           destinationAddress: destinationAddress as `0x${string}`,
           id: funding.id,
           s3Client: context.s3Client,
+          fundingDao: context.fundingDao,
+          funding,
         }),
         network: toGraphqlBitcoinNetworkName(funding.network),
       }));

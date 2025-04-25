@@ -4,6 +4,7 @@ const bitcoinCookieName =
   process.env.BITCOIN_SESSION_COOKIE || "next-auth.siwb-session";
 const ethereumCookieName =
   process.env.ETHEREUM_SESSION_COOKIE || "next-auth.siwe-session";
+const sessionCookieName = process.env.SESSION_COOKIE || "session";
 
 export const ethereumSessionExpirationSeconds =
   Number(process.env.SIWE_EXPIRATION_TIME_SECONDS) || 60 * 60 * 24 * 7;

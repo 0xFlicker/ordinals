@@ -9,6 +9,7 @@ import { Graphql } from "./graphql.js";
 import { Frame } from "./frame.js";
 import { Envelope } from "./envelope.js";
 import { InscriptionFunding } from "./inscription-funding.js";
+import { BitcoinRpcFunction } from "./rpc.js";
 
 interface IProps extends cdk.StackProps {
   origin: string;
@@ -18,6 +19,7 @@ export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: IProps) {
     const { origin, ...rest } = props;
     super(scope, id, rest);
+
     const { bucket: inscriptionBucket } = new Storage(this, "Storage", {
       name: "inscriptions",
     });
@@ -34,6 +36,15 @@ export class BackendStack extends cdk.Stack {
         },
       ],
     });
+    const { bucket: transactionBucket } = new Storage(
+      this,
+      "TransactionBucket",
+      {
+        name: "transactions",
+        localstack: process.env.DEPLOYMENT === "localstack",
+        encryption: s3.BucketEncryption.S3_MANAGED,
+      },
+    );
 
     const {
       claimsTable,
@@ -47,6 +58,11 @@ export class BackendStack extends cdk.Stack {
     } = new DynamoDB(this, "DynamoDB", {
       domainName: new URL(origin).host,
     });
+
+    const rpcStack = new BitcoinRpcFunction(this, "RpcStack", {
+      domainName: new URL(origin).host,
+    });
+
     // new InscriptionsBus(this, "NftMetadataBus", {
     //   lambdas: false,
     // });
@@ -63,7 +79,7 @@ export class BackendStack extends cdk.Stack {
       description: "Key for envelope encryption of bitcoin taproot secKeys",
     });
 
-    // Always deploy the InscriptionFunding construct, even in localstack
+    // Always deploy the InscriptionFunding construct
     new InscriptionFunding(this, "TxWorker", {
       domainName: new URL(origin).host,
       fundingTable,
@@ -74,6 +90,9 @@ export class BackendStack extends cdk.Stack {
       batchTable,
       parentInscriptionSecKeyEnvelope,
       inscriptionBucket,
+      rpcLambda: rpcStack.rpcLambda,
+      transactionBucket,
+      batchRevealTimeMinutes: process.env.DEPLOYMENT === "localstack" ? 1 : 15,
     });
 
     if (process.env.DEPLOYMENT !== "localstack") {

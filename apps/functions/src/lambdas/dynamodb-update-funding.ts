@@ -37,10 +37,10 @@ function isFunding(newModel: IAddressInscriptionModel) {
 
 async function handleDynamoDBRecord(record: DynamoDBRecord) {
   const { dynamodb } = record;
-  if (isInsert(record)) {
+  if (dynamodb && isInsert(record)) {
     const { NewImage } = dynamodb;
-    const newModel = FundingDao.recordToModel(NewImage);
-    if (isAddressInscriptionFunding(newModel)) {
+    const newModel = NewImage && FundingDao.recordToModel(NewImage);
+    if (newModel && isAddressInscriptionFunding(newModel)) {
       await emitEvent({
         event: {
           Action: "address-inscription-funding",

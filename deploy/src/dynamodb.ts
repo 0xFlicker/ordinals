@@ -104,12 +104,12 @@ export class DynamoDB extends Construct {
         type: dynamodb.AttributeType.NUMBER,
       },
       projectionType: dynamodb.ProjectionType.INCLUDE,
-      nonKeyAttributes: ["Address"],
+      nonKeyAttributes: ["UserID"],
     });
     rbacTable.addGlobalSecondaryIndex({
-      indexName: "AddressIndex",
+      indexName: "UserIDIndex",
       partitionKey: {
-        name: "Address",
+        name: "UserID",
         type: dynamodb.AttributeType.STRING,
       },
       sortKey: {
@@ -168,12 +168,16 @@ export class DynamoDB extends Construct {
         bundling: {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,
+          minify: true,
+          sourcesContent: true,
           inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
           format: lambdaNodejs.OutputFormat.ESM,
           target: "node20",
           platform: "node",
         },
         environment: {
+          LOG_LEVEL: "debug",
+          NODE_OPTIONS: "--enable-source-maps",
           ...parseEnv(`${domainName}/.env.graphql`),
         },
       },
@@ -300,6 +304,25 @@ export class DynamoDB extends Construct {
       indexName: "farcasterFid-index",
       partitionKey: {
         name: "farcasterFid",
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    fundingTable.addGlobalSecondaryIndex({
+      indexName: "batchId-index",
+      partitionKey: {
+        name: "batchId",
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.INCLUDE,
+      nonKeyAttributes: ["id"],
+    });
+
+    fundingTable.addGlobalSecondaryIndex({
+      indexName: "creatorUserId-index",
+      partitionKey: {
+        name: "creatorUserId",
         type: dynamodb.AttributeType.STRING,
       },
       projectionType: dynamodb.ProjectionType.ALL,

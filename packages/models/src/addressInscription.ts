@@ -12,16 +12,22 @@ export type TFundingStatus =
   | "funded"
   | "genesis" // DEPRECATED
   | "batch"
+  | "batch_revealed"
   | "revealed"
-  | "expired";
+  | "expired"
+  | "failed"
+  | "refunded";
 
 export interface IAddressInscriptionModel<T = Record<string, any>> {
   address: string;
   network: BitcoinNetworkNames;
   id: ID_AddressInscription;
+  creatorUserId?: string;
   collectionId?: ID_Collection;
   revealTxid?: string;
-  genesisTxid?: string;
+  fundingTxid?: string;
+  fundingVout?: number;
+  refundedTxid?: string;
   fundingStatus: TFundingStatus;
   fundedAt?: Date;
   createdAt: Date;
@@ -40,10 +46,6 @@ export interface IAddressInscriptionModel<T = Record<string, any>> {
   type: "address-inscription";
 }
 
-function xor(buf1: Uint8Array, buf2: Uint8Array) {
-  return buf1.map((b, i) => b ^ buf2[i]);
-}
-
 export function hashAddress(address: string) {
   return Buffer.from(Address.decode(address).data).toString("hex");
 }
@@ -56,7 +58,9 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
   public collectionId?: ID_Collection;
   public destinationAddress: string;
   public revealTxid?: string;
-  public genesisTxid?: string;
+  public fundingTxid?: string;
+  public fundingVout?: number;
+  public refundedTxid?: string;
   public fundingStatus: TFundingStatus;
   public lastChecked?: Date;
   public nextCheckAt?: Date;
@@ -82,7 +86,9 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
     this.collectionId = item.collectionId;
     this.destinationAddress = item.destinationAddress;
     this.revealTxid = item.revealTxid;
-    this.genesisTxid = item.genesisTxid;
+    this.fundingTxid = item.fundingTxid;
+    this.fundingVout = item.fundingVout;
+    this.refundedTxid = item.refundedTxid;
     this.fundingStatus = item.fundingStatus;
     this.lastChecked = item.lastChecked;
     this.nextCheckAt = item.nextCheckAt ?? new Date();

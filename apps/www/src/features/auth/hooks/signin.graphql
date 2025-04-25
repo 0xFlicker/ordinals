@@ -1,5 +1,11 @@
-mutation web3SignIn($address: ID!, $jwe: String!) {
+mutation Web3SiweSignIn($address: ID!, $jwe: String!) {
   siwe(address: $address, jwe: $jwe) {
+    token
+  }
+}
+
+mutation Web3SiwbSignIn($address: ID!, $jwe: String!) {
+  siwb(address: $address, jwe: $jwe) {
     token
   }
 }

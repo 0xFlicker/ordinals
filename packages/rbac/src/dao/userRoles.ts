@@ -22,16 +22,16 @@ export class UserRolesDAO {
     this.db = db;
   }
 
-  public static idFor(address: string, roleId: string) {
-    return `ADDRESS#${address}ROLE_ID#${roleId}`;
+  public static idFor(userId: string, roleId: string) {
+    return `USER#${userId}ROLE_ID#${roleId}`;
   }
 
   public async bind({
-    address,
+    userId,
     roleId,
     rolesDao,
   }: {
-    address: string;
+    userId: string;
     roleId: string;
     rolesDao: RolesDAO;
   }): Promise<UserRolesDAO> {
@@ -41,8 +41,8 @@ export class UserRolesDAO {
         new PutCommand({
           TableName: UserRolesDAO.TABLE_NAME,
           Item: {
-            pk: UserRolesDAO.idFor(address, roleId),
-            Address: address,
+            pk: UserRolesDAO.idFor(userId, roleId),
+            UserID: userId,
             UserRoleID: roleId,
             CreatedAt: Date.now(),
           },
@@ -52,10 +52,6 @@ export class UserRolesDAO {
     } catch (e: unknown) {
       // Check if this error is a known DynamoDB error
       if (e instanceof Error && e.name === "ConditionalCheckFailedException") {
-        console.warn("UserRolesDAO.bind: Duplicate entry", {
-          address,
-          roleId,
-        });
         // Duplicate entry, whatever. continue but don't update any counters
         wasBound = false;
       } else {
@@ -70,11 +66,11 @@ export class UserRolesDAO {
   }
 
   public async unlink({
-    address,
+    userId,
     roleId,
     rolesDao,
   }: {
-    address: string;
+    userId: string;
     roleId: string;
     rolesDao: RolesDAO;
   }): Promise<UserRolesDAO> {
@@ -84,7 +80,7 @@ export class UserRolesDAO {
         new DeleteCommand({
           TableName: UserRolesDAO.TABLE_NAME,
           Key: {
-            pk: UserRolesDAO.idFor(address, roleId),
+            pk: UserRolesDAO.idFor(userId, roleId),
           },
           ConditionExpression: "attribute_exists(pk)",
         }),
@@ -92,10 +88,6 @@ export class UserRolesDAO {
     } catch (e) {
       // Check if this error is a known DynamoDB error
       if (e instanceof Error && e.name === "ConditionalCheckFailedException") {
-        console.warn("UserRolesDAO.bind: Already deleted", {
-          address,
-          roleId,
-        });
         // Entry already gone... whatever. continue but don't update any counters
         wasRemoved = false;
       } else {
@@ -110,9 +102,9 @@ export class UserRolesDAO {
   }
 
   public async batchUnlinkByRoleId(roleId: string): Promise<UserRolesDAO> {
-    const entriesToDeleteIds: { address: string; userRoleId: string }[] = [];
+    const entriesToDeleteIds: { userId: string; userRoleId: string }[] = [];
     for await (const item of paginate<{
-      address: string;
+      userId: string;
       userRoleId: string;
     }>(async (options: IPaginationOptions) => {
       const pagination = decodeCursor(options?.cursor);
@@ -124,7 +116,7 @@ export class UserRolesDAO {
           ExpressionAttributeValues: {
             ":roleId": roleId,
           },
-          ProjectionExpression: "UserRoleID, Address",
+          ProjectionExpression: "UserRoleID, UserID",
           ...(pagination
             ? {
                 ExclusiveStartKey: pagination.lastEvaluatedKey,
@@ -140,7 +132,7 @@ export class UserRolesDAO {
       return {
         items:
           result.Items?.map((item) => ({
-            address: item.Address,
+            userId: item.UserID,
             userRoleId: item.UserRoleID,
           })) ?? [],
         cursor,
@@ -156,10 +148,10 @@ export class UserRolesDAO {
         new BatchWriteCommand({
           RequestItems: {
             [UserRolesDAO.TABLE_NAME]: entriesToDeleteIds.map(
-              ({ address, userRoleId }) => ({
+              ({ userId, userRoleId }) => ({
                 DeleteRequest: {
                   Key: {
-                    pk: UserRolesDAO.idFor(address, userRoleId),
+                    pk: UserRolesDAO.idFor(userId, userRoleId),
                   },
                 },
               }),
@@ -173,17 +165,17 @@ export class UserRolesDAO {
   }
 
   public async getRoleIdsPaginated(
-    address: string,
+    userId: string,
     options?: IPaginationOptions,
   ): Promise<IPaginatedResult<string>> {
     const pagination = decodeCursor(options?.cursor);
     const result = await this.db.send(
       new QueryCommand({
         TableName: UserRolesDAO.TABLE_NAME,
-        IndexName: "AddressIndex",
-        KeyConditionExpression: "Address = :address",
+        IndexName: "UserIDIndex",
+        KeyConditionExpression: "UserID = :userId",
         ExpressionAttributeValues: {
-          ":address": address,
+          ":userId": userId,
         },
         ProjectionExpression: "UserRoleID",
         ScanIndexForward: true,
@@ -213,19 +205,19 @@ export class UserRolesDAO {
     };
   }
 
-  public async getAllRoleIds(address: string) {
+  public async getAllRoleIds(userId: string) {
     const roleIds: string[] = [];
-    for await (const roleId of this.getRoleIds(address)) {
+    for await (const roleId of this.getRoleIds(userId)) {
       roleIds.push(roleId);
     }
     return roleIds;
   }
 
-  public getRoleIds(address: string) {
-    return paginate((options) => this.getRoleIdsPaginated(address, options));
+  public getRoleIds(userId: string) {
+    return paginate((options) => this.getRoleIdsPaginated(userId, options));
   }
 
-  public async getAddressesPaginated(
+  public async getUsersPaginated(
     roleId: string,
     options?: IPaginationOptions,
   ): Promise<IPaginatedResult<string>> {
@@ -238,7 +230,7 @@ export class UserRolesDAO {
         ExpressionAttributeValues: {
           ":roleId": roleId,
         },
-        ProjectionExpression: "Address",
+        ProjectionExpression: "UserID",
         ScanIndexForward: true,
         ...(pagination
           ? {
@@ -258,7 +250,7 @@ export class UserRolesDAO {
     const count = (pagination ? pagination.count : 0) + size;
     const cursor = encodeCursor({ lastEvaluatedKey, page, count });
     return {
-      items: result.Items?.map((item) => item.Address) ?? [],
+      items: result.Items?.map((item) => item.UserID) ?? [],
       cursor,
       page,
       count,
@@ -266,17 +258,17 @@ export class UserRolesDAO {
     };
   }
 
-  public getAddresses(roleId: string) {
+  public getUsers(roleId: string) {
     return paginate<string>((options) =>
-      this.getAddressesPaginated(roleId, options),
+      this.getUsersPaginated(roleId, options),
     );
   }
 
-  public async getAllAddresses(roleId: string) {
-    const addresses: string[] = [];
-    for await (const address of this.getAddresses(roleId)) {
-      addresses.push(address);
+  public async getAllUsers(roleId: string) {
+    const users: string[] = [];
+    for await (const user of this.getUsers(roleId)) {
+      users.push(user);
     }
-    return addresses;
+    return users;
   }
 }

@@ -1,3 +1,13 @@
+enum AddressType {
+  EVM
+  BTC
+}
+
+type Address {
+  type: AddressType!
+  address: String!
+}
+
 type Nonce {
   nonce: String!
   messageToSign: String!
@@ -8,28 +18,19 @@ type Nonce {
   version: String
   chainId: Int
   pubKey: String!
-}
-
-type AssociatedAddresses {
-  evmSignedAddress: [ID!]!
-  taprootAddress: [ID!]!
-  frameFid: ID
-  frameVerifiedAddresses: [ID!]
+  address: Address!
 }
 
 type Web3User {
   id: ID!
-
-  associatedAddresses: AssociatedAddresses!
-
+  addresses: [Address!]!
   roles: [Role!]!
   allowedActions: [Permission!]!
-
   token: String
 }
 
 type Web3LoginUser {
-  address: ID!
+  id: ID!
   user: Web3User!
   token: String!
 }

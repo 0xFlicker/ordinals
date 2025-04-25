@@ -1,7 +1,7 @@
 import { Chain, sepolia as wagmiSepolia } from "@wagmi/core/chains";
 import { lazySingleton } from "../lazy.js";
 import { TAdminChain } from "../types.js";
-
+import { zeroAddress } from "viem";
 export const sepoliaEnsRegistryAddress = lazySingleton(() => {
   return (
     process.env.SEPOLIA_ENS_REGISTRY_ADDRESS ??
@@ -17,15 +17,13 @@ export const sepoliaEnsUniversalResolverAddress = lazySingleton(() => {
 });
 
 export const sepoliaEnsAdmin = lazySingleton(() => {
-  if (!process.env.SEPOLIA_ENS_ADMIN) {
-    throw new Error("SEPOLIA_ENS_ADMIN not set");
-  }
-  return process.env.SEPOLIA_ENS_ADMIN;
+  return process.env.SEPOLIA_ENS_ADMIN ?? zeroAddress;
 });
 
 export const sepoliaRpcUrl = lazySingleton(() => {
   if (!process.env.SEPOLIA_RPC_URL) {
-    throw new Error("SEPOLIA_RPC_URL not set");
+    console.warn("SEPOLIA_RPC_URL not set");
+    return "https://rpc.sepolia.org";
   }
   return process.env.SEPOLIA_RPC_URL;
 });

@@ -1,11 +1,21 @@
 import { useMemo } from "react";
 import { useGetSelfQuery } from "./getSelf.generated";
+import { Web3Namespace } from "@/graphql/types";
 
-export const useSelf = ({ skip }: { skip?: boolean } = {}) => {
+export const useSelf = ({
+  namespace,
+  skip,
+}: {
+  namespace?: Web3Namespace;
+  skip?: boolean;
+}) => {
   const { data, ...rest } = useGetSelfQuery({
     skip,
     fetchPolicy: "no-cache",
     errorPolicy: "all",
+    variables: {
+      namespace: namespace ?? Web3Namespace.Siwe,
+    },
   });
 
   const self = useMemo(

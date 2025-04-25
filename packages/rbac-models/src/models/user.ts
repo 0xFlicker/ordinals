@@ -2,7 +2,8 @@ import { importSPKI, JWTPayload, jwtVerify, KeyLike } from "jose";
 import { generateRolesFromIds, namespacedClaim, TokenModel } from "./token.js";
 
 export interface INonceRequest {
-  address: string;
+  userId?: string;
+  address: IUserAddress;
   domain: string;
   nonce: string;
   uri: string;
@@ -12,13 +13,25 @@ export interface INonceRequest {
   chainId?: number;
 }
 
-export interface IUser {
+export enum UserAddressType {
+  EVM = "evm",
+  BTC = "btc",
+}
+
+export interface IUserAddress {
+  type: UserAddressType;
   address: string;
+}
+
+export interface IUser {
+  userId: string;
+  addresses: IUserAddress[];
   nonce?: string;
 }
 
 export interface IUserWithRoles {
-  address: string;
+  userId: string;
+  addresses: IUserAddress[];
   roleIds: string[];
   nonceClaim?: string;
   decodedToken?: JWTPayload;
@@ -54,6 +67,28 @@ export class UserTokenRolesMismatchError extends Error {
   }
 }
 
+export function roleIdsToAddresses(roleIds: string[]): IUserAddress[] {
+  return roleIds
+    .map((roleId) => {
+      const [type, address] = roleId.split("#");
+      switch (type) {
+        case "EVM":
+          return {
+            type: UserAddressType.EVM,
+            address,
+          };
+        case "BTC":
+          return {
+            type: UserAddressType.BTC,
+            address,
+          };
+        default:
+          return null;
+      }
+    })
+    .filter((a) => a !== null) as IUserAddress[];
+}
+
 /**
  *
  * @param token
@@ -68,12 +103,14 @@ export async function verifyJwtToken({
   nonce,
   payload,
   issuer,
+  addressType,
 }: {
   token: string;
   roleIds?: string[];
   nonce?: string;
   payload?: JWTPayload;
   issuer: string;
+  addressType?: string;
 }): Promise<UserWithRolesModel> {
   const result = await jwtVerify(token, await promisePublicKey, {
     ...payload,
@@ -81,6 +118,11 @@ export async function verifyJwtToken({
       roles: roleIds,
       issuer,
     }),
+    ...(typeof addressType === "string"
+      ? {
+          [namespacedClaim("at", issuer)]: addressType,
+        }
+      : {}),
     ...(typeof nonce === "string"
       ? {
           [namespacedClaim("nonce", issuer)]: nonce,
@@ -89,8 +131,8 @@ export async function verifyJwtToken({
     issuer,
   });
 
-  const address = result.payload.sub;
-  if (!address) {
+  const userId = result.payload.sub;
+  if (!userId) {
     throw new UserTokenNoAddressError();
   }
   const roleNamespace = namespacedClaim("role/", issuer);
@@ -118,7 +160,8 @@ export async function verifyJwtToken({
     throw new UserTokenNoNonceError();
   }
   return new UserWithRolesModel({
-    address,
+    userId,
+    addresses: roleIdsToAddresses(roleIdsFromToken),
     roleIds: roleIdsFromToken,
     nonce,
     nonceClaim,
@@ -127,11 +170,13 @@ export async function verifyJwtToken({
 }
 
 export class UserModel implements IUser {
-  public readonly address: string;
+  public readonly userId: string;
+  public readonly addresses: IUserAddress[];
   public readonly nonce?: string;
 
   constructor(obj: IUser) {
-    this.address = obj.address;
+    this.userId = obj.userId;
+    this.addresses = obj.addresses;
     this.nonce = obj.nonce;
   }
 
@@ -144,15 +189,17 @@ export class UserModel implements IUser {
 
   public static fromJson(json: any): UserModel {
     return new UserModel({
-      address: json.address,
+      userId: json.userId,
+      addresses: json.addresses,
       nonce: json.nonce,
     });
   }
 
   public toJson(): IUser {
     return {
-      address: this.address,
+      addresses: this.addresses,
       nonce: this.nonce,
+      userId: this.userId,
     };
   }
 
@@ -161,7 +208,11 @@ export class UserModel implements IUser {
   }
 
   public equals(other: UserModel): boolean {
-    return this.address === other.address && this.nonce === other.nonce;
+    return (
+      this.addresses === other.addresses &&
+      this.nonce === other.nonce &&
+      this.userId === other.userId
+    );
   }
 
   public clone(): UserModel {
@@ -174,13 +225,14 @@ export class UserModel implements IUser {
 }
 
 export class UserWithRolesModel implements IUserWithRoles, IUser {
+  public readonly userId: string;
   public readonly nonceClaim?: string;
   public roleIds: string[];
 
   public decodedToken?: JWTPayload;
 
-  public get address(): string {
-    return this._user.address;
+  public get addresses(): IUserAddress[] {
+    return this._user.addresses;
   }
 
   private _user: UserModel;
@@ -190,6 +242,7 @@ export class UserWithRolesModel implements IUserWithRoles, IUser {
     this.roleIds = obj.roleIds;
     this.nonceClaim = obj.nonceClaim;
     this.decodedToken = obj.decodedToken;
+    this.userId = obj.userId;
   }
 
   public get nonce(): string | undefined {
@@ -209,20 +262,22 @@ export class UserWithRolesModel implements IUserWithRoles, IUser {
 
   public static fromJson(json: any): UserWithRolesModel {
     return new UserWithRolesModel({
-      address: json.address,
+      addresses: json.addresses,
       roleIds: json.roleIds,
       decodedToken: json.decodedToken,
       nonceClaim: json.nonceClaim,
       nonce: json.nonce,
+      userId: json.userId,
     });
   }
 
   public toJson(): IUserWithRoles {
     return {
-      address: this.address,
+      addresses: this.addresses,
       roleIds: this.roleIds,
       nonceClaim: this.nonceClaim,
       decodedToken: this.decodedToken,
+      userId: this.userId,
     };
   }
 

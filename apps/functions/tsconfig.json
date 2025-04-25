@@ -19,7 +19,7 @@
     "alwaysStrict": true,
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
-    "strictNullChecks": false
+    "strictNullChecks": true
     // "strictPropertyInitialization": false
   },
   "files": ["src/electrum/electrum.d.ts"],

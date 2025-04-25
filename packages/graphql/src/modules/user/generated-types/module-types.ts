@@ -3,16 +3,21 @@ import type * as Types from "../../../generated-types/graphql.js";
 import type * as gm from "@0xflick/graphql-modules";
 export namespace UserModule {
   interface DefinedFields {
-    Nonce: 'nonce' | 'messageToSign' | 'domain' | 'expiration' | 'issuedAt' | 'uri' | 'version' | 'chainId' | 'pubKey';
-    AssociatedAddresses: 'evmSignedAddress' | 'taprootAddress' | 'frameFid' | 'frameVerifiedAddresses';
-    Web3User: 'id' | 'associatedAddresses' | 'roles' | 'allowedActions' | 'token';
-    Web3LoginUser: 'address' | 'user' | 'token';
+    Address: 'type' | 'address';
+    Nonce: 'nonce' | 'messageToSign' | 'domain' | 'expiration' | 'issuedAt' | 'uri' | 'version' | 'chainId' | 'pubKey' | 'address';
+    Web3User: 'id' | 'addresses' | 'roles' | 'allowedActions' | 'token';
+    Web3LoginUser: 'id' | 'user' | 'token';
     Mutation: 'nonceEthereum' | 'nonceBitcoin' | 'nonceFrame';
     Query: 'userByAddress';
   };
   
+  interface DefinedEnumValues {
+    AddressType: 'EVM' | 'BTC';
+  };
+  
+  export type AddressType = DefinedEnumValues['AddressType'];
+  export type Address = Pick<Types.Address, DefinedFields['Address']>;
   export type Nonce = Pick<Types.Nonce, DefinedFields['Nonce']>;
-  export type AssociatedAddresses = Pick<Types.AssociatedAddresses, DefinedFields['AssociatedAddresses']>;
   export type Web3User = Pick<Types.Web3User, DefinedFields['Web3User']>;
   export type Role = Types.Role;
   export type Permission = Types.Permission;
@@ -20,16 +25,16 @@ export namespace UserModule {
   export type Mutation = Pick<Types.Mutation, DefinedFields['Mutation']>;
   export type Query = Pick<Types.Query, DefinedFields['Query']>;
   
+  export type AddressResolvers = Pick<Types.AddressResolvers, DefinedFields['Address'] | '__isTypeOf'>;
   export type NonceResolvers = Pick<Types.NonceResolvers, DefinedFields['Nonce'] | '__isTypeOf'>;
-  export type AssociatedAddressesResolvers = Pick<Types.AssociatedAddressesResolvers, DefinedFields['AssociatedAddresses'] | '__isTypeOf'>;
   export type Web3UserResolvers = Pick<Types.Web3UserResolvers, DefinedFields['Web3User'] | '__isTypeOf'>;
   export type Web3LoginUserResolvers = Pick<Types.Web3LoginUserResolvers, DefinedFields['Web3LoginUser'] | '__isTypeOf'>;
   export type MutationResolvers = Pick<Types.MutationResolvers, DefinedFields['Mutation']>;
   export type QueryResolvers = Pick<Types.QueryResolvers, DefinedFields['Query']>;
   
   export interface Resolvers {
+    Address?: AddressResolvers;
     Nonce?: NonceResolvers;
-    AssociatedAddresses?: AssociatedAddressesResolvers;
     Web3User?: Web3UserResolvers;
     Web3LoginUser?: Web3LoginUserResolvers;
     Mutation?: MutationResolvers;
@@ -39,6 +44,11 @@ export namespace UserModule {
   export interface MiddlewareMap {
     '*'?: {
       '*'?: gm.Middleware[];
+    };
+    Address?: {
+      '*'?: gm.Middleware[];
+      type?: gm.Middleware[];
+      address?: gm.Middleware[];
     };
     Nonce?: {
       '*'?: gm.Middleware[];
@@ -51,25 +61,19 @@ export namespace UserModule {
       version?: gm.Middleware[];
       chainId?: gm.Middleware[];
       pubKey?: gm.Middleware[];
-    };
-    AssociatedAddresses?: {
-      '*'?: gm.Middleware[];
-      evmSignedAddress?: gm.Middleware[];
-      taprootAddress?: gm.Middleware[];
-      frameFid?: gm.Middleware[];
-      frameVerifiedAddresses?: gm.Middleware[];
+      address?: gm.Middleware[];
     };
     Web3User?: {
       '*'?: gm.Middleware[];
       id?: gm.Middleware[];
-      associatedAddresses?: gm.Middleware[];
+      addresses?: gm.Middleware[];
       roles?: gm.Middleware[];
       allowedActions?: gm.Middleware[];
       token?: gm.Middleware[];
     };
     Web3LoginUser?: {
       '*'?: gm.Middleware[];
-      address?: gm.Middleware[];
+      id?: gm.Middleware[];
       user?: gm.Middleware[];
       token?: gm.Middleware[];
     };

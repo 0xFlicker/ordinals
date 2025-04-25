@@ -68,7 +68,6 @@ const Row: FC<{
 export const Status: FC<{
   fundingId: string;
 }> = ({ fundingId }) => {
-  const router = useRouter();
   const { data, loading } = useFetchFundingStatusQuery({
     variables: {
       id: fundingId,
@@ -87,27 +86,20 @@ export const Status: FC<{
 
   const {
     status,
+    fundingRevealTxId,
     fundingGenesisTxId,
-    fundingRevealTxIds,
-    fundingTxId,
+    fundingRevealTxUrl,
     fundingGenesisTxUrl,
-    fundingRevealTxUrls,
-    fundingTxUrl,
-    inscriptionTransaction,
   } = inscriptionData;
-  const revealCount = inscriptionTransaction.count;
+
   const fundedSuccess = [
     FundingStatus.Funded,
     FundingStatus.Genesis,
     FundingStatus.Revealed,
   ].includes(status);
   const fundedInProgress = status === FundingStatus.Funding;
-  const genesisSuccess = [
-    FundingStatus.Genesis,
-    FundingStatus.Revealed,
-  ].includes(status);
-  const genesisInProgress = status === FundingStatus.Funded;
-  const revealInProgress = status === FundingStatus.Genesis;
+
+  const revealInProgress = status === FundingStatus.Funded;
   return (
     <Card
       sx={{
@@ -133,27 +125,6 @@ export const Status: FC<{
           status={
             fundedInProgress ? (
               <LinearProgress />
-            ) : fundingTxUrl ? (
-              <AppLink
-                href={fundingTxUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                noWrap
-              >
-                {fundingTxId}
-              </AppLink>
-            ) : (
-              fundingTxId
-            )
-          }
-          inProgress={fundedInProgress}
-          success={fundedSuccess}
-        />
-        <Row
-          label="genesis tx"
-          status={
-            genesisInProgress ? (
-              <LinearProgress />
             ) : fundingGenesisTxUrl ? (
               <AppLink
                 href={fundingGenesisTxUrl}
@@ -167,35 +138,31 @@ export const Status: FC<{
               fundingGenesisTxId
             )
           }
-          inProgress={genesisInProgress}
-          success={genesisSuccess}
+          inProgress={fundedInProgress}
+          success={fundedSuccess}
         />
-        {new Array(revealCount).fill(null, 0, revealCount).map((_, index) => {
-          return (
-            <Row
-              key={fundingRevealTxIds?.[index] ?? index}
-              label="reveal tx"
-              status={
-                revealInProgress ? (
-                  <LinearProgress />
-                ) : fundingRevealTxUrls?.[index] ? (
-                  <AppLink
-                    href={fundingRevealTxUrls[index]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    noWrap
-                  >
-                    {fundingRevealTxIds?.[index]}
-                  </AppLink>
-                ) : (
-                  fundingRevealTxIds?.[index]
-                )
-              }
-              inProgress={revealInProgress && !fundingRevealTxIds?.[index]}
-              success={!!fundingRevealTxIds?.[index]}
-            />
-          );
-        })}
+
+        <Row
+          label="reveal tx"
+          status={
+            revealInProgress ? (
+              <LinearProgress />
+            ) : fundingRevealTxUrl ? (
+              <AppLink
+                href={fundingRevealTxUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                noWrap
+              >
+                {fundingRevealTxId}
+              </AppLink>
+            ) : (
+              fundingRevealTxId
+            )
+          }
+          inProgress={revealInProgress && !fundingRevealTxId}
+          success={!!fundingRevealTxId}
+        />
       </CardContent>
     </Card>
   );

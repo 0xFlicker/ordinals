@@ -14,6 +14,7 @@ import Button from "@mui/material/Button";
 import { useFetchFundingQuery } from "./FetchFunding.generated";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
 import { CopyToClipboard } from "@/components/CopyToClipboard";
+import { FundingStatus } from "@/graphql/types";
 
 const Loading: FC = () => {
   return (
@@ -56,6 +57,7 @@ export const Pay: FC<{
     variables: {
       id: fundingId,
     },
+    pollInterval: 1000,
   });
 
   useEffect(() => {
@@ -93,6 +95,19 @@ export const Pay: FC<{
     router,
     fundingId,
   ]);
+
+  useEffect(() => {
+    if (
+      data?.inscriptionFunding?.status === FundingStatus.Funded ||
+      data?.inscriptionFunding?.status === FundingStatus.Revealed
+    ) {
+      router.push(
+        `${
+          network === BitcoinNetworkType.Testnet ? "/testnet" : ""
+        }/status/${fundingId}`
+      );
+    }
+  }, [data?.inscriptionFunding?.status, fundingId, network, router]);
 
   const sendXverse = useCallback(() => {
     if (

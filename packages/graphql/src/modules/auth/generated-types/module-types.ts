@@ -8,8 +8,13 @@ export namespace AuthModule {
     Mutation: 'siwe' | 'siwb' | 'signOutEthereum' | 'signOutBitcoin';
   };
   
+  interface DefinedEnumValues {
+    Web3Namespace: 'SIWE' | 'SIWB';
+  };
+  
   export type AppInfo = Pick<Types.AppInfo, DefinedFields['AppInfo']>;
   export type Query = Pick<Types.Query, DefinedFields['Query']>;
+  export type Web3Namespace = DefinedEnumValues['Web3Namespace'];
   export type Web3User = Types.Web3User;
   export type Mutation = Pick<Types.Mutation, DefinedFields['Mutation']>;
   export type Web3LoginUser = Types.Web3LoginUser;

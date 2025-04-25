@@ -17,18 +17,21 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export type Address = {
+  __typename?: 'Address';
+  address: Scalars['String']['output'];
+  type: AddressType;
+};
+
+export enum AddressType {
+  Btc = 'BTC',
+  Evm = 'EVM'
+}
+
 export type AppInfo = {
   __typename?: 'AppInfo';
   name: Scalars['String']['output'];
   pubKey: Scalars['String']['output'];
-};
-
-export type AssociatedAddresses = {
-  __typename?: 'AssociatedAddresses';
-  evmSignedAddress: Array<Scalars['ID']['output']>;
-  frameFid?: Maybe<Scalars['ID']['output']>;
-  frameVerifiedAddresses?: Maybe<Array<Scalars['ID']['output']>>;
-  taprootAddress: Array<Scalars['ID']['output']>;
 };
 
 export type AxolotlAvailableClaimedFunding = {
@@ -240,8 +243,10 @@ export type InscriptionFunding = {
   fundingAmountSats: Scalars['Int']['output'];
   fundingGenesisTxId?: Maybe<Scalars['String']['output']>;
   fundingGenesisTxUrl?: Maybe<Scalars['String']['output']>;
-  fundingRevealTxIds?: Maybe<Array<Scalars['String']['output']>>;
-  fundingRevealTxUrls?: Maybe<Array<Scalars['String']['output']>>;
+  fundingRefundTxId?: Maybe<Scalars['String']['output']>;
+  fundingRefundTxUrl?: Maybe<Scalars['String']['output']>;
+  fundingRevealTxId?: Maybe<Scalars['String']['output']>;
+  fundingRevealTxUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   inscriptionContent: InscriptionData;
   inscriptionContents: Array<InscriptionData>;
@@ -266,7 +271,7 @@ export type InscriptionFundingProblem = {
 
 export type InscriptionFundingQuery = {
   collectionId?: InputMaybe<Scalars['ID']['input']>;
-  fundingStatus?: InputMaybe<FundingStatus>;
+  fundingStatus: FundingStatus;
   limit?: InputMaybe<Scalars['Int']['input']>;
   next?: InputMaybe<Scalars['String']['input']>;
 };
@@ -437,6 +442,7 @@ export type MutationUploadInscriptionArgs = {
 
 export type Nonce = {
   __typename?: 'Nonce';
+  address: Address;
   chainId?: Maybe<Scalars['Int']['output']>;
   domain: Scalars['String']['output'];
   expiration: Scalars['String']['output'];
@@ -476,6 +482,7 @@ export enum PermissionResource {
   Affiliate = 'AFFILIATE',
   All = 'ALL',
   Collection = 'COLLECTION',
+  Inscription = 'INSCRIPTION',
   Presale = 'PRESALE',
   Role = 'ROLE',
   User = 'USER'
@@ -606,6 +613,11 @@ export type QueryRoleArgs = {
 };
 
 
+export type QuerySelfArgs = {
+  namespace: Web3Namespace;
+};
+
+
 export type QuerySignMultipartUploadArgs = {
   partNumber: Scalars['Int']['input'];
   uploadId: Scalars['String']['input'];
@@ -636,7 +648,7 @@ export type RoleAddPermissionsArgs = {
 
 
 export type RoleBindToUserArgs = {
-  userAddress: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 };
 
 
@@ -646,20 +658,25 @@ export type RoleRemovePermissionsArgs = {
 
 
 export type RoleUnbindFromUserArgs = {
-  userAddress: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 };
 
 export type Web3LoginUser = {
   __typename?: 'Web3LoginUser';
-  address: Scalars['ID']['output'];
+  id: Scalars['ID']['output'];
   token: Scalars['String']['output'];
   user: Web3User;
 };
 
+export enum Web3Namespace {
+  Siwb = 'SIWB',
+  Siwe = 'SIWE'
+}
+
 export type Web3User = {
   __typename?: 'Web3User';
+  addresses: Array<Address>;
   allowedActions: Array<Permission>;
-  associatedAddresses: AssociatedAddresses;
   id: Scalars['ID']['output'];
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;

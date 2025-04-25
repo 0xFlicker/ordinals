@@ -58,7 +58,7 @@ export const ConnectMenuItem: FC<{
       if (ordinalsAddress) {
         onUpdateFlow?.({ flow: EFlow.SignatureRequesting });
         try {
-          await siwb();
+          await siwb(ordinalsAddress);
           onUpdateFlow?.({ flow: EFlow.SignatureObtained });
         } catch (error) {
           if (

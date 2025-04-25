@@ -78,8 +78,8 @@ function createCheckFundingStream({
           id: fundingId,
           nextCheckAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
         });
-        return funding;
       }
+      return funding;
     }),
     tap((funding) => {
       if (funding.amount < fundingAmountSat) {

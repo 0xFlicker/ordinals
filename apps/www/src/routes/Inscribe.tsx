@@ -41,6 +41,7 @@ export const Inscribe: FC<{
   initialBitcoinNetwork: BitcoinNetworkType;
   initialBitcoinPurpose: AddressPurpose;
 }> = ({ initialBitcoinNetwork, initialBitcoinPurpose }) => {
+  const router = useRouter();
   const [ordinalsAddress, setOrdinalsAddress] = useState<string>("");
   const [network, setNetwork] = useState<string>("regtest");
   const [inscribeError, setInscribeError] = useState<InscribeError | null>(
@@ -86,6 +87,12 @@ export const Inscribe: FC<{
     feeLevel: feeMode === "preset" ? feeLevel : undefined,
     feePerByte: feeMode === "custom" ? customFeeRate : undefined,
   });
+
+  useEffect(() => {
+    if (paymentRequest) {
+      router.push(`/pay/${paymentRequest.id}`);
+    }
+  }, [paymentRequest, router]);
 
   const handleDrop = useCallback(
     async (files: File[]) => {

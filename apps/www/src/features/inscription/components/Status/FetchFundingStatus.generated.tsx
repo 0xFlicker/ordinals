@@ -8,7 +8,7 @@ export type FetchFundingStatusQueryVariables = Types.Exact<{
 }>;
 
 
-export type FetchFundingStatusQuery = { __typename?: 'Query', inscriptionFunding?: { __typename?: 'InscriptionFunding', id: string, network: Types.BitcoinNetwork, status: Types.FundingStatus, fundingGenesisTxId?: string | null, fundingGenesisTxUrl?: string | null, fundingRevealTxIds?: Array<string> | null, fundingRevealTxUrls?: Array<string> | null, fundingTxId?: string | null, fundingTxUrl?: string | null } | null };
+export type FetchFundingStatusQuery = { __typename?: 'Query', inscriptionFunding?: { __typename?: 'InscriptionFunding', id: string, network: Types.BitcoinNetwork, status: Types.FundingStatus, fundingGenesisTxId?: string | null, fundingGenesisTxUrl?: string | null, fundingRevealTxId?: string | null, fundingRevealTxUrl?: string | null } | null };
 
 
 export const FetchFundingStatusDocument = gql`
@@ -17,12 +17,10 @@ export const FetchFundingStatusDocument = gql`
     id
     network
     status
-    fundingTxId: fundingGenesisTxId
-    fundingTxUrl: fundingGenesisTxUrl
     fundingGenesisTxId
     fundingGenesisTxUrl
-    fundingRevealTxIds
-    fundingRevealTxUrls
+    fundingRevealTxId
+    fundingRevealTxUrl
   }
 }
     `;

@@ -8,7 +8,7 @@ export type CollectionStatusQueryQueryVariables = Types.Exact<{
 }>;
 
 
-export type CollectionStatusQueryQuery = { __typename?: 'Query', revealedFundings: { __typename?: 'InscriptionFundingsResult', fundings?: Array<{ __typename?: 'InscriptionFunding', id: string, fundingRevealTxIds?: Array<string> | null }> | null }, collection: { __typename?: 'Collection', id: string, name: string, totalCount: number, maxSupply: number } };
+export type CollectionStatusQueryQuery = { __typename?: 'Query', revealedFundings: { __typename?: 'InscriptionFundingsResult', fundings?: Array<{ __typename?: 'InscriptionFunding', id: string, fundingRevealTxId?: string | null }> | null }, collection: { __typename?: 'Collection', id: string, name: string, totalCount: number, maxSupply: number } };
 
 
 export const CollectionStatusQueryDocument = gql`
@@ -18,7 +18,7 @@ export const CollectionStatusQueryDocument = gql`
   ) {
     fundings {
       id
-      fundingRevealTxIds
+      fundingRevealTxId
     }
   }
   collection(id: $collectionId) {

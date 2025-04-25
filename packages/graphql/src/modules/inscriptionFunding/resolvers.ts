@@ -27,37 +27,47 @@ export const resolvers: InscriptionFundingModule.Resolvers = {
       { query: { collectionId, fundingStatus, next, limit } },
       { fundingDao, fundingDocDao, inscriptionBucket, s3Client },
     ) => {
-      if (!collectionId && !fundingStatus) {
+      if (collectionId) {
+        const fundings =
+          await fundingDao.listAllFundingByStatusAndCollectionPaginated({
+            id: collectionId as ID_Collection,
+            fundingStatus: fromGraphqlFundingStatus(fundingStatus),
+            cursor: next ?? undefined,
+            limit: limit ?? undefined,
+          });
         return {
-          problems: [
-            {
-              message: "Must provide either collectionId or fundingStatus",
-            },
-          ],
+          fundings: fundings.items.map((f) =>
+            getFundingModel({
+              id: f.id,
+              fundingDao,
+              fundingDocDao,
+              inscriptionBucket,
+              s3Client,
+            }),
+          ),
+          next: fundings.cursor,
+          count: fundings.count,
         };
-      }
-      const fundings =
-        await fundingDao.listAllFundingByStatusAndCollectionPaginated({
-          id: collectionId as ID_Collection,
-          fundingStatus: fundingStatus
-            ? fromGraphqlFundingStatus(fundingStatus)
-            : undefined,
+      } else {
+        const fundings = await fundingDao.listAllFundingByStatusPaginated({
+          fundingStatus: fromGraphqlFundingStatus(fundingStatus),
           cursor: next ?? undefined,
           limit: limit ?? undefined,
         });
-      return {
-        fundings: fundings.items.map((f) =>
-          getFundingModel({
-            id: f.id,
-            fundingDao,
-            fundingDocDao,
-            inscriptionBucket,
-            s3Client,
-          }),
-        ),
-        next: fundings.cursor,
-        count: fundings.count,
-      };
+        return {
+          fundings: fundings.items.map((f) =>
+            getFundingModel({
+              id: f.id,
+              fundingDao,
+              fundingDocDao,
+              inscriptionBucket,
+              s3Client,
+            }),
+          ),
+          next: fundings.cursor,
+          count: fundings.count,
+        };
+      }
     },
   },
   InscriptionFunding: {
@@ -79,39 +89,31 @@ export const resolvers: InscriptionFundingModule.Resolvers = {
     qrSrc: async (p) => {
       return (await p.getQrSrc({})).src;
     },
-    status: async (p, _, { fundingDao }) => {
-      const funding = await fundingDao.getFunding(p.id);
-      return toGraphqlFundingStatus(funding.fundingStatus);
-    },
-    fundingGenesisTxId: async (p, _, { fundingDao }) => {
-      const funding = await fundingDao.getFunding(p.id);
-      return funding.genesisTxid ?? null;
+    status: async (p) => {
+      return toGraphqlFundingStatus(await p.fundingStatus());
     },
     fundingGenesisTxUrl: async (p, _, { fundingDao }) => {
-      const funding = await fundingDao.getFunding(p.id);
-      if (!funding.genesisTxid) {
+      const id = await p.fundingGenesisTxId();
+      if (!id) {
         return null;
       }
       return getUrl({
-        network: funding.network,
-        id: funding.genesisTxid,
+        network: await p.network,
+        id,
         bitcoinRegtestMempoolEndpoint: "http://localhost:4080",
         bitcoinTestnetMempoolEndpoint: "https://mempool.space/testnet",
         bitcoinMainnetMempoolEndpoint: "https://mempool.space",
       });
     },
-    fundingRevealTxId: async (p, _, { fundingDao }) => {
-      const funding = await fundingDao.getFunding(p.id);
-      return funding.revealTxid!;
-    },
+
     fundingRevealTxUrl: async (p, _, { fundingDao }) => {
-      const funding = await fundingDao.getFunding(p.id);
-      if (!funding.revealTxid) {
+      const id = await p.fundingRevealTxId();
+      if (!id) {
         return null;
       }
       return getUrl({
-        network: funding.network,
-        id: funding.revealTxid,
+        network: await p.network,
+        id,
         bitcoinRegtestMempoolEndpoint: "http://localhost:4080",
         bitcoinTestnetMempoolEndpoint: "https://mempool.space/testnet",
         bitcoinMainnetMempoolEndpoint: "https://mempool.space",

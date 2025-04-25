@@ -12,6 +12,7 @@ import {
   deserializeSessionCookie,
   expireSessionCookie,
   serializeSessionCookie,
+  sessionFromNamespace,
 } from "@0xflick/ordinals-backend";
 import type { APIGatewayProxyHandler } from "aws-lambda";
 import type { LambdaContextFunctionParams } from "apollo-server-lambda/dist/ApolloServer.js";
@@ -59,10 +60,10 @@ const server = new ApolloServer({
     return {
       ...apolloContext,
       setToken: (token: string) => setCookie(express.res, token),
-      getToken: () => {
+      getToken: (namespace?: string) => {
         const cookieToken = deserializeSessionCookie({
           cookies: express.req.headers.cookie,
-          cookieName: "session",
+          cookieName: sessionFromNamespace(namespace),
         });
         if (cookieToken) {
           return cookieToken;
@@ -76,11 +77,14 @@ const server = new ApolloServer({
         }
         return null;
       },
-      clearToken: () => {
-        logger.info("Clearing cookie");
+      clearToken: (namespace?: string) => {
+        logger.info(`Clearing cookie ${sessionFromNamespace(namespace)}`);
         express.res.setHeader(
           "set-cookie",
-          expireSessionCookie({ cookieName: "session", path: "/api/" }),
+          expireSessionCookie({
+            cookieName: sessionFromNamespace(namespace),
+            path: "/api/",
+          }),
         );
       },
     };
@@ -112,7 +116,7 @@ const server = new ApolloServer({
             );
           },
           async didEncounterErrors() {
-            requestContext.errors.forEach((error, i) => {
+            requestContext.errors?.forEach((error, i) => {
               logger.warn(
                 error,
                 `Error number ${i} generated for request ${requestContext.request.operationName}`,

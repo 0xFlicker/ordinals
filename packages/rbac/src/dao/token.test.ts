@@ -8,6 +8,8 @@ import {
   EActions,
   EResource,
   verifyJwtToken,
+  UserAddressType,
+  roleIdsToAddresses,
 } from "@0xflick/ordinals-rbac-models";
 import * as jose from "jose";
 import { RolePermissionsDAO } from "./rolePermissions.js";
@@ -74,7 +76,11 @@ describe("#Token DAO", () => {
     });
 
     await dao.create({
-      address: userId,
+      userId,
+      address: {
+        type: UserAddressType.EVM,
+        address: userId,
+      },
       domain: "example.com",
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365).toISOString(),
       nonce: "0",
@@ -83,18 +89,20 @@ describe("#Token DAO", () => {
     });
     const userRolesDao = new UserRolesDAO(db as any);
     await userRolesDao.bind({
-      address: userId,
+      userId,
       roleId: roleId,
       rolesDao,
     });
 
     const token = await createJwtTokenSingleSubject({
       user: {
-        address: userId,
+        userId,
         roleIds: [roleId],
+        addresses: roleIdsToAddresses([roleId]),
       },
       nonce: "0",
       issuer: TokenModel.JWT_CLAIM_ISSUER,
+      addressType: UserAddressType.EVM,
     });
     expect(token).toBeDefined();
     expect(
@@ -103,10 +111,12 @@ describe("#Token DAO", () => {
         nonce: "0",
         roleIds: [roleId],
         issuer: TokenModel.JWT_CLAIM_ISSUER,
+        addressType: UserAddressType.EVM,
       }),
     ).toEqual(
       expect.objectContaining({
-        address: userId,
+        userId,
+        addresses: roleIdsToAddresses([roleId]),
         roleIds: [roleId],
         nonce: "0",
       }),

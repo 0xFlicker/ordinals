@@ -69,6 +69,8 @@ export function graphqlPermissionResourceToModel(
       return EResource.ROLE;
     case "COLLECTION":
       return EResource.COLLECTION;
+    case "INSCRIPTION":
+      return EResource.INSCRIPTION;
     default:
       throw new Error(`Unknown permission resource: ${resource}`);
   }
@@ -92,6 +94,8 @@ export function modelPermissionResourceToGraphql(
       return "ROLE";
     case EResource.COLLECTION:
       return "COLLECTION";
+    case EResource.INSCRIPTION:
+      return "INSCRIPTION";
     default:
       throw new Error(`Unknown permission resource: ${resource}`);
   }

@@ -16,12 +16,13 @@ import {
   TAllowedAction,
   Matcher,
 } from "@0xflick/ordinals-rbac-models";
-import { useSignIn } from "./useSignIn";
+import { useSiweSignIn, useSiwbSignIn } from "./useSignIn";
 import { useSignOut } from "./useSignOut";
 import { useEnsAvatar, useEnsName, useSignMessage } from "wagmi";
 import { useSelf } from "./useSelf";
 import { graphQlAllowedActionToPermission } from "../transforms/allowedActions";
 import { useGetAppInfoQuery } from "./app.generated";
+import { Web3Namespace } from "@/graphql/types";
 
 function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
   const [stateToken, setStateToken] = useState<string | null>(null);
@@ -78,22 +79,35 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
   const nonce = nonceData?.nonceEthereum?.nonce;
 
   const [
-    fetchToken,
+    fetchSiweToken,
     {
-      data: tokenData,
-      error: tokenError,
-      loading: tokenIsLoading,
-      reset: tokenReset,
+      data: siweTokenData,
+      error: siweTokenError,
+      loading: siweTokenIsLoading,
+      reset: siweTokenReset,
     },
-  ] = useSignIn();
-  const tokenIsSuccess = !!tokenData;
-  const tokenIsError = !!tokenError;
+  ] = useSiweSignIn();
+
+  const [
+    fetchSiwbToken,
+    {
+      data: siwbTokenData,
+      error: siwbTokenError,
+      loading: siwbTokenIsLoading,
+      reset: siwbTokenReset,
+    },
+  ] = useSiwbSignIn();
+
+  const tokenIsSuccess = !!(siweTokenData || siwbTokenData);
+  const tokenIsError = !!(siweTokenError || siwbTokenError);
   const {
     data: user,
     isLoggedIn: userIsLoggedInToGraphql,
     error: selfError,
     refetch: refetchSelf,
-  } = useSelf({});
+  } = useSelf({
+    namespace: Web3Namespace.Siwe,
+  });
   useEffect(() => {
     if (userIsLoggedInToGraphql && user?.token) {
       setState("AUTHENTICATED");
@@ -111,13 +125,14 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
   }, []);
 
   const signOut = useCallback(() => {
-    tokenReset();
+    siweTokenReset();
+    siwbTokenReset();
     nonceReset();
     requestSignOut();
     setState("ANONYMOUS");
     setRoleIds([]);
     setStateToken(null);
-  }, [tokenReset, nonceReset, requestSignOut]);
+  }, [siweTokenReset, siwbTokenReset, nonceReset, requestSignOut]);
 
   useEffect(() => {
     if (address && isUserRequestingSignIn && chainId) {
@@ -163,7 +178,7 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
             pubKeyStr: pubKey,
           })
             .then((jwe) => {
-              return fetchToken({
+              return fetchSiweToken({
                 variables: {
                   address,
                   jwe,
@@ -190,13 +205,13 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
     nonceIsSuccess,
     activeConnector,
     address,
-    fetchToken,
     chainId,
     messageToSign,
     signMessageAsync,
     isUserSigningMessage,
     nonce,
     pubKey,
+    fetchSiweToken,
   ]);
 
   useEffect(() => {
@@ -204,11 +219,11 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
       nonceIsSuccess &&
       nonceData &&
       tokenIsSuccess &&
-      tokenData &&
+      siweTokenData &&
       address &&
       issuer
     ) {
-      const token = tokenData.siwe?.token;
+      const token = siweTokenData.siwe?.token;
       if (!token) {
         // TODO: toast
         console.warn("No token returned from server");
@@ -247,9 +262,9 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
     issuer,
     nonceData,
     nonceIsSuccess,
-    tokenData,
     tokenIsSuccess,
     refetchSelf,
+    siweTokenData,
   ]);
   const setToken = useCallback(
     (token: string) => {
@@ -277,9 +292,14 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
     isAnonymous,
     isUserRequestingSignIn,
     isUserSigningMessage,
-    isUserWaiting: nonceIsLoading || tokenIsLoading,
+    isUserWaiting: nonceIsLoading || siweTokenIsLoading || siwbTokenIsLoading,
     isUserSigningOut,
-    token: stateToken || tokenData?.siwe?.token || user?.token || undefined,
+    token:
+      stateToken ||
+      siweTokenData?.siwe?.token ||
+      siwbTokenData?.siwb?.token ||
+      user?.token ||
+      undefined,
     user,
     roleIds,
     allowedActions:

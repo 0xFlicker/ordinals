@@ -12,18 +12,23 @@ import {
   INonceRequest,
   EActions,
   EResource,
+  UserAddressType,
+  IUserAddress,
+  roleIdsToAddresses,
 } from "@0xflick/ordinals-rbac-models";
 import { RolePermissionsDAO } from "./rolePermissions.js";
 import { UserRolesDAO } from "./userRoles.js";
+import { RolesDAO } from "./roles.js";
 
 function toId(address: string, nonce: string) {
-  return `USER#${address}NONCE#${nonce}`;
+  return `ADDRESS#${address}NONCE#${nonce}`;
 }
 
 interface IUserDb {
   pk: string;
   sk: string;
   Address: string;
+  AddressType: UserAddressType;
   Nonce: string;
   TTL: number;
   Domain: string;
@@ -32,27 +37,34 @@ interface IUserDb {
   IssuedAt: string;
   Version?: string;
   ChainId?: number;
+  UserId?: string;
 }
 
 function toDb(input: INonceRequest): IUserDb {
   return {
-    Address: input.address,
+    Address: input.address.address,
+    AddressType: input.address.type,
     Nonce: input.nonce,
     Domain: input.domain,
     Uri: input.uri,
     ExpiresAt: input.expiresAt,
     IssuedAt: input.issuedAt,
-    pk: toId(input.address, input.nonce),
-    sk: input.address,
+    pk: toId(input.address.address, input.nonce),
+    sk: input.address.address,
     TTL: Math.floor(Date.now() / 1000) + UserDAO.TTL,
     ...(input.version && { Version: input.version }),
     ...(input.chainId && { ChainId: input.chainId }),
+    ...(input.userId && { UserId: input.userId }),
   };
 }
 
 function fromDb(input: IUserDb): INonceRequest {
   return {
-    address: input.Address,
+    address: {
+      address: input.Address,
+      type: input.AddressType,
+    },
+    userId: input.UserId,
     nonce: input.Nonce,
     domain: input.Domain,
     expiresAt: input.ExpiresAt,
@@ -89,7 +101,7 @@ export class UserDAO {
     return nonce;
   }
 
-  public async get(
+  public async getNonce(
     address: string,
     nonce: string,
   ): Promise<INonceRequest | null> {
@@ -108,7 +120,7 @@ export class UserDAO {
     return fromDb(response.Item as IUserDb);
   }
 
-  public async validNonceForUser(address: string, nonce: string) {
+  public async validNonceForAddress(address: string, nonce: string) {
     const response = await this.db.send(
       new GetCommand({
         TableName: UserDAO.TABLE_NAME,
@@ -124,7 +136,7 @@ export class UserDAO {
     return true;
   }
 
-  public async getUsersNonces(address: string): Promise<string[] | null> {
+  public async getAddressNonces(address: string): Promise<string[] | null> {
     const userRecord = await this.db.send(
       new QueryCommand({
         TableName: UserDAO.TABLE_NAME,
@@ -143,23 +155,24 @@ export class UserDAO {
 
   public async getUserWithRoles(
     userRolesDao: UserRolesDAO,
-    address: string,
+    userId: string,
   ): Promise<UserWithRolesModel> {
     // Fetch all roles
-    const roleIds = await userRolesDao.getAllRoleIds(address);
+    const roleIds = await userRolesDao.getAllRoleIds(userId);
 
     return new UserWithRolesModel({
-      address,
+      userId,
       roleIds,
+      addresses: roleIdsToAddresses(roleIds),
     });
   }
 
-  public async allowedActionsForAddress(
+  public async allowedActionsForUserId(
     userRoles: UserRolesDAO,
     rolePermissionsDao: RolePermissionsDAO,
-    address: string,
+    userId: string,
   ) {
-    const user = await this.getUserWithRoles(userRoles, address);
+    const user = await this.getUserWithRoles(userRoles, userId);
     // Fetch permissions for all roles
     const permissions = await rolePermissionsDao.allowedActionsForRoleIds(
       user.roleIds,
@@ -180,13 +193,13 @@ export class UserDAO {
   public async canPerformAction(
     userRoles: UserRolesDAO,
     rolePermissionsDao: RolePermissionsDAO,
-    address: string,
+    userId: string,
     possibilities: [EActions, EResource][] | [EActions, EResource],
   ): Promise<[EActions, EResource] | null> {
-    const permissions = await this.allowedActionsForAddress(
+    const permissions = await this.allowedActionsForUserId(
       userRoles,
       rolePermissionsDao,
-      address,
+      userId,
     );
     if (!permissions) {
       return null;
@@ -213,5 +226,34 @@ export class UserDAO {
       }
     }
     return null;
+  }
+
+  public async bindAddressToUser(
+    userRoles: UserRolesDAO,
+    rolesDao: RolesDAO,
+    rolePermissionsDao: RolePermissionsDAO,
+    userId: string,
+    address: string,
+    addressType: UserAddressType,
+  ) {
+    const roleId = `${addressType.toUpperCase()}#${address}`;
+
+    await Promise.all([
+      rolesDao.create({
+        id: roleId,
+        name: `${addressType}: ${address}`,
+      }),
+      userRoles.bind({
+        userId,
+        roleId,
+        rolesDao,
+      }),
+      rolePermissionsDao.bind({
+        roleId,
+        action: EActions.ADMIN,
+        resource: EResource.USER,
+        identifier: address,
+      }),
+    ]);
   }
 }

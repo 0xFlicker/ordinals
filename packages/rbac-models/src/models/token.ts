@@ -1,6 +1,10 @@
 import { CompactEncrypt, decodeJwt, importSPKI } from "jose";
 import { IRole } from "./roles.js";
-import { promisePublicKey, UserWithRolesModel } from "./user.js";
+import {
+  promisePublicKey,
+  roleIdsToAddresses,
+  UserWithRolesModel,
+} from "./user.js";
 
 export function generateRoles(roles: IRole[], issuer: string) {
   return generateRolesFromIds({
@@ -44,9 +48,10 @@ export function decodeJwtToken(
     .filter(([k, v]) => v && k.includes(roleNamespace))
     .map(([k]) => k.replace(roleNamespace, ""));
   return new UserWithRolesModel({
-    address: result.sub!,
+    userId: result.sub!,
     roleIds,
     decodedToken: result,
+    addresses: roleIdsToAddresses(roleIds),
   });
 }
 

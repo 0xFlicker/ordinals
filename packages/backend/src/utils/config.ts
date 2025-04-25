@@ -85,25 +85,43 @@ export const mainnetMempoolAuth = lazySingleton(() => {
 });
 
 export const fundedQueueUrl = lazySingleton(() => {
-  return process.env.FUNDED_QUEUE_URL ?? null;
+  if (!process.env.FUNDED_QUEUE_URL) {
+    throw new Error("FUNDED_QUEUE_URL is not set");
+  }
+  return process.env.FUNDED_QUEUE_URL;
 });
 
 export const insufficientFundsQueueUrl = lazySingleton(() => {
-  return process.env.INSUFFICIENT_FUNDS_QUEUE_URL ?? null;
+  if (!process.env.INSUFFICIENT_FUNDS_QUEUE_URL) {
+    throw new Error("INSUFFICIENT_FUNDS_QUEUE_URL is not set");
+  }
+  return process.env.INSUFFICIENT_FUNDS_QUEUE_URL;
 });
 
 export const genesisQueueUrl = lazySingleton(() => {
-  return process.env.GENESIS_QUEUE_URL ?? null;
+  if (!process.env.GENESIS_QUEUE_URL) {
+    throw new Error("GENESIS_QUEUE_URL is not set");
+  }
+  return process.env.GENESIS_QUEUE_URL;
 });
 
 export const batchSuccessQueueUrl = lazySingleton(() => {
-  return process.env.BATCH_SUCCESS_QUEUE_URL ?? null;
+  if (!process.env.BATCH_SUCCESS_QUEUE_URL) {
+    throw new Error("BATCH_SUCCESS_QUEUE_URL is not set");
+  }
+  return process.env.BATCH_SUCCESS_QUEUE_URL;
 });
 
 export const batchFailureQueueUrl = lazySingleton(() => {
-  return process.env.BATCH_FAILURE_QUEUE_URL ?? null;
+  if (!process.env.BATCH_FAILURE_QUEUE_URL) {
+    throw new Error("BATCH_FAILURE_QUEUE_URL is not set");
+  }
+  return process.env.BATCH_FAILURE_QUEUE_URL;
 });
 
 export const batchRemainingFundingsQueueUrl = lazySingleton(() => {
-  return process.env.BATCH_REMAINING_FUNDINGS_QUEUE_URL ?? null;
+  if (!process.env.BATCH_REMAINING_FUNDINGS_QUEUE_URL) {
+    throw new Error("BATCH_REMAINING_FUNDINGS_QUEUE_URL is not set");
+  }
+  return process.env.BATCH_REMAINING_FUNDINGS_QUEUE_URL;
 });

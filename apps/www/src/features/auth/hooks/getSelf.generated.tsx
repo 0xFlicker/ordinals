@@ -3,15 +3,17 @@ import type * as Types from '../../../graphql/types';
 import { gql } from '@apollo/client';
 import * as Apollo from '@apollo/client';
 const defaultOptions = {} as const;
-export type GetSelfQueryVariables = Types.Exact<{ [key: string]: never; }>;
+export type GetSelfQueryVariables = Types.Exact<{
+  namespace: Types.Web3Namespace;
+}>;
 
 
 export type GetSelfQuery = { __typename?: 'Query', self?: { __typename?: 'Web3User', token?: string | null, roles: Array<{ __typename?: 'Role', id: string }>, allowedActions: Array<{ __typename?: 'Permission', action: Types.PermissionAction, resource: Types.PermissionResource }> } | null };
 
 
 export const GetSelfDocument = gql`
-    query getSelf {
-  self {
+    query getSelf($namespace: Web3Namespace!) {
+  self(namespace: $namespace) {
     roles {
       id
     }
@@ -36,10 +38,11 @@ export const GetSelfDocument = gql`
  * @example
  * const { data, loading, error } = useGetSelfQuery({
  *   variables: {
+ *      namespace: // value for 'namespace'
  *   },
  * });
  */
-export function useGetSelfQuery(baseOptions?: Apollo.QueryHookOptions<GetSelfQuery, GetSelfQueryVariables>) {
+export function useGetSelfQuery(baseOptions: Apollo.QueryHookOptions<GetSelfQuery, GetSelfQueryVariables>) {
         const options = {...defaultOptions, ...baseOptions}
         return Apollo.useQuery<GetSelfQuery, GetSelfQueryVariables>(GetSelfDocument, options);
       }

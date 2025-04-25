@@ -1,5 +1,5 @@
-query getSelf {
-  self {
+query getSelf($namespace: Web3Namespace!) {
+  self(namespace: $namespace) {
     roles {
       id
     }

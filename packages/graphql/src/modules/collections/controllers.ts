@@ -277,6 +277,7 @@ export async function updateCollectionParentInscription({
     destinationAddress: parentInscriptionAddress,
     bucket: inscriptionBucketName,
     s3Client,
+    fundingDao,
   });
 
   return inscriptionFundingModel;

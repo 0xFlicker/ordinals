@@ -1,3 +1,13 @@
+enum AddressType {
+  EVM
+  BTC
+}
+
+type Address {
+  type: AddressType!
+  address: String!
+}
+
 type Nonce {
   nonce: String!
   messageToSign: String!
@@ -8,28 +18,19 @@ type Nonce {
   version: String
   chainId: Int
   pubKey: String!
-}
-
-type AssociatedAddresses {
-  evmSignedAddress: [ID!]!
-  taprootAddress: [ID!]!
-  frameFid: ID
-  frameVerifiedAddresses: [ID!]
+  address: Address!
 }
 
 type Web3User {
   id: ID!
-
-  associatedAddresses: AssociatedAddresses!
-
+  addresses: [Address!]!
   roles: [Role!]!
   allowedActions: [Permission!]!
-
   token: String
 }
 
 type Web3LoginUser {
-  address: ID!
+  id: ID!
   user: Web3User!
   token: String!
 }
@@ -215,6 +216,7 @@ enum PermissionResource {
   PRESALE
   AFFILIATE
   COLLECTION
+  INSCRIPTION
 }
 
 type Permission {
@@ -235,8 +237,8 @@ type Role {
   userCount: Int!
   permissions: [Permission!]!
 
-  bindToUser(userAddress: String!): Web3User!
-  unbindFromUser(userAddress: String!): Web3User!
+  bindToUser(userId: String!): Web3User!
+  unbindFromUser(userId: String!): Web3User!
   addPermissions(permissions: [PermissionInput!]!): Role!
   removePermissions(permissions: [PermissionInput!]!): Role!
   delete: Boolean!
@@ -276,6 +278,8 @@ type InscriptionFunding {
   fundingGenesisTxUrl: String
   fundingRevealTxId: String
   fundingRevealTxUrl: String
+  fundingRefundTxId: String
+  fundingRefundTxUrl: String
 
   overhead: Int!
   padding: Int!
@@ -288,7 +292,7 @@ type InscriptionFunding {
 
 input InscriptionFundingQuery {
   collectionId: ID
-  fundingStatus: FundingStatus
+  fundingStatus: FundingStatus!
   next: String
   limit: Int
 }
@@ -526,8 +530,13 @@ type Mutation {
   signOutBitcoin: Boolean!
 }
 
+enum Web3Namespace {
+  SIWE
+  SIWB
+}
+
 type Query {
-  self: Web3User
+  self(namespace: Web3Namespace!): Web3User
 }
 
 type AppInfo {

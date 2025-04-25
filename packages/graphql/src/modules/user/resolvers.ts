@@ -10,6 +10,7 @@ import { UserModule } from "./generated-types/module-types.js";
 import { modelPermissionToGraphql } from "../permissions/transforms.js";
 import { keccak256, toUtf8Bytes } from "ethers";
 import { Web3UserModel } from "./models.js";
+import { UserAddressType } from "@0xflick/ordinals-rbac-models";
 
 const logger = createLogger({
   name: "graphql/user-resolvers",
@@ -38,14 +39,14 @@ export const resolvers: UserModule.Resolvers = {
       );
     },
     allowedActions: async (
-      { address },
+      { userId },
       _,
       { userRolesDao, rolePermissionsDao, userDao },
     ) => {
-      const permissions = await userDao.allowedActionsForAddress(
+      const permissions = await userDao.allowedActionsForUserId(
         userRolesDao,
         rolePermissionsDao,
-        address,
+        userId,
       );
       return permissions.map(modelPermissionToGraphql);
     },
@@ -72,7 +73,10 @@ export const resolvers: UserModule.Resolvers = {
       ).toISOString();
       const issuedAt = new Date(now).toISOString();
       const nonce = await userDao.create({
-        address,
+        address: {
+          address,
+          type: UserAddressType.EVM,
+        },
         domain: authMessageDomain,
         expiresAt: expirationTime,
         issuedAt,
@@ -102,6 +106,10 @@ export const resolvers: UserModule.Resolvers = {
         version: "1",
         chainId,
         pubKey: process.env.AUTH_MESSAGE_PUBLIC_KEY!,
+        address: {
+          address,
+          type: "EVM",
+        },
       };
     },
     nonceBitcoin: async (
@@ -120,7 +128,10 @@ export const resolvers: UserModule.Resolvers = {
       ).toISOString();
       const issuedAt = new Date(now).toISOString();
       const nonce = await userDao.create({
-        address,
+        address: {
+          address,
+          type: UserAddressType.BTC,
+        },
         domain: authMessageDomain,
         expiresAt: expirationTime,
         issuedAt,
@@ -145,6 +156,10 @@ export const resolvers: UserModule.Resolvers = {
         issuedAt,
         uri: authMessageJwtClaimIssuer,
         pubKey: process.env.AUTH_MESSAGE_PUBLIC_KEY!,
+        address: {
+          address,
+          type: "BTC",
+        },
       };
     },
   },

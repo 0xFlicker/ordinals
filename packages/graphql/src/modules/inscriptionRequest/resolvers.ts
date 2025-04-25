@@ -4,25 +4,16 @@ import { InscriptionFundingModel } from "../inscriptionFunding/models.js";
 import {
   InscriptionContent,
   bitcoinToSats,
-  generateFundableGenesisTransaction,
-  generatePrivKey,
-  generateRevealTransaction,
   isValidTaprootAddress,
 } from "@0xflick/inscriptions";
 import { InscriptionRequestError } from "./errors.js";
 import {
   TInscriptionDoc,
-  hashAddress,
-  toAddressInscriptionId,
   toBitcoinNetworkName,
 } from "@0xflick/ordinals-models";
 import { estimateFeesWithMempool } from "../bitcoin/fees.js";
 import { MempoolModel } from "../../modules/bitcoin/models.js";
-import {
-  createInscriptionTransaction,
-  encryptEnvelope,
-  serializeEnvelope,
-} from "@0xflick/ordinals-backend";
+import { createInscriptionTransaction } from "@0xflick/ordinals-backend";
 import {
   getMultiPartUploadID,
   getS3UploadUrl,
@@ -31,18 +22,33 @@ import {
 import { InscriptionProblem } from "../../generated-types/graphql.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { createLogger } from "@0xflick/ordinals-backend";
+import { verifyAuthorizedUser } from "../../modules/auth/controller.js";
+import {
+  EActions,
+  EResource,
+  defaultAdminStrategyAll,
+  isActionOnResource,
+} from "@0xflick/ordinals-rbac-models";
 
 const logger = createLogger({
   name: "inscription-request-resolvers",
 });
 
+const canUploadInscription = defaultAdminStrategyAll(
+  EResource.INSCRIPTION,
+  isActionOnResource({
+    action: EActions.UPDATE,
+    resource: EResource.INSCRIPTION,
+  }),
+);
+
 const resolvers: InscriptionRequestModule.Resolvers = {
   Mutation: {
     createInscriptionRequest: async (_, { input }, context, info) => {
       const {
+        requireMutation,
         fundingDao,
         fundingDocDao,
-        kmsClient,
         inscriptionBucket,
         s3Client,
         uploadBucket,
@@ -50,7 +56,14 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         defaultTipDestinationForNetwork,
         inscriptionTip,
         fundingSecKeyEnvelopeKeyId,
+        rolePermissionsDao,
+        rolesDao,
+        userRolesDao,
       } = context;
+
+      requireMutation(info);
+      const user = await verifyAuthorizedUser(context);
+
       const {
         files,
         destinationAddress,
@@ -143,9 +156,38 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         fundingAddress: inscriptionTransaction.fundingAddress,
         destinationAddress,
         s3Client,
+        fundingDao,
       });
 
+      const permission = await rolesDao.get(`I#${user.userId}`);
       await Promise.all([
+        permission
+          ? rolePermissionsDao.bind({
+              roleId: permission.id,
+              action: EActions.ADMIN,
+              resource: EResource.INSCRIPTION,
+              identifier: inscriptionTransaction.id,
+            })
+          : rolesDao
+              .create({
+                id: `I#${user.userId}`,
+                name: "Inscriptions",
+              })
+              .then((permission) =>
+                Promise.all([
+                  rolePermissionsDao.bind({
+                    roleId: permission.id,
+                    action: EActions.ADMIN,
+                    resource: EResource.INSCRIPTION,
+                    identifier: inscriptionTransaction.id,
+                  }),
+                  userRolesDao.bind({
+                    userId: user.userId,
+                    roleId: permission.id,
+                    rolesDao,
+                  }),
+                ]),
+              ),
         fundingDocDao.updateOrSaveInscriptionTransaction(doc, {
           secKeyEnvelopeKeyId: fundingSecKeyEnvelopeKeyId,
         }),
@@ -166,6 +208,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
           type: "address-inscription",
           createdAt: new Date(),
           sizeEstimate: inscriptionTransaction.totalFee,
+          creatorUserId: user.userId,
         }),
         ...inscriptionTransaction.writableInscriptions.map((f, index) =>
           fundingDocDao.saveInscriptionContent({
@@ -185,6 +228,12 @@ const resolvers: InscriptionRequestModule.Resolvers = {
       };
     },
     uploadInscription: async (_, { input }, context, info) => {
+      const { requireMutation } = context;
+      requireMutation(info);
+      await verifyAuthorizedUser({
+        authorizer: canUploadInscription,
+        ...context,
+      });
       const { files } = input;
       let wasError = false;
       const problems: InscriptionProblem[] = [];

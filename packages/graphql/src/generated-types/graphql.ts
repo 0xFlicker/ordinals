@@ -1,7 +1,6 @@
 /* eslint-disable */
 import type { GraphQLResolveInfo } from 'graphql';
 import type { InscriptionFundingModel } from '../modules/inscriptionFunding/models.js';
-import type { InscriptionTransactionContentModel } from '../modules/inscriptionRequest/models.js';
 import type { RoleModel } from '../modules/permissions/models.js';
 import type { Web3UserModel, Web3LoginUserModel } from '../modules/user/models.js';
 import type { CollectionModel } from '../modules/collections/models.js';
@@ -24,18 +23,20 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export type Address = {
+  __typename?: 'Address';
+  address: Scalars['String']['output'];
+  type: AddressType;
+};
+
+export type AddressType =
+  | 'BTC'
+  | 'EVM';
+
 export type AppInfo = {
   __typename?: 'AppInfo';
   name: Scalars['String']['output'];
   pubKey: Scalars['String']['output'];
-};
-
-export type AssociatedAddresses = {
-  __typename?: 'AssociatedAddresses';
-  evmSignedAddress: Array<Scalars['ID']['output']>;
-  frameFid?: Maybe<Scalars['ID']['output']>;
-  frameVerifiedAddresses?: Maybe<Array<Scalars['ID']['output']>>;
-  taprootAddress: Array<Scalars['ID']['output']>;
 };
 
 export type AxolotlAvailableClaimedFunding = {
@@ -243,6 +244,8 @@ export type InscriptionFunding = {
   fundingAmountSats: Scalars['Int']['output'];
   fundingGenesisTxId?: Maybe<Scalars['String']['output']>;
   fundingGenesisTxUrl?: Maybe<Scalars['String']['output']>;
+  fundingRefundTxId?: Maybe<Scalars['String']['output']>;
+  fundingRefundTxUrl?: Maybe<Scalars['String']['output']>;
   fundingRevealTxId?: Maybe<Scalars['String']['output']>;
   fundingRevealTxUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
@@ -269,7 +272,7 @@ export type InscriptionFundingProblem = {
 
 export type InscriptionFundingQuery = {
   collectionId?: InputMaybe<Scalars['ID']['input']>;
-  fundingStatus?: InputMaybe<FundingStatus>;
+  fundingStatus: FundingStatus;
   limit?: InputMaybe<Scalars['Int']['input']>;
   next?: InputMaybe<Scalars['String']['input']>;
 };
@@ -440,6 +443,7 @@ export type MutationUploadInscriptionArgs = {
 
 export type Nonce = {
   __typename?: 'Nonce';
+  address: Address;
   chainId?: Maybe<Scalars['Int']['output']>;
   domain: Scalars['String']['output'];
   expiration: Scalars['String']['output'];
@@ -478,6 +482,7 @@ export type PermissionResource =
   | 'AFFILIATE'
   | 'ALL'
   | 'COLLECTION'
+  | 'INSCRIPTION'
   | 'PRESALE'
   | 'ROLE'
   | 'USER';
@@ -606,6 +611,11 @@ export type QueryRoleArgs = {
 };
 
 
+export type QuerySelfArgs = {
+  namespace: Web3Namespace;
+};
+
+
 export type QuerySignMultipartUploadArgs = {
   partNumber: Scalars['Int']['input'];
   uploadId: Scalars['String']['input'];
@@ -636,7 +646,7 @@ export type RoleAddPermissionsArgs = {
 
 
 export type RoleBindToUserArgs = {
-  userAddress: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 };
 
 
@@ -646,20 +656,24 @@ export type RoleRemovePermissionsArgs = {
 
 
 export type RoleUnbindFromUserArgs = {
-  userAddress: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 };
 
 export type Web3LoginUser = {
   __typename?: 'Web3LoginUser';
-  address: Scalars['ID']['output'];
+  id: Scalars['ID']['output'];
   token: Scalars['String']['output'];
   user: Web3User;
 };
 
+export type Web3Namespace =
+  | 'SIWB'
+  | 'SIWE';
+
 export type Web3User = {
   __typename?: 'Web3User';
+  addresses: Array<Address>;
   allowedActions: Array<Permission>;
-  associatedAddresses: AssociatedAddresses;
   id: Scalars['ID']['output'];
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;
@@ -736,8 +750,9 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 
 /** Mapping between all available schema types and the resolvers types */
 export type ResolversTypes = {
+  Address: ResolverTypeWrapper<Address>;
+  AddressType: AddressType;
   AppInfo: ResolverTypeWrapper<AppInfo>;
-  AssociatedAddresses: ResolverTypeWrapper<AssociatedAddresses>;
   AxolotlAvailableClaimedFunding: ResolverTypeWrapper<Omit<AxolotlAvailableClaimedFunding, 'funding'> & { funding?: Maybe<ResolversTypes['InscriptionFunding']> }>;
   AxolotlAvailableClaimedRequest: AxolotlAvailableClaimedRequest;
   AxolotlAvailableOpenEditionFunding: ResolverTypeWrapper<Omit<AxolotlAvailableOpenEditionFunding, 'funding'> & { funding?: Maybe<ResolversTypes['InscriptionFunding']> }>;
@@ -798,13 +813,14 @@ export type ResolversTypes = {
   Role: ResolverTypeWrapper<RoleModel>;
   String: ResolverTypeWrapper<Scalars['String']['output']>;
   Web3LoginUser: ResolverTypeWrapper<Web3LoginUserModel>;
+  Web3Namespace: Web3Namespace;
   Web3User: ResolverTypeWrapper<Web3UserModel>;
 };
 
 /** Mapping between all available schema types and the resolvers parents */
 export type ResolversParentTypes = {
+  Address: Address;
   AppInfo: AppInfo;
-  AssociatedAddresses: AssociatedAddresses;
   AxolotlAvailableClaimedFunding: Omit<AxolotlAvailableClaimedFunding, 'funding'> & { funding?: Maybe<ResolversParentTypes['InscriptionFunding']> };
   AxolotlAvailableClaimedRequest: AxolotlAvailableClaimedRequest;
   AxolotlAvailableOpenEditionFunding: Omit<AxolotlAvailableOpenEditionFunding, 'funding'> & { funding?: Maybe<ResolversParentTypes['InscriptionFunding']> };
@@ -861,17 +877,15 @@ export type ResolversParentTypes = {
   Web3User: Web3UserModel;
 };
 
-export type AppInfoResolvers<ContextType = Context, ParentType extends ResolversParentTypes['AppInfo'] = ResolversParentTypes['AppInfo']> = {
-  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  pubKey?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+export type AddressResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Address'] = ResolversParentTypes['Address']> = {
+  address?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['AddressType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type AssociatedAddressesResolvers<ContextType = Context, ParentType extends ResolversParentTypes['AssociatedAddresses'] = ResolversParentTypes['AssociatedAddresses']> = {
-  evmSignedAddress?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
-  frameFid?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
-  frameVerifiedAddresses?: Resolver<Maybe<Array<ResolversTypes['ID']>>, ParentType, ContextType>;
-  taprootAddress?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType>;
+export type AppInfoResolvers<ContextType = Context, ParentType extends ResolversParentTypes['AppInfo'] = ResolversParentTypes['AppInfo']> = {
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  pubKey?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -998,6 +1012,8 @@ export type InscriptionFundingResolvers<ContextType = Context, ParentType extend
   fundingAmountSats?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   fundingGenesisTxId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   fundingGenesisTxUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  fundingRefundTxId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  fundingRefundTxUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   fundingRevealTxId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   fundingRevealTxUrl?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
@@ -1079,6 +1095,7 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
 };
 
 export type NonceResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Nonce'] = ResolversParentTypes['Nonce']> = {
+  address?: Resolver<ResolversTypes['Address'], ParentType, ContextType>;
   chainId?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   domain?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   expiration?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -1141,34 +1158,34 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   presales?: Resolver<ResolversTypes['PresalesResult'], ParentType, ContextType, RequireFields<QueryPresalesArgs, 'query'>>;
   role?: Resolver<Maybe<ResolversTypes['Role']>, ParentType, ContextType, RequireFields<QueryRoleArgs, 'id'>>;
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
-  self?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
+  self?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType, RequireFields<QuerySelfArgs, 'namespace'>>;
   signMultipartUpload?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<QuerySignMultipartUploadArgs, 'partNumber' | 'uploadId'>>;
   userByAddress?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<QueryUserByAddressArgs, 'address'>>;
 };
 
 export type RoleResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Role'] = ResolversParentTypes['Role']> = {
   addPermissions?: Resolver<ResolversTypes['Role'], ParentType, ContextType, RequireFields<RoleAddPermissionsArgs, 'permissions'>>;
-  bindToUser?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<RoleBindToUserArgs, 'userAddress'>>;
+  bindToUser?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<RoleBindToUserArgs, 'userId'>>;
   delete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   permissions?: Resolver<Array<ResolversTypes['Permission']>, ParentType, ContextType>;
   removePermissions?: Resolver<ResolversTypes['Role'], ParentType, ContextType, RequireFields<RoleRemovePermissionsArgs, 'permissions'>>;
-  unbindFromUser?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<RoleUnbindFromUserArgs, 'userAddress'>>;
+  unbindFromUser?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<RoleUnbindFromUserArgs, 'userId'>>;
   userCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type Web3LoginUserResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Web3LoginUser'] = ResolversParentTypes['Web3LoginUser']> = {
-  address?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   token?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type Web3UserResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Web3User'] = ResolversParentTypes['Web3User']> = {
+  addresses?: Resolver<Array<ResolversTypes['Address']>, ParentType, ContextType>;
   allowedActions?: Resolver<Array<ResolversTypes['Permission']>, ParentType, ContextType>;
-  associatedAddresses?: Resolver<ResolversTypes['AssociatedAddresses'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   token?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -1176,8 +1193,8 @@ export type Web3UserResolvers<ContextType = Context, ParentType extends Resolver
 };
 
 export type Resolvers<ContextType = Context> = {
+  Address?: AddressResolvers<ContextType>;
   AppInfo?: AppInfoResolvers<ContextType>;
-  AssociatedAddresses?: AssociatedAddressesResolvers<ContextType>;
   AxolotlAvailableClaimedFunding?: AxolotlAvailableClaimedFundingResolvers<ContextType>;
   AxolotlAvailableOpenEditionFunding?: AxolotlAvailableOpenEditionFundingResolvers<ContextType>;
   AxolotlFeeEstimate?: AxolotlFeeEstimateResolvers<ContextType>;

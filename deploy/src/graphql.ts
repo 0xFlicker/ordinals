@@ -96,9 +96,13 @@ export class Graphql extends Construct {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,
           inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
+          format: lambdaNodejs.OutputFormat.ESM,
+          target: "node20",
+          platform: "node",
         },
         environment: {
           LOG_LEVEL: "debug",
+          NODE_OPTIONS: "--enable-source-maps",
           TABLE_NAMES: JSON.stringify({
             rbac: rbacTable.tableName,
             userNonce: userNonceTable.tableName,
@@ -247,9 +251,13 @@ export class Graphql extends Construct {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,
           inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
+          format: lambdaNodejs.OutputFormat.ESM,
+          target: "node20",
+          platform: "node",
         },
         environment: {
           LOG_LEVEL: "debug",
+          NODE_OPTIONS: "--enable-source-maps",
           TABLE_NAMES: JSON.stringify({
             rbac: rbacTable.tableName,
             userNonce: userNonceTable.tableName,

@@ -43,7 +43,10 @@ export const resolvers: PermissionsModule.Resolvers = {
   Mutation: {
     createRole: async (_, { name, permissions }, context) => {
       const { rolePermissionsDao, rolesDao } = context;
-      await verifyAuthorizedUser(context, canPerformCreateRoleAction);
+      await verifyAuthorizedUser({
+        authorizer: canPerformCreateRoleAction,
+        ...context,
+      });
       const role = await rolesDao.create({
         name,
       });
@@ -79,45 +82,60 @@ export const resolvers: PermissionsModule.Resolvers = {
   Role: {
     addPermissions: async (role, { permissions }, context) => {
       const { rolePermissionsDao } = context;
-      await verifyAuthorizedUser(context, canPerformUpdateRoleAction);
+      await verifyAuthorizedUser({
+        authorizer: canPerformUpdateRoleAction,
+        ...context,
+      });
       await rolePermissionsDao.batchBind({
         roleId: role.id,
         permissions: permissions.map(graphqlPermissionToModel),
       });
       return role;
     },
-    bindToUser: async ({ id }, { userAddress }, context) => {
+    bindToUser: async ({ id }, { userId }, context) => {
       const { userRolesDao, rolesDao } = context;
-      await verifyAuthorizedUser(context, canPerformUpdateUserAndRoleAction);
+      await verifyAuthorizedUser({
+        authorizer: canPerformUpdateUserAndRoleAction,
+        ...context,
+      });
       await userRolesDao.bind({
         roleId: id,
-        address: userAddress,
+        userId,
         rolesDao,
       });
-      return new Web3UserModel(userAddress);
+      return new Web3UserModel(userId);
     },
     removePermissions: async (role, { permissions }, context) => {
       const { rolePermissionsDao } = context;
-      await verifyAuthorizedUser(context, canPerformUpdateRoleAction);
+      await verifyAuthorizedUser({
+        authorizer: canPerformUpdateRoleAction,
+        ...context,
+      });
       await rolePermissionsDao.batchUnlink({
         roleId: role.id,
         permissions: permissions.map(graphqlPermissionToModel),
       });
       return role;
     },
-    unbindFromUser: async ({ id }, { userAddress }, context) => {
+    unbindFromUser: async ({ id }, { userId }, context) => {
       const { userRolesDao, rolesDao } = context;
-      await verifyAuthorizedUser(context, canPerformUpdateUserAndRoleAction);
+      await verifyAuthorizedUser({
+        authorizer: canPerformUpdateUserAndRoleAction,
+        ...context,
+      });
       await userRolesDao.unlink({
         roleId: id,
-        address: userAddress,
+        userId,
         rolesDao,
       });
-      return new Web3UserModel(userAddress);
+      return new Web3UserModel(userId);
     },
     delete: async ({ id }, _, context) => {
       const { rolesDao, userRolesDao, rolePermissionsDao } = context;
-      await verifyAuthorizedUser(context, canPerformDeleteRoleAction);
+      await verifyAuthorizedUser({
+        authorizer: canPerformDeleteRoleAction,
+        ...context,
+      });
       await rolesDao.deleteRole(userRolesDao, rolePermissionsDao, id);
       return true;
     },

@@ -13,7 +13,7 @@ import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { copyFileSync } from "fs";
-
+import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function compileMetadata() {
@@ -32,10 +32,9 @@ function compileMetadata() {
     bundle: true,
     platform: "node",
     target: "node20",
-    format: "esm",
     external: ["aws-sdk", "canvas", "dtrace-provider"],
     inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
-    sourcemap: true,
+    format: lambdaNodejs.OutputFormat.ESM,
   });
   const finalDir = path.dirname(outfile);
   return finalDir;
@@ -51,9 +50,9 @@ function prepareDockerBuild(filename: string) {
     bundle: true,
     platform: "node",
     target: "node20",
-    format: "esm",
     external: ["aws-sdk", "canvas", "dtrace-provider"],
     inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
+    format: lambdaNodejs.OutputFormat.ESM,
     sourcemap: true,
   });
   const finalDir = path.dirname(outfile);

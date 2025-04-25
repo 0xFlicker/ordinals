@@ -27,17 +27,20 @@ export async function createJwtTokenSingleSubject({
   nonce,
   payload,
   issuer,
+  addressType,
 }: {
   user: IUserWithRoles;
   nonce: string;
   payload?: JWTPayload;
   issuer: string;
+  addressType?: string;
 }): Promise<string> {
   // Create a JWS signed with the private key
   const key = await jwkKey;
 
   const jws = await new SignJWT({
     ...payload,
+    [namespacedClaim("at", issuer)]: addressType,
     [namespacedClaim("nonce", issuer)]: nonce,
     ...generateRolesFromIds({
       roles: user.roleIds,
@@ -47,7 +50,7 @@ export async function createJwtTokenSingleSubject({
     .setProtectedHeader({
       alg: "ES512",
     })
-    .setSubject(user.address)
+    .setSubject(user.userId)
     .setIssuedAt()
     .setIssuer(issuer)
     .setExpirationTime(Date.now() / 1000 + 60 * 60 * 24 * 3) // 3 days

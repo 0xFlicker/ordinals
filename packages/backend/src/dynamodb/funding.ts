@@ -40,7 +40,9 @@ export type TFundingDb<T extends Record<string, any>> = {
   collectionId?: string;
   fundedAt?: number;
   revealTxid?: string;
-  genesisTxid?: string;
+  fundingTxid?: string;
+  fundingVout?: number;
+  refundedTxid?: string;
   lastChecked?: number;
   createdAt: number;
   nextCheckAt?: number;
@@ -237,7 +239,7 @@ export class FundingDao<
 
   public listAllFundingsByStatusAndCollection(opts: {
     id: ID_Collection;
-    fundingStatus?: TFundingStatus;
+    fundingStatus: TFundingStatus;
   }): AsyncGenerator<
     {
       address: string;
@@ -264,7 +266,7 @@ export class FundingDao<
     limit,
   }: {
     id: ID_Collection;
-    fundingStatus?: TFundingStatus;
+    fundingStatus: TFundingStatus;
   } & IPaginationOptions): Promise<
     IPaginatedResult<{
       address: string;
@@ -853,13 +855,12 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, fundedAt = :fundedAt, revealTxids = :revealTxids",
+          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, fundedAt = :fundedAt",
         ExpressionAttributeValues: {
           ":fundingTxid": fundingTxid,
           ":fundingVout": fundingVout,
           ":fundingStatus": "funded",
           ":fundedAt": new Date().getTime(),
-          ":revealTxids": [],
         },
       }),
     );
@@ -882,57 +883,6 @@ export class FundingDao<
     );
   }
 
-  public async genesisFunded({
-    genesisTxid,
-    id,
-  }: {
-    id: string;
-    genesisTxid: string;
-  }) {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: FundingDao.TABLE_NAME,
-        Key: {
-          pk: id,
-          sk: "funding",
-        },
-        ConditionExpression: "attribute_exists(pk)",
-        UpdateExpression:
-          "SET genesisTxid = :genesisTxid, fundingStatus = :fundingStatus,revealTxids = :revealTxids",
-        ExpressionAttributeValues: {
-          ":genesisTxid": genesisTxid,
-          ":fundingStatus": "genesis",
-          ":revealTxids": [],
-        },
-      }),
-    );
-  }
-
-  public async revealsFunded({
-    id,
-    revealTxids,
-  }: {
-    id: string;
-    revealTxids: string[];
-  }) {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: FundingDao.TABLE_NAME,
-        Key: {
-          pk: id,
-          sk: "funding",
-        },
-        ConditionExpression: "attribute_exists(pk)",
-        UpdateExpression:
-          "SET revealTxids = :revealTxids, fundingStatus = :fundingStatus",
-        ExpressionAttributeValues: {
-          ":revealTxids": revealTxids,
-          ":fundingStatus": "revealed",
-        },
-      }),
-    );
-  }
-
   public async revealFunded({
     id,
     revealTxid,
@@ -947,14 +897,12 @@ export class FundingDao<
           pk: id,
           sk: "funding",
         },
-        ConditionExpression:
-          "attribute_exists(pk) AND attribute_not_exists(revealTxids) OR NOT contains(revealTxids, :revealTxid)",
+        ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET revealTxids = list_append(revealTxids, :revealTxids), fundingStatus = :fundingStatus",
+          "SET revealTxid = :revealTxid, fundingStatus = :fundingStatus",
         ExpressionAttributeValues: {
-          ":revealTxids": [revealTxid],
-          ":fundingStatus": "revealed",
           ":revealTxid": revealTxid,
+          ":fundingStatus": "revealed" as TFundingStatus,
         },
       }),
     );
@@ -1238,8 +1186,11 @@ export class FundingDao<
     network,
     fundingStatus,
     fundedAt,
-    genesisTxid,
     revealTxid,
+    fundingTxid,
+    fundingVout,
+    refundedTxid,
+    creatorUserId,
     meta,
     lastChecked,
     nextCheckAt,
@@ -1276,13 +1227,16 @@ export class FundingDao<
         : {
             nextCheckAt: new Date().getTime(),
           }),
+      ...(typeof creatorUserId !== "undefined" && { creatorUserId }),
       ...(typeof tipAmountSat !== "undefined" && { tipAmountSat }),
       ...(typeof tipAmountDestination !== "undefined" && {
         tipAmountDestination,
       }),
       ...(typeof fundedAt !== "undefined" && { fundedAt: fundedAt.getTime() }),
-      ...(typeof genesisTxid !== "undefined" && { genesisTxid }),
       ...(typeof revealTxid !== "undefined" && { revealTxid }),
+      ...(typeof fundingTxid !== "undefined" && { fundingTxid }),
+      ...(typeof fundingVout !== "undefined" && { fundingVout }),
+      ...(typeof refundedTxid !== "undefined" && { refundedTxid }),
       ...(typeof batchId !== "undefined" && { batchId }),
       ...(typeof meta !== "undefined"
         ? // remove undefined values
@@ -1303,6 +1257,7 @@ export class FundingDao<
     maxSupply,
     pendingCount,
     totalCount,
+    creatorUserId,
     name,
     meta,
   }: TCollectionModel<T>): TFundingCollectionDb<T> {
@@ -1314,6 +1269,7 @@ export class FundingDao<
       maxSupply: maxSupply ?? 1,
       pendingCount,
       totalCount,
+      ...(typeof creatorUserId !== "undefined" && { creatorUserId }),
       ...(meta
         ? // remove undefined values
           (mapMetaKeys(
@@ -1334,14 +1290,16 @@ export class FundingDao<
     collectionName,
     totalCount,
     pendingCount,
+    creatorUserId,
     ...meta
   }: TFundingCollectionDb<T>): TCollectionModel<T> {
     return {
       id: toCollectionId(collectionId),
-      maxSupply: maxSupply,
+      ...(typeof maxSupply !== "undefined" && { maxSupply }),
       name: collectionName,
       totalCount: totalCount,
       pendingCount: pendingCount,
+      ...(typeof creatorUserId !== "undefined" && { creatorUserId }),
       meta: unmapMetaKeys(excludePrimaryKeys(meta)) as T,
       type: "collection",
     };
@@ -1406,12 +1364,15 @@ export class FundingDao<
     destinationAddress,
     network,
     fundingStatus,
-    genesisTxid,
     revealTxid,
+    fundingTxid,
+    fundingVout,
+    refundedTxid,
     timesChecked,
     lastChecked,
     nextCheckAt,
     createdAt,
+    creatorUserId,
     fundedAt,
     fundingAmountBtc,
     fundingAmountSat,
@@ -1439,9 +1400,12 @@ export class FundingDao<
       ...(typeof nextCheckAt !== "undefined" && {
         nextCheckAt: new Date(nextCheckAt),
       }),
+      ...(typeof creatorUserId !== "undefined" && { creatorUserId }),
       ...(typeof fundedAt !== "undefined" && { fundedAt: new Date(fundedAt) }),
-      ...(typeof genesisTxid !== "undefined" && { genesisTxid }),
       ...(typeof revealTxid !== "undefined" && { revealTxid }),
+      ...(typeof fundingTxid !== "undefined" && { fundingTxid }),
+      ...(typeof fundingVout !== "undefined" && { fundingVout }),
+      ...(typeof refundedTxid !== "undefined" && { refundedTxid }),
       ...(typeof collectionId !== "undefined"
         ? { collectionId: toCollectionId(collectionId) }
         : {}),
@@ -1456,11 +1420,14 @@ export class FundingDao<
 
   public static recordToModel<T extends Record<string, any>>(record: {
     [key: string]: DynamoDBAttributeValue | LambdaAttributeValue;
-  }): IAddressInscriptionModel<T> | TCollectionModel<T> {
+  }): IAddressInscriptionModel<T> | TCollectionModel<T> | null {
     const dbRecord = unmarshall(record as unknown as DynamoDBAttributeValue);
     const isCollection = dbRecord.sk === "collection";
+    const isFunding = dbRecord.sk === "funding";
     return isCollection
       ? FundingDao.fromCollectionDb(dbRecord as TFundingCollectionDb<T>)
-      : FundingDao.fromFundingDb(dbRecord as TFundingDb<T>);
+      : isFunding
+      ? FundingDao.fromFundingDb(dbRecord as TFundingDb<T>)
+      : null;
   }
 }

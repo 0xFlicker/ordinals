@@ -132,6 +132,21 @@ services:
       - appnet
       - shared-lambda
 
+  ord:
+    build:
+      context: ./ord
+      dockerfile: Dockerfile
+    networks:
+      - appnet
+      - shared-lambda
+    volumes:
+      - ord_data:/var/lib/ord
+    ports:
+      - "5000:80"
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+
 networks:
   appnet:
     driver: bridge
@@ -143,3 +158,4 @@ volumes:
   bitcoind_data:
   mempool_db_data:
   mempool_cache_data:
+  ord_data:

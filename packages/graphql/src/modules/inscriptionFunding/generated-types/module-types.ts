@@ -3,7 +3,7 @@ import type * as Types from "../../../generated-types/graphql.js";
 import type * as gm from "@0xflick/graphql-modules";
 export namespace InscriptionFundingModule {
   interface DefinedFields {
-    InscriptionFunding: 'id' | 'fundingAmountBtc' | 'fundingAmountSats' | 'fundingAddress' | 'destinationAddress' | 'network' | 'qrValue' | 'qrSrc' | 'status' | 'fundingGenesisTxId' | 'fundingGenesisTxUrl' | 'fundingRevealTxId' | 'fundingRevealTxUrl' | 'overhead' | 'padding' | 'count' | 'fee' | 'inscriptionContent' | 'inscriptionContents';
+    InscriptionFunding: 'id' | 'fundingAmountBtc' | 'fundingAmountSats' | 'fundingAddress' | 'destinationAddress' | 'network' | 'qrValue' | 'qrSrc' | 'status' | 'fundingGenesisTxId' | 'fundingGenesisTxUrl' | 'fundingRevealTxId' | 'fundingRevealTxUrl' | 'fundingRefundTxId' | 'fundingRefundTxUrl' | 'overhead' | 'padding' | 'count' | 'fee' | 'inscriptionContent' | 'inscriptionContents';
     InscriptionFundingProblem: 'code' | 'message';
     InscriptionFundingsResult: 'fundings' | 'problems' | 'next' | 'count';
     Query: 'inscriptionFunding' | 'inscriptionFundings';
@@ -57,6 +57,8 @@ export namespace InscriptionFundingModule {
       fundingGenesisTxUrl?: gm.Middleware[];
       fundingRevealTxId?: gm.Middleware[];
       fundingRevealTxUrl?: gm.Middleware[];
+      fundingRefundTxId?: gm.Middleware[];
+      fundingRefundTxUrl?: gm.Middleware[];
       overhead?: gm.Middleware[];
       padding?: gm.Middleware[];
       count?: gm.Middleware[];

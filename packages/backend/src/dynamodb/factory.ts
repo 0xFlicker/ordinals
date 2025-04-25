@@ -78,9 +78,7 @@ export function createDynamoDbBatchDao({
   db?: DynamoDBDocumentClient;
   batchTableName?: string;
 } = {}) {
-  batchTableName = batchTableName ?? tableNames.get().batches;
-
-  BatchDAO.TABLE_NAME =
-    batchTableName ?? tableNames.get().batches ?? BatchDAO.TABLE_NAME;
+  batchTableName = batchTableName ?? tableNames.get().funding;
+  BatchDAO.TABLE_NAME = batchTableName ?? BatchDAO.TABLE_NAME;
   return new BatchDAO(db ?? getDb());
 }

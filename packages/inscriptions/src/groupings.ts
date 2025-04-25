@@ -169,6 +169,7 @@ function canJoinBatch(
 export function groupFundings(
   fundings: GroupableFunding[],
   feeRateRange: RevealTransactionFeeRateRange,
+  recentThreshold: number = RECENT_THRESHOLD,
 ): GroupingResult {
   const now = Date.now();
 
@@ -185,7 +186,7 @@ export function groupFundings(
   // Process fundings with parentInscriptionId.
   const parentGroups = new Map<string, InscriptionFunding[]>();
   for (const f of parentFundings) {
-    if (now - f.fundedAt.getTime() < RECENT_THRESHOLD) {
+    if (now - f.fundedAt.getTime() < recentThreshold) {
       laterFundings.push(f);
       continue;
     }
@@ -298,7 +299,7 @@ export function groupFundings(
   // Process non-parent fundings grouped by feeDestinations.
   const feeGroups = new Map<string, InscriptionFunding[]>();
   for (const f of nonParentFundings) {
-    if (now - f.fundedAt.getTime() < RECENT_THRESHOLD) {
+    if (now - f.fundedAt.getTime() < recentThreshold) {
       laterFundings.push(f);
       continue;
     }

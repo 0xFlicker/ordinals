@@ -62,7 +62,10 @@ export const resolvers: CollectionsModule.Resolvers = {
     ) => {
       const { requireMutation } = context;
       requireMutation(info);
-      await verifyAuthorizedUser(context, canPerformCreateCollection);
+      await verifyAuthorizedUser({
+        authorizer: canPerformCreateCollection,
+        ...context,
+      });
 
       return createCollection({
         name,
@@ -73,7 +76,10 @@ export const resolvers: CollectionsModule.Resolvers = {
     },
     deleteCollection: async (_parent, { id }, context, info) => {
       const { fundingDao, requireMutation } = context;
-      await verifyAuthorizedUser(context, canPerformDeleteCollection);
+      await verifyAuthorizedUser({
+        authorizer: canPerformDeleteCollection,
+        ...context,
+      });
       requireMutation(info);
       await fundingDao.deleteCollection(id as ID_Collection);
       return true;
@@ -167,7 +173,10 @@ export const resolvers: CollectionsModule.Resolvers = {
     updateMetadata: async (parent, { metadata }, context, info) => {
       const { fundingDao, requireMutation } = context;
       requireMutation(info);
-      await verifyAuthorizedUser(context, canPerformUpdateCollection);
+      await verifyAuthorizedUser({
+        authorizer: canPerformUpdateCollection,
+        ...context,
+      });
       const model = await fundingDao.updateCollectionMeta(
         parent.id,
         metadata.reduce(

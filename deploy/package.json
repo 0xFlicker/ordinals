@@ -11,7 +11,9 @@
     "deploy:local": "bash ./scripts/deploy-local.sh",
     "deploy": "DEPLOYMENT=aws AWS_REGION=us-east-1 cdk deploy",
     "monitor-sqs": "node --loader ts-node/esm ./src/local-monitor-sqs.ts",
-    "deploy:local:docker": "cd ../docker && docker compose -f docker-compose.yml up -d"
+    "deploy:local:docker": "cd ../docker && docker compose -f docker-compose.yml up -d",
+    "deploy:local:docker:down": "cd ../docker && docker compose -f docker-compose.yml down -v",
+    "bitcoin:local:generate": "bitcoin-cli -regtest -rpcuser=test -rpcpassword=test generatetoaddress 1 $(bitcoin-cli -regtest -rpcuser=test -rpcpassword=test getnewaddress)"
   },
   "dependencies": {
     "@aws-solutions-constructs/aws-dynamodbstreams-lambda": "^2.79.1",

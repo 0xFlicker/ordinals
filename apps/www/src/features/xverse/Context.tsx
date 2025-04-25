@@ -258,64 +258,68 @@ function useXverseContext(opts: {
     [network, state.paymentAddress]
   );
 
-  const siwb = useCallback(async () => {
-    if (!state.ordinalsAddress) {
-      throw new Error("No ordinals address available");
-    }
+  const siwb = useCallback(
+    async (address?: string) => {
+      address = address ?? state.ordinalsAddress;
+      if (!address) {
+        throw new Error("No ordinals address available");
+      }
 
-    const { data: nonceData } = await fetchNonce({
-      variables: {
+      const { data: nonceData } = await fetchNonce({
+        variables: {
+          address,
+        },
+      });
+
+      if (!nonceData) {
+        throw new Error("No nonce data received");
+      }
+
+      const {
+        nonceBitcoin: { messageToSign, nonce, pubKey },
+      } = nonceData;
+
+      const signature = await sign({
+        messageToSign,
+        address,
+        network: {
+          type: network,
+        },
+      });
+
+      if (!signature) {
+        throw new Error("Signature was declined");
+      }
+
+      const jwe = await createJweRequest({
+        signature,
+        nonce,
+        pubKeyStr: pubKey,
+      });
+
+      const { data: tokenData } = await fetchSiwb({
+        variables: {
+          address: state.ordinalsAddress,
+          jwe,
+        },
+      });
+
+      if (!tokenData) {
+        throw new Error("Failed to obtain SIWB token");
+      }
+
+      // Store the token in localStorage
+      if (tokenData.siwb?.token) {
+        localStorage.setItem("xverse_token", tokenData.siwb.token);
+      }
+
+      return {
+        token: tokenData.siwb,
         address: state.ordinalsAddress,
-      },
-    });
-
-    if (!nonceData) {
-      throw new Error("No nonce data received");
-    }
-
-    const {
-      nonceBitcoin: { messageToSign, nonce, pubKey },
-    } = nonceData;
-
-    const signature = await sign({
-      messageToSign,
-      address: state.ordinalsAddress,
-      network: {
-        type: network,
-      },
-    });
-
-    if (!signature) {
-      throw new Error("Signature was declined");
-    }
-
-    const jwe = await createJweRequest({
-      signature,
-      nonce,
-      pubKeyStr: pubKey,
-    });
-
-    const { data: tokenData } = await fetchSiwb({
-      variables: {
-        address: state.ordinalsAddress,
-        jwe,
-      },
-    });
-
-    if (!tokenData) {
-      throw new Error("Failed to obtain SIWB token");
-    }
-
-    // Store the token in localStorage
-    if (tokenData.siwb?.token) {
-      localStorage.setItem("xverse_token", tokenData.siwb.token);
-    }
-
-    return {
-      token: tokenData.siwb,
-      address: state.ordinalsAddress,
-    };
-  }, [state.ordinalsAddress, network, sign, fetchNonce, fetchSiwb]);
+      };
+    },
+    [state.ordinalsAddress, network, sign, fetchNonce, fetchSiwb]
+  );
 
   return {
     state,

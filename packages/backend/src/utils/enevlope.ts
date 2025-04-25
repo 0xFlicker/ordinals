@@ -42,8 +42,6 @@ export async function decryptEnvelope({
   // clear from memory
   crypto.webcrypto.getRandomValues(new Uint8Array(decryptedKey.Plaintext));
 
-  console.log("decryptedSecKey", decryptedSecKey);
-
   return decryptedSecKey;
 }
 
@@ -56,7 +54,6 @@ export async function encryptEnvelope({
   kmsClient: KMSClient;
   keyId: string;
 }) {
-  console.log("encryptEnvelope", plaintext);
   const iv = crypto.randomBytes(12); // Initialization Vector
   const dataKey = await kmsClient.send(
     new GenerateDataKeyCommand({

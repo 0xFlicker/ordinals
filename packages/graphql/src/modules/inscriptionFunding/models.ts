@@ -3,10 +3,12 @@ import {
   INewFundingAddressModel,
   InscriptionFile,
   IInscriptionDocCommon,
+  IAddressInscriptionModel,
 } from "@0xflick/ordinals-models";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { UnableToGetS3ObjectError } from "../../errors/s3.js";
 import { toDataURL, QRCodeToDataURLOptions } from "qrcode";
+import { FundingDao } from "@0xflick/ordinals-backend";
 
 export class InscriptionFundingModel {
   public id: string;
@@ -15,6 +17,8 @@ export class InscriptionFundingModel {
   private document?: TInscriptionDoc;
   private readonly bucket: string;
   private s3Client: S3Client;
+  private fundingDao: FundingDao;
+  private _funding: Promise<IAddressInscriptionModel> | undefined;
 
   constructor({
     id,
@@ -23,6 +27,8 @@ export class InscriptionFundingModel {
     destinationAddress,
     bucket,
     s3Client,
+    funding,
+    fundingDao,
   }: {
     id: string;
     document?: TInscriptionDoc;
@@ -30,6 +36,8 @@ export class InscriptionFundingModel {
     destinationAddress: string;
     bucket: string;
     s3Client: S3Client;
+    funding?: IAddressInscriptionModel;
+    fundingDao: FundingDao;
   }) {
     this.id = id;
     this.document = document;
@@ -37,6 +45,17 @@ export class InscriptionFundingModel {
     this.destinationAddress = destinationAddress;
     this.bucket = bucket;
     this.s3Client = s3Client;
+    this.fundingDao = fundingDao;
+    this._funding = funding ? Promise.resolve(funding) : undefined;
+  }
+
+  public get funding() {
+    if (!this._funding) {
+      console.log("Fetching funding", this.id);
+      this._funding = this.fundingDao.getFunding(this.id);
+      console.log("Funding fetched", this.id);
+    }
+    return this._funding;
   }
 
   public get network() {
@@ -213,5 +232,25 @@ export class InscriptionFundingModel {
 
   public get padding() {
     return this.fetchInscription().then((d) => d.padding);
+  }
+
+  public async fundingGenesisTxId() {
+    const funding = await this.funding;
+    return funding.fundingTxid;
+  }
+
+  public async fundingRevealTxId() {
+    const funding = await this.funding;
+    return funding.revealTxid;
+  }
+
+  public async fundingRefundTxId() {
+    const funding = await this.funding;
+    return funding.refundedTxid;
+  }
+
+  public async fundingStatus() {
+    const funding = await this.funding;
+    return funding.fundingStatus;
   }
 }

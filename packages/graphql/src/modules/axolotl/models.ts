@@ -395,6 +395,8 @@ export class AxolotlModel implements IAxolotlMeta {
       fundingAddress,
       destinationAddress,
       s3Client,
+      fundingDao: incrementingRevealDao,
+      funding: addressModel,
     });
     await Promise.all([
       fundingDocDao.updateOrSaveInscriptionTransaction(doc, {

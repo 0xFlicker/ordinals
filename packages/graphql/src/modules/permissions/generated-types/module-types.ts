@@ -11,7 +11,7 @@ export namespace PermissionsModule {
   
   interface DefinedEnumValues {
     PermissionAction: 'CREATE' | 'UPDATE' | 'DELETE' | 'LIST' | 'GET' | 'USE' | 'ADMIN';
-    PermissionResource: 'ALL' | 'USER' | 'ADMIN' | 'ROLE' | 'PRESALE' | 'AFFILIATE' | 'COLLECTION';
+    PermissionResource: 'ALL' | 'USER' | 'ADMIN' | 'ROLE' | 'PRESALE' | 'AFFILIATE' | 'COLLECTION' | 'INSCRIPTION';
   };
   
   interface DefinedInputFields {

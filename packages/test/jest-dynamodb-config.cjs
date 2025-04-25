@@ -27,7 +27,7 @@ module.exports = {
         { AttributeName: "PermissionRoleID", AttributeType: "S" },
         { AttributeName: "CreatedAt", AttributeType: "N" },
         { AttributeName: "UserRoleID", AttributeType: "S" },
-        { AttributeName: "Address", AttributeType: "S" },
+        { AttributeName: "UserID", AttributeType: "S" },
       ],
       BillingMode: "PAY_PER_REQUEST",
       GlobalSecondaryIndexes: [
@@ -69,13 +69,13 @@ module.exports = {
           ],
           Projection: {
             ProjectionType: "INCLUDE",
-            NonKeyAttributes: ["Address"],
+            NonKeyAttributes: ["UserID"],
           },
         },
         {
-          IndexName: "AddressIndex",
+          IndexName: "UserIDIndex",
           KeySchema: [
-            { AttributeName: "Address", KeyType: "HASH" },
+            { AttributeName: "UserID", KeyType: "HASH" },
             { AttributeName: "CreatedAt", KeyType: "RANGE" },
           ],
           Projection: {

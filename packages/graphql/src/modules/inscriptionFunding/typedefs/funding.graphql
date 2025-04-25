@@ -22,6 +22,8 @@ type InscriptionFunding {
   fundingGenesisTxUrl: String
   fundingRevealTxId: String
   fundingRevealTxUrl: String
+  fundingRefundTxId: String
+  fundingRefundTxUrl: String
 
   overhead: Int!
   padding: Int!
@@ -34,7 +36,7 @@ type InscriptionFunding {
 
 input InscriptionFundingQuery {
   collectionId: ID
-  fundingStatus: FundingStatus
+  fundingStatus: FundingStatus!
   next: String
   limit: Int
 }

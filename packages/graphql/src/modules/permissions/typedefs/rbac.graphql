@@ -16,6 +16,7 @@ enum PermissionResource {
   PRESALE
   AFFILIATE
   COLLECTION
+  INSCRIPTION
 }
 
 type Permission {
@@ -36,8 +37,8 @@ type Role {
   userCount: Int!
   permissions: [Permission!]!
 
-  bindToUser(userAddress: String!): Web3User!
-  unbindFromUser(userAddress: String!): Web3User!
+  bindToUser(userId: String!): Web3User!
+  unbindFromUser(userId: String!): Web3User!
   addPermissions(permissions: [PermissionInput!]!): Role!
   removePermissions(permissions: [PermissionInput!]!): Role!
   delete: Boolean!

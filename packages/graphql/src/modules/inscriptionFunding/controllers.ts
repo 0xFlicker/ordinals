@@ -42,6 +42,9 @@ export async function getFundingModel({
   s3Client: S3Client;
 }) {
   const funding = await fundingDao.getFunding(id);
+  if (!funding) {
+    throw new Error(`Funding not found: ${id}`);
+  }
   const document = await fundingDocDao.getInscriptionTransaction({
     id,
     fundingAddress: funding.address,
@@ -53,5 +56,7 @@ export async function getFundingModel({
     fundingAddress: funding.address,
     destinationAddress: funding.destinationAddress,
     s3Client,
+    fundingDao,
+    funding,
   });
 }
