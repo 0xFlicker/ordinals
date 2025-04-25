@@ -9,5 +9,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD bitcoin-cli -regtest getblockchaininfo || exit 1
 
 VOLUME ["/bitcoin"]
-EXPOSE 18443 18444
+EXPOSE 18443 18444 28332 28333
 

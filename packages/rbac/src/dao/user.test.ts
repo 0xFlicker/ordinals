@@ -7,7 +7,7 @@ describe("#User MODEL", () => {
     const userId = createUuid();
     const db = getDb();
     const dao = new UserDAO(db as any);
-    const nonces = await dao.getUsersNonces(userId);
+    const nonces = await dao.getAddressNonces(userId);
     expect(nonces).toEqual([]);
   });
 });
