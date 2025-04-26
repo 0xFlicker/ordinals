@@ -1,18 +1,18 @@
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { RolePermissionsDAO } from "./rolePermissions.js";
 import { RolesDAO } from "./roles.js";
-import { UserDAO } from "./user.js";
+import { UserNonceDAO } from "./userNonce.js";
 import { UserRolesDAO } from "./userRoles.js";
-
-export function createDynamoDbUserDao({
+import { UserDAO } from "./user.js";
+export function createDynamoDbUserNonceDao({
   userNonceTableName,
   db,
 }: {
   userNonceTableName?: string;
   db: DynamoDBDocumentClient;
-}): UserDAO {
-  UserDAO.TABLE_NAME = userNonceTableName ?? UserDAO.TABLE_NAME;
-  return new UserDAO(db);
+}): UserNonceDAO {
+  UserNonceDAO.TABLE_NAME = userNonceTableName ?? UserNonceDAO.TABLE_NAME;
+  return new UserNonceDAO(db);
 }
 
 export function createDynamoDbUserRolesDao({
@@ -47,4 +47,15 @@ export function createDynamoDbRolePermissionsDao({
   RolePermissionsDAO.TABLE_NAME =
     rbacTableName ?? RolePermissionsDAO.TABLE_NAME;
   return new RolePermissionsDAO(db);
+}
+
+export function createDynamoDbUserDao({
+  userTableName,
+  db,
+}: {
+  userTableName?: string;
+  db: DynamoDBDocumentClient;
+}): UserDAO {
+  UserDAO.TABLE_NAME = userTableName ?? UserDAO.TABLE_NAME;
+  return new UserDAO(db);
 }

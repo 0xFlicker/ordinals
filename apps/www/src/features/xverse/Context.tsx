@@ -24,11 +24,15 @@ import {
   xverseReducer,
 } from "./ducks";
 import {
+  IUserAddress,
   createJweRequest,
-  decodeJwtToken,
+  importSPKIKey,
+  verifyJwtForLogin,
+  verifyJwtToken,
 } from "@0xflick/ordinals-rbac-models";
 import {
   useBitcoinNonceMutation,
+  useSignupBitcoinMutation,
   useSiwbMutation,
 } from "./graphql/nonce.generated";
 import { useGetAppInfoQuery } from "@/features/auth/hooks/app.generated";
@@ -46,7 +50,7 @@ function useXverseContext(opts: {
   });
 
   const [fetchNonce] = useBitcoinNonceMutation();
-  const [fetchSiwb] = useSiwbMutation();
+  const [signupBitcoin] = useSignupBitcoinMutation();
   const { data: appInfoData } = useGetAppInfoQuery();
   const issuer = appInfoData?.appInfo?.name;
 
@@ -57,22 +61,36 @@ function useXverseContext(opts: {
     const storedToken = localStorage.getItem("xverse_token");
     if (!storedToken) return;
 
-    try {
-      const authUser = decodeJwtToken(storedToken, issuer);
-      if (authUser && authUser.address === state.ordinalsAddress) {
-        console.log(
-          "Found a token and the token addresses matches the ordinals address, setting verified address"
+    async function verifyToken() {
+      try {
+        if (!storedToken) return;
+        const pubKeyStr = appInfoData?.appInfo?.pubKey;
+        if (!pubKeyStr) return;
+        const authUser = await verifyJwtToken(
+          storedToken,
+          await importSPKIKey(pubKeyStr)
         );
-        dispatch(
-          actionCreators.setVerifiedOrdinalsAddress(state.ordinalsAddress)
-        );
-      } else {
-        console.warn(`Unable to parse token for ${state.ordinalsAddress}`);
+        const authUserAddress = authUser.address as IUserAddress;
+        if (
+          state.ordinalsAddress &&
+          authUserAddress.address === state.ordinalsAddress
+        ) {
+          console.log(
+            "Found a token and the token addresses matches the ordinals address, setting verified address"
+          );
+          dispatch(
+            actionCreators.setVerifiedOrdinalsAddress(state.ordinalsAddress)
+          );
+        } else {
+          console.warn(`Unable to parse token for ${state.ordinalsAddress}`);
+        }
+      } catch (err) {
+        localStorage.removeItem("xverse_token");
+        console.error("Error decoding token:", err);
       }
-    } catch (err) {
-      console.error("Error decoding token:", err);
     }
-  }, [state.ordinalsAddress, issuer]);
+    verifyToken();
+  }, [state.ordinalsAddress, issuer, appInfoData?.appInfo?.pubKey]);
 
   const actions = useMemo(
     () => ({
@@ -183,9 +201,7 @@ function useXverseContext(opts: {
               dispatch(
                 actionCreators.signatureRequestFulfilled({
                   signature: response,
-                  ...(addressToSign === state.ordinalsAddress
-                    ? { ordinalsAddress: addressToSign }
-                    : {}),
+                  ordinalsAddress: addressToSign,
                 })
               );
               resolve(response);
@@ -297,28 +313,29 @@ function useXverseContext(opts: {
         pubKeyStr: pubKey,
       });
 
-      const { data: tokenData } = await fetchSiwb({
+      const { data: tokenData } = await signupBitcoin({
         variables: {
-          address: state.ordinalsAddress,
+          address,
           jwe,
         },
       });
 
-      if (!tokenData) {
+      if (!tokenData || !tokenData.signupBitcoin?.user?.token) {
+        dispatch(
+          actionCreators.signatureRequestRejected("Failed to obtain SIWB token")
+        );
         throw new Error("Failed to obtain SIWB token");
       }
 
       // Store the token in localStorage
-      if (tokenData.siwb?.token) {
-        localStorage.setItem("xverse_token", tokenData.siwb.token);
-      }
+      localStorage.setItem("xverse_token", tokenData.signupBitcoin.user.token);
 
       return {
-        token: tokenData.siwb,
-        address: state.ordinalsAddress,
+        token: tokenData.signupBitcoin.user.token,
+        address: state.ordinalsAddress!,
       };
     },
-    [state.ordinalsAddress, network, sign, fetchNonce, fetchSiwb]
+    [state.ordinalsAddress, fetchNonce, sign, network, signupBitcoin]
   );
 
   return {

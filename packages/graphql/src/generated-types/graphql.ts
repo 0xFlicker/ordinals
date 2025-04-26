@@ -39,6 +39,11 @@ export type AppInfo = {
   pubKey: Scalars['String']['output'];
 };
 
+export type AuthProblem = {
+  __typename?: 'AuthProblem';
+  message: Scalars['String']['output'];
+};
+
 export type AxolotlAvailableClaimedFunding = {
   __typename?: 'AxolotlAvailableClaimedFunding';
   claimingAddress: Scalars['String']['output'];
@@ -356,8 +361,10 @@ export type Mutation = {
   role: Role;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
-  siwb: Web3LoginUser;
-  siwe: Web3LoginUser;
+  signupAnonymously: SignupAnonymouslyResponse;
+  signupBitcoin: SignupBitcoinResponse;
+  siwb: SignatureResponse;
+  siwe: SignatureResponse;
   uploadInscription: InscriptionUploadResponse;
 };
 
@@ -422,6 +429,17 @@ export type MutationPresaleArgs = {
 
 export type MutationRoleArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationSignupAnonymouslyArgs = {
+  request: SignupAnonymouslyRequest;
+};
+
+
+export type MutationSignupBitcoinArgs = {
+  address: Scalars['ID']['input'];
+  jwe: Scalars['String']['input'];
 };
 
 
@@ -548,6 +566,8 @@ export type Query = {
   appInfo: AppInfo;
   axolotlAvailableOpenEditionFundingClaims: Array<AxolotlAvailableOpenEditionFunding>;
   axolotlEstimateFee: AxolotlFeeEstimate;
+  checkUserExistsForAddress: Scalars['Boolean']['output'];
+  checkUserExistsForHandle: Scalars['Boolean']['output'];
   collection: Collection;
   collections: Array<Collection>;
   currentBitcoinFees: FeeEstimate;
@@ -573,6 +593,16 @@ export type QueryAxolotlEstimateFeeArgs = {
   feeLevel?: InputMaybe<FeeLevel>;
   feePerByte?: InputMaybe<Scalars['Int']['input']>;
   network: BitcoinNetwork;
+};
+
+
+export type QueryCheckUserExistsForAddressArgs = {
+  address: Scalars['ID']['input'];
+};
+
+
+export type QueryCheckUserExistsForHandleArgs = {
+  handle: Scalars['String']['input'];
 };
 
 
@@ -659,11 +689,27 @@ export type RoleUnbindFromUserArgs = {
   userId: Scalars['String']['input'];
 };
 
-export type Web3LoginUser = {
-  __typename?: 'Web3LoginUser';
-  id: Scalars['ID']['output'];
-  token: Scalars['String']['output'];
-  user: Web3User;
+export type SignatureResponse = {
+  __typename?: 'SignatureResponse';
+  problems?: Maybe<Array<AuthProblem>>;
+  token?: Maybe<Scalars['String']['output']>;
+};
+
+export type SignupAnonymouslyRequest = {
+  handle: Scalars['String']['input'];
+  token: Scalars['String']['input'];
+};
+
+export type SignupAnonymouslyResponse = {
+  __typename?: 'SignupAnonymouslyResponse';
+  problems?: Maybe<Array<AuthProblem>>;
+  user?: Maybe<Web3User>;
+};
+
+export type SignupBitcoinResponse = {
+  __typename?: 'SignupBitcoinResponse';
+  problems?: Maybe<Array<AuthProblem>>;
+  user?: Maybe<Web3User>;
 };
 
 export type Web3Namespace =
@@ -753,6 +799,7 @@ export type ResolversTypes = {
   Address: ResolverTypeWrapper<Address>;
   AddressType: AddressType;
   AppInfo: ResolverTypeWrapper<AppInfo>;
+  AuthProblem: ResolverTypeWrapper<AuthProblem>;
   AxolotlAvailableClaimedFunding: ResolverTypeWrapper<Omit<AxolotlAvailableClaimedFunding, 'funding'> & { funding?: Maybe<ResolversTypes['InscriptionFunding']> }>;
   AxolotlAvailableClaimedRequest: AxolotlAvailableClaimedRequest;
   AxolotlAvailableOpenEditionFunding: ResolverTypeWrapper<Omit<AxolotlAvailableOpenEditionFunding, 'funding'> & { funding?: Maybe<ResolversTypes['InscriptionFunding']> }>;
@@ -811,8 +858,11 @@ export type ResolversTypes = {
   PresalesResult: ResolverTypeWrapper<PresalesResult>;
   Query: ResolverTypeWrapper<{}>;
   Role: ResolverTypeWrapper<RoleModel>;
+  SignatureResponse: ResolverTypeWrapper<SignatureResponse>;
+  SignupAnonymouslyRequest: SignupAnonymouslyRequest;
+  SignupAnonymouslyResponse: ResolverTypeWrapper<Omit<SignupAnonymouslyResponse, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
+  SignupBitcoinResponse: ResolverTypeWrapper<Omit<SignupBitcoinResponse, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
   String: ResolverTypeWrapper<Scalars['String']['output']>;
-  Web3LoginUser: ResolverTypeWrapper<Web3LoginUserModel>;
   Web3Namespace: Web3Namespace;
   Web3User: ResolverTypeWrapper<Web3UserModel>;
 };
@@ -821,6 +871,7 @@ export type ResolversTypes = {
 export type ResolversParentTypes = {
   Address: Address;
   AppInfo: AppInfo;
+  AuthProblem: AuthProblem;
   AxolotlAvailableClaimedFunding: Omit<AxolotlAvailableClaimedFunding, 'funding'> & { funding?: Maybe<ResolversParentTypes['InscriptionFunding']> };
   AxolotlAvailableClaimedRequest: AxolotlAvailableClaimedRequest;
   AxolotlAvailableOpenEditionFunding: Omit<AxolotlAvailableOpenEditionFunding, 'funding'> & { funding?: Maybe<ResolversParentTypes['InscriptionFunding']> };
@@ -872,8 +923,11 @@ export type ResolversParentTypes = {
   PresalesResult: PresalesResult;
   Query: {};
   Role: RoleModel;
+  SignatureResponse: SignatureResponse;
+  SignupAnonymouslyRequest: SignupAnonymouslyRequest;
+  SignupAnonymouslyResponse: Omit<SignupAnonymouslyResponse, 'user'> & { user?: Maybe<ResolversParentTypes['Web3User']> };
+  SignupBitcoinResponse: Omit<SignupBitcoinResponse, 'user'> & { user?: Maybe<ResolversParentTypes['Web3User']> };
   String: Scalars['String']['output'];
-  Web3LoginUser: Web3LoginUserModel;
   Web3User: Web3UserModel;
 };
 
@@ -886,6 +940,11 @@ export type AddressResolvers<ContextType = Context, ParentType extends Resolvers
 export type AppInfoResolvers<ContextType = Context, ParentType extends ResolversParentTypes['AppInfo'] = ResolversParentTypes['AppInfo']> = {
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pubKey?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type AuthProblemResolvers<ContextType = Context, ParentType extends ResolversParentTypes['AuthProblem'] = ResolversParentTypes['AuthProblem']> = {
+  message?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -1089,8 +1148,10 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
   role?: Resolver<ResolversTypes['Role'], ParentType, ContextType, RequireFields<MutationRoleArgs, 'id'>>;
   signOutBitcoin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   signOutEthereum?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  siwb?: Resolver<ResolversTypes['Web3LoginUser'], ParentType, ContextType, RequireFields<MutationSiwbArgs, 'address' | 'jwe'>>;
-  siwe?: Resolver<ResolversTypes['Web3LoginUser'], ParentType, ContextType, RequireFields<MutationSiweArgs, 'address' | 'jwe'>>;
+  signupAnonymously?: Resolver<ResolversTypes['SignupAnonymouslyResponse'], ParentType, ContextType, RequireFields<MutationSignupAnonymouslyArgs, 'request'>>;
+  signupBitcoin?: Resolver<ResolversTypes['SignupBitcoinResponse'], ParentType, ContextType, RequireFields<MutationSignupBitcoinArgs, 'address' | 'jwe'>>;
+  siwb?: Resolver<ResolversTypes['SignatureResponse'], ParentType, ContextType, RequireFields<MutationSiwbArgs, 'address' | 'jwe'>>;
+  siwe?: Resolver<ResolversTypes['SignatureResponse'], ParentType, ContextType, RequireFields<MutationSiweArgs, 'address' | 'jwe'>>;
   uploadInscription?: Resolver<ResolversTypes['InscriptionUploadResponse'], ParentType, ContextType, RequireFields<MutationUploadInscriptionArgs, 'input'>>;
 };
 
@@ -1149,6 +1210,8 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   appInfo?: Resolver<ResolversTypes['AppInfo'], ParentType, ContextType>;
   axolotlAvailableOpenEditionFundingClaims?: Resolver<Array<ResolversTypes['AxolotlAvailableOpenEditionFunding']>, ParentType, ContextType, RequireFields<QueryAxolotlAvailableOpenEditionFundingClaimsArgs, 'request'>>;
   axolotlEstimateFee?: Resolver<ResolversTypes['AxolotlFeeEstimate'], ParentType, ContextType, RequireFields<QueryAxolotlEstimateFeeArgs, 'network'>>;
+  checkUserExistsForAddress?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<QueryCheckUserExistsForAddressArgs, 'address'>>;
+  checkUserExistsForHandle?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<QueryCheckUserExistsForHandleArgs, 'handle'>>;
   collection?: Resolver<ResolversTypes['Collection'], ParentType, ContextType, RequireFields<QueryCollectionArgs, 'id'>>;
   collections?: Resolver<Array<ResolversTypes['Collection']>, ParentType, ContextType>;
   currentBitcoinFees?: Resolver<ResolversTypes['FeeEstimate'], ParentType, ContextType, RequireFields<QueryCurrentBitcoinFeesArgs, 'network'>>;
@@ -1176,10 +1239,21 @@ export type RoleResolvers<ContextType = Context, ParentType extends ResolversPar
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type Web3LoginUserResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Web3LoginUser'] = ResolversParentTypes['Web3LoginUser']> = {
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  token?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  user?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType>;
+export type SignatureResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SignatureResponse'] = ResolversParentTypes['SignatureResponse']> = {
+  problems?: Resolver<Maybe<Array<ResolversTypes['AuthProblem']>>, ParentType, ContextType>;
+  token?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type SignupAnonymouslyResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SignupAnonymouslyResponse'] = ResolversParentTypes['SignupAnonymouslyResponse']> = {
+  problems?: Resolver<Maybe<Array<ResolversTypes['AuthProblem']>>, ParentType, ContextType>;
+  user?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type SignupBitcoinResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SignupBitcoinResponse'] = ResolversParentTypes['SignupBitcoinResponse']> = {
+  problems?: Resolver<Maybe<Array<ResolversTypes['AuthProblem']>>, ParentType, ContextType>;
+  user?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -1195,6 +1269,7 @@ export type Web3UserResolvers<ContextType = Context, ParentType extends Resolver
 export type Resolvers<ContextType = Context> = {
   Address?: AddressResolvers<ContextType>;
   AppInfo?: AppInfoResolvers<ContextType>;
+  AuthProblem?: AuthProblemResolvers<ContextType>;
   AxolotlAvailableClaimedFunding?: AxolotlAvailableClaimedFundingResolvers<ContextType>;
   AxolotlAvailableOpenEditionFunding?: AxolotlAvailableOpenEditionFundingResolvers<ContextType>;
   AxolotlFeeEstimate?: AxolotlFeeEstimateResolvers<ContextType>;
@@ -1226,7 +1301,9 @@ export type Resolvers<ContextType = Context> = {
   PresalesResult?: PresalesResultResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;
   Role?: RoleResolvers<ContextType>;
-  Web3LoginUser?: Web3LoginUserResolvers<ContextType>;
+  SignatureResponse?: SignatureResponseResolvers<ContextType>;
+  SignupAnonymouslyResponse?: SignupAnonymouslyResponseResolvers<ContextType>;
+  SignupBitcoinResponse?: SignupBitcoinResponseResolvers<ContextType>;
   Web3User?: Web3UserResolvers<ContextType>;
 };
 

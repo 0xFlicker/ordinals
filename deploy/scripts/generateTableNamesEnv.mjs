@@ -24,6 +24,8 @@ for (const [key, value] of Object.entries(outputs["ordinals"])) {
     tableNames.wallet = value;
   } else if (key.startsWith("DynamoDBUploadsTableName")) {
     tableNames.uploads = value;
+  } else if (key.startsWith("DynamoDBUsersTableName")) {
+    tableNames.users = value;
   } else if (key.startsWith("StorageinscriptionsBucketName")) {
     inscriptionBucketName = value;
   } else if (key.startsWith("DynamoDBFundingTableStreamArn")) {

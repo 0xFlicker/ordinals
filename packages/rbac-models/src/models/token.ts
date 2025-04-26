@@ -1,10 +1,12 @@
 import { CompactEncrypt, decodeJwt, importSPKI } from "jose";
 import { IRole } from "./roles.js";
 import {
-  promisePublicKey,
-  roleIdsToAddresses,
+  UserAddressType,
+  UserModel,
+  UserWithAddressesModel,
   UserWithRolesModel,
 } from "./user.js";
+import { promisePublicKey } from "./verifyJwt.js";
 
 export function generateRoles(roles: IRole[], issuer: string) {
   return generateRolesFromIds({
@@ -35,25 +37,20 @@ export function generateRolesFromIds({
     : {};
 }
 
-export function decodeJwtToken(
-  token: string,
-  issuer: string,
-): UserWithRolesModel {
-  const result = decodeJwt(token);
-  if (result.iss !== issuer) {
-    throw new Error("Issuer mismatch");
-  }
-  const roleNamespace = namespacedClaim("role/", issuer);
-  const roleIds = Object.entries(result)
-    .filter(([k, v]) => v && k.includes(roleNamespace))
-    .map(([k]) => k.replace(roleNamespace, ""));
-  return new UserWithRolesModel({
-    userId: result.sub!,
-    roleIds,
-    decodedToken: result,
-    addresses: roleIdsToAddresses(roleIds),
-  });
-}
+// export function decodeJwtToken(token: string, issuer: string): UserModel {
+//   const result = decodeJwt(token);
+//   if (result.iss !== issuer) {
+//     throw new Error("Issuer mismatch");
+//   }
+//   const roleNamespace = namespacedClaim("role/", issuer);
+//   const roleIds = Object.entries(result)
+//     .filter(([k, v]) => v && k.includes(roleNamespace))
+//     .map(([k]) => k.replace(roleNamespace, ""));
+//   return new UserWithRolesModel({
+//     userId: result.sub!,
+//     roleIds,
+//   });
+// }
 
 export async function createJweRequest({
   signature,

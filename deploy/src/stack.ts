@@ -54,6 +54,7 @@ export class BackendStack extends cdk.Stack {
       rbacTable,
       userNonceTable,
       walletTable,
+      usersTable,
       uploadsTable,
     } = new DynamoDB(this, "DynamoDB", {
       domainName: new URL(origin).host,
@@ -85,6 +86,7 @@ export class BackendStack extends cdk.Stack {
       fundingTable,
       rbacTable,
       userNonceTable,
+      usersTable,
       claimsTable,
       openEditionClaimsTable,
       batchTable,
@@ -103,6 +105,7 @@ export class BackendStack extends cdk.Stack {
         openEditionClaimsTable,
         rbacTable,
         userNonceTable,
+        usersTable,
         walletTable,
         inscriptionBucket,
         uploadBucket,

@@ -1,8 +1,0 @@
-type AppInfo {
-  name: String!
-  pubKey: String!
-}
-
-type Query {
-  appInfo: AppInfo!
-}

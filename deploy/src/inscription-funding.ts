@@ -21,6 +21,7 @@ export interface IInscriptionFundingProps {
   readonly batchTable: dynamodb.Table;
   readonly rbacTable: dynamodb.Table;
   readonly userNonceTable: dynamodb.Table;
+  readonly usersTable: dynamodb.Table;
   readonly claimsTable: dynamodb.Table;
   readonly openEditionClaimsTable: dynamodb.Table;
   readonly parentInscriptionSecKeyEnvelope: Envelope;
@@ -112,6 +113,7 @@ export class InscriptionFunding extends Construct {
             funding: props.fundingTable?.tableName ?? "null",
             claims: props.claimsTable.tableName,
             openEditionClaims: props.openEditionClaimsTable.tableName,
+            user: props.usersTable.tableName,
           }),
           EVENT_BUS_NAME: "default",
           FUNDED_QUEUE_URL: this.fundedQueue.queueUrl,
@@ -197,6 +199,7 @@ export class InscriptionFunding extends Construct {
           TABLE_NAMES: JSON.stringify({
             funding: props.fundingTable?.tableName ?? "null",
             batch: props.batchTable?.tableName ?? "null",
+            user: props.usersTable?.tableName ?? "null",
           }),
           ...parseEnv(`${props.domainName}/.env.graphql`),
           BATCH_SUCCESS_QUEUE_URL: this.batchSuccessQueue.queueUrl,

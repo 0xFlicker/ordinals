@@ -8,9 +8,9 @@ import { Address } from "@cmdcode/tapscript";
 import { RoleModel } from "../permissions/models.js";
 import { UserModule } from "./generated-types/module-types.js";
 import { modelPermissionToGraphql } from "../permissions/transforms.js";
-import { keccak256, toUtf8Bytes } from "ethers";
 import { Web3UserModel } from "./models.js";
-import { UserAddressType } from "@0xflick/ordinals-rbac-models";
+import { IUserAddress, UserAddressType } from "@0xflick/ordinals-rbac-models";
+import { AddressType } from "../../generated-types/graphql.js";
 
 const logger = createLogger({
   name: "graphql/user-resolvers",
@@ -30,6 +30,15 @@ export function addressToBitcoinNetwork(address: string): BitcoinNetworkNames {
   }
 }
 
+function addressToGraphqlAddress(addressType: UserAddressType): AddressType {
+  switch (addressType) {
+    case UserAddressType.EVM:
+      return "EVM";
+    case UserAddressType.BTC:
+      return "BTC";
+  }
+}
+
 export const resolvers: UserModule.Resolvers = {
   Web3User: {
     roles: async (user, _, { userRolesDao, rolesDao, rolePermissionsDao }) => {
@@ -38,15 +47,22 @@ export const resolvers: UserModule.Resolvers = {
         (roleId) => new RoleModel(rolesDao, rolePermissionsDao, roleId),
       );
     },
+    addresses: async (user, _, { userDao }) => {
+      const userAddresses = await userDao.getUsersAddresses(user.id);
+      return userAddresses.map((address) => ({
+        address: address.address,
+        type: addressToGraphqlAddress(address.type),
+      }));
+    },
     allowedActions: async (
-      { userId },
+      { id },
       _,
       { userRolesDao, rolePermissionsDao, userDao },
     ) => {
       const permissions = await userDao.allowedActionsForUserId(
         userRolesDao,
         rolePermissionsDao,
-        userId,
+        id,
       );
       return permissions.map(modelPermissionToGraphql);
     },
@@ -61,7 +77,7 @@ export const resolvers: UserModule.Resolvers = {
       _,
       { address, chainId },
       {
-        userDao,
+        userNonceDao,
         authMessageDomain,
         authMessageExpirationTimeSeconds,
         authMessageJwtClaimIssuer,
@@ -72,7 +88,7 @@ export const resolvers: UserModule.Resolvers = {
         now + authMessageExpirationTimeSeconds * 1000,
       ).toISOString();
       const issuedAt = new Date(now).toISOString();
-      const nonce = await userDao.create({
+      const nonce = await userNonceDao.createNonce({
         address: {
           address,
           type: UserAddressType.EVM,
@@ -116,7 +132,7 @@ export const resolvers: UserModule.Resolvers = {
       _,
       { address },
       {
-        userDao,
+        userNonceDao,
         authMessageDomain,
         authMessageExpirationTimeSeconds,
         authMessageJwtClaimIssuer,
@@ -127,7 +143,7 @@ export const resolvers: UserModule.Resolvers = {
         now + authMessageExpirationTimeSeconds * 1000,
       ).toISOString();
       const issuedAt = new Date(now).toISOString();
-      const nonce = await userDao.create({
+      const nonce = await userNonceDao.createNonce({
         address: {
           address,
           type: UserAddressType.BTC,

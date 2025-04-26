@@ -1,7 +1,7 @@
 import { getDb } from "@0xflick/ordinals-backend";
 import { v4 as createUuid } from "uuid";
-import { UserDAO } from "./user.js";
-import { createJwtTokenSingleSubject, jwkKey } from "./token.js";
+import { UserNonceDAO } from "./userNonce.js";
+import { createJwtTokenForLogin, jwkKey } from "./token.js";
 import {
   TokenModel,
   promisePublicKey,
@@ -9,7 +9,8 @@ import {
   EResource,
   verifyJwtToken,
   UserAddressType,
-  roleIdsToAddresses,
+  verifyJwtForLogin,
+  namespacedClaim,
 } from "@0xflick/ordinals-rbac-models";
 import * as jose from "jose";
 import { RolePermissionsDAO } from "./rolePermissions.js";
@@ -60,7 +61,7 @@ describe("#Token DAO", () => {
     TokenModel.JWT_CLAIM_ISSUER = "https://example.com";
     const userId = createUuid();
     const db = getDb();
-    const dao = new UserDAO(db as any);
+    const userNonceDao = new UserNonceDAO(db as any);
     const permissionDao = new RolePermissionsDAO(db as any);
     const rolesDao = new RolesDAO(db as any);
 
@@ -75,8 +76,7 @@ describe("#Token DAO", () => {
       resource: EResource.PRESALE,
     });
 
-    await dao.create({
-      userId,
+    await userNonceDao.createNonce({
       address: {
         type: UserAddressType.EVM,
         address: userId,
@@ -93,32 +93,20 @@ describe("#Token DAO", () => {
       roleId: roleId,
       rolesDao,
     });
-
-    const token = await createJwtTokenSingleSubject({
+    const token = await createJwtTokenForLogin({
       user: {
         userId,
         roleIds: [roleId],
-        addresses: roleIdsToAddresses([roleId]),
       },
-      nonce: "0",
       issuer: TokenModel.JWT_CLAIM_ISSUER,
-      addressType: UserAddressType.EVM,
     });
-    expect(token).toBeDefined();
-    expect(
-      await verifyJwtToken({
-        token,
-        nonce: "0",
-        roleIds: [roleId],
-        issuer: TokenModel.JWT_CLAIM_ISSUER,
-        addressType: UserAddressType.EVM,
-      }),
-    ).toEqual(
+    const decoded = await verifyJwtForLogin(token, TokenModel.JWT_CLAIM_ISSUER);
+
+    expect(decoded).toBeDefined();
+    expect(decoded).toEqual(
       expect.objectContaining({
         userId,
-        addresses: roleIdsToAddresses([roleId]),
         roleIds: [roleId],
-        nonce: "0",
       }),
     );
   });

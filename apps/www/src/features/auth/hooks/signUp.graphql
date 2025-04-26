@@ -1,0 +1,13 @@
+mutation SignupAnonymously($request: SignupAnonymouslyRequest!) {
+  signupAnonymously(request: $request) {
+    user {
+      id
+      roles {
+        id
+      }
+    }
+    problems {
+      message
+    }
+  }
+}

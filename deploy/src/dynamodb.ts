@@ -23,6 +23,7 @@ export class DynamoDB extends Construct {
   public readonly walletTable: dynamodb.Table;
   public readonly rbacTable: dynamodb.Table;
   public readonly userNonceTable: dynamodb.Table;
+  public readonly usersTable: dynamodb.Table;
   public readonly fundingTable: dynamodb.Table;
   public readonly claimsTable: dynamodb.Table;
   public readonly openEditionClaimsTable: dynamodb.Table;
@@ -48,6 +49,32 @@ export class DynamoDB extends Construct {
     new cdk.CfnOutput(this, "WalletTableName", {
       exportName: "WalletTableName",
       value: walletTable.tableName,
+    });
+
+    const usersTable = new dynamodb.Table(this, "UsersTable", {
+      partitionKey: {
+        name: "pk",
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: "sk",
+        type: dynamodb.AttributeType.STRING,
+      },
+      tableClass: dynamodb.TableClass.STANDARD,
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    });
+    usersTable.addGlobalSecondaryIndex({
+      indexName: "HandleIndex",
+      partitionKey: {
+        name: "Handle",
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+    this.usersTable = usersTable;
+    new cdk.CfnOutput(this, "UsersTableName", {
+      exportName: "UsersTableName",
+      value: usersTable.tableName,
     });
 
     const rbacTable = new dynamodb.Table(this, "RbacTable", {

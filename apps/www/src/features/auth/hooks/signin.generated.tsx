@@ -9,7 +9,7 @@ export type Web3SiweSignInMutationVariables = Types.Exact<{
 }>;
 
 
-export type Web3SiweSignInMutation = { __typename?: 'Mutation', siwe: { __typename?: 'Web3LoginUser', token: string } };
+export type Web3SiweSignInMutation = { __typename?: 'Mutation', siwe: { __typename?: 'SignatureResponse', token?: string | null } };
 
 export type Web3SiwbSignInMutationVariables = Types.Exact<{
   address: Types.Scalars['ID']['input'];
@@ -17,7 +17,7 @@ export type Web3SiwbSignInMutationVariables = Types.Exact<{
 }>;
 
 
-export type Web3SiwbSignInMutation = { __typename?: 'Mutation', siwb: { __typename?: 'Web3LoginUser', token: string } };
+export type Web3SiwbSignInMutation = { __typename?: 'Mutation', siwb: { __typename?: 'SignatureResponse', token?: string | null } };
 
 
 export const Web3SiweSignInDocument = gql`

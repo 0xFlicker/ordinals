@@ -12,9 +12,11 @@ import { useWeb3 } from "@/features/web3";
 import { useNonce } from "./useNonce";
 import {
   createJweRequest,
-  decodeJwtToken,
   TAllowedAction,
   Matcher,
+  verifyJwtForLogin,
+  verifyJwtForNewUserCreation,
+  verifyJwtForAddressAddition,
 } from "@0xflick/ordinals-rbac-models";
 import { useSiweSignIn, useSiwbSignIn } from "./useSignIn";
 import { useSignOut } from "./useSignOut";
@@ -27,6 +29,9 @@ import { Web3Namespace } from "@/graphql/types";
 function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
   const [stateToken, setStateToken] = useState<string | null>(null);
   const [roleIds, setRoleIds] = useState<string[]>([]);
+  const [siweReason, setSiweReason] = useState<
+    "LOGIN" | "SIGNUP" | "ADD_ADDRESS" | null
+  >(null);
   const [state, setState] = useState<
     | "ANONYMOUS"
     | "REQUEST_SIGN_IN"
@@ -224,7 +229,8 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
       issuer
     ) {
       const token = siweTokenData.siwe?.token;
-      if (!token) {
+      const pubKey = nonceData?.nonceEthereum?.pubKey;
+      if (!token || !pubKey) {
         // TODO: toast
         console.warn("No token returned from server");
         setState("ANONYMOUS");
@@ -232,30 +238,61 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
         setStateToken(null);
         return;
       }
-      try {
-        const authUser = decodeJwtToken(token, issuer);
-        if (authUser && authUser.address === address) {
-          console.log(
-            "Found a token and the token addresses matches the user, signing in"
-          );
-          setRoleIds(authUser.roleIds);
-          setStateToken(token);
-          setState("AUTHENTICATED");
-          refetchSelf();
-        } else {
-          console.warn(`Unable to parse token for ${address}`);
+      const key = importKey(pubKey);
+      async function verifyToken() {
+        if (!token) {
+          setState("ANONYMOUS");
+          setRoleIds([]);
+          setStateToken(null);
+          return;
+        }
+        try {
+          switch (siweReason) {
+            case "LOGIN": {
+              setRoleIds(authUser.roleIds);
+              setStateToken(token);
+              setState("AUTHENTICATED");
+              refetchSelf();
+              break;
+            }
+            case "SIGNUP": {
+              await verifyJwtForNewUserCreation(token);
+              setStateToken(token);
+              setState("AUTHENTICATED");
+              refetchSelf();
+              break;
+            }
+            case "ADD_ADDRESS": {
+              if (address) {
+                await verifyJwtForAddressAddition(token, address);
+                setStateToken(token);
+                setState("AUTHENTICATED");
+                refetchSelf();
+              } else {
+                console.warn(`Unable to parse token for ${address}`);
+                // TODO: toast
+                setState("ANONYMOUS");
+                setRoleIds([]);
+                setStateToken(null);
+              }
+              break;
+            }
+            default:
+              console.warn(`Unable to parse token for ${address}`);
+              // TODO: toast
+              setState("ANONYMOUS");
+              setRoleIds([]);
+              setStateToken(null);
+          }
+        } catch (err) {
+          console.error(err);
           // TODO: toast
           setState("ANONYMOUS");
           setRoleIds([]);
           setStateToken(null);
         }
-      } catch (err) {
-        console.error(err);
-        // TODO: toast
-        setState("ANONYMOUS");
-        setRoleIds([]);
-        setStateToken(null);
       }
+      verifyToken();
     }
   }, [
     address,
@@ -265,15 +302,16 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
     tokenIsSuccess,
     refetchSelf,
     siweTokenData,
+    siweReason,
   ]);
   const setToken = useCallback(
-    (token: string) => {
+    async (token: string) => {
       // decode token
       if (!address || !issuer) {
         console.warn("Unable to set token, no address or issuer");
       }
-      const authUser = decodeJwtToken(token, issuer!);
-      if (authUser && authUser.address === address) {
+      const authUser = await verifyJwtForLogin(token);
+      if (authUser.roleIds.some((roleId) => roleId === `ADDRESS#${address}`)) {
         setRoleIds(authUser.roleIds);
         setStateToken(token);
         setState("AUTHENTICATED");

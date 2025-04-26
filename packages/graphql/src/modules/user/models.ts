@@ -1,15 +1,11 @@
-import {
-  roleIdsToAddresses,
-  UserRolesDAO,
-  UserWithRolesModel,
-} from "@0xflick/ordinals-rbac";
+import { UserRolesDAO, UserWithRolesModel } from "@0xflick/ordinals-rbac";
 
 export class Web3UserModel {
-  public readonly userId: string;
+  public readonly id: string;
   public readonly token?: string;
 
   constructor(userId: string, token?: string) {
-    this.userId = userId;
+    this.id = userId;
     this.token = token;
   }
 
@@ -18,13 +14,12 @@ export class Web3UserModel {
     if (this._promiseUserRoles === null) {
       this._promiseUserRoles = Promise.resolve().then(async () => {
         const roleIds: string[] = [];
-        for await (const roleId of userRolesDao.getRoleIds(this.userId)) {
+        for await (const roleId of userRolesDao.getRoleIds(this.id)) {
           roleIds.push(roleId);
         }
         return new UserWithRolesModel({
-          userId: this.userId,
+          userId: this.id,
           roleIds,
-          addresses: roleIdsToAddresses(roleIds),
         });
       });
     }
@@ -37,12 +32,12 @@ export class Web3UserModel {
 }
 
 export class Web3LoginUserModel {
-  public readonly userId: string;
+  public readonly id: string;
   public readonly token: string;
   public readonly user: Web3UserModel;
 
   constructor({ userId, token }: { userId: string; token: string }) {
-    this.userId = userId;
+    this.id = userId;
     this.token = token;
     this.user = new Web3UserModel(userId, token);
   }

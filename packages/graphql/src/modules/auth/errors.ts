@@ -5,6 +5,7 @@ export enum EReason {
   "INVALID_SIGNATURE" = "INVALID_SIGNATURE",
   "NOT_AUTHORIZED" = "NOT_AUTHORIZED",
   "NOT_AUTHENTICATED" = "NOT_AUTHENTICATED",
+  "INVALID_TOKEN" = "INVALID_TOKEN",
 }
 
 export type TReason = keyof typeof EReason;

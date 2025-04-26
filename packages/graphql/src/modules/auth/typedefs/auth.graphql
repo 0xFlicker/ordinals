@@ -1,0 +1,53 @@
+type AppInfo {
+  name: String!
+  pubKey: String!
+}
+
+type AuthProblem {
+  message: String!
+}
+
+input SignupAnonymouslyRequest {
+  token: String!
+  handle: String!
+}
+
+type SignupAnonymouslyResponse {
+  user: Web3User
+  problems: [AuthProblem!]
+}
+
+enum Web3Namespace {
+  SIWE
+  SIWB
+}
+
+type SignatureResponse {
+  token: String
+  problems: [AuthProblem!]
+}
+
+type SignupBitcoinResponse {
+  user: Web3User
+  problems: [AuthProblem!]
+}
+
+type Query {
+  appInfo: AppInfo!
+  self(namespace: Web3Namespace!): Web3User
+  checkUserExistsForAddress(address: ID!): Boolean!
+  checkUserExistsForHandle(handle: String!): Boolean!
+}
+
+type Mutation {
+  signupAnonymously(
+    request: SignupAnonymouslyRequest!
+  ): SignupAnonymouslyResponse!
+  siwe(address: ID!, jwe: String!): SignatureResponse!
+  siwb(address: ID!, jwe: String!): SignatureResponse!
+
+  signupBitcoin(address: ID!, jwe: String!): SignupBitcoinResponse!
+
+  signOutEthereum: Boolean!
+  signOutBitcoin: Boolean!
+}

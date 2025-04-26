@@ -1,8 +1,14 @@
-import { importSPKI, JWTPayload, jwtVerify, KeyLike } from "jose";
-import { generateRolesFromIds, namespacedClaim, TokenModel } from "./token.js";
+export enum UserAddressType {
+  EVM = "EVM",
+  BTC = "BTC",
+}
 
-export interface INonceRequest {
-  userId?: string;
+export interface IUserAddress {
+  type: UserAddressType;
+  address: string;
+}
+
+export interface IUserNonce {
   address: IUserAddress;
   domain: string;
   nonce: string;
@@ -13,289 +19,121 @@ export interface INonceRequest {
   chainId?: number;
 }
 
-export enum UserAddressType {
-  EVM = "evm",
-  BTC = "btc",
-}
-
-export interface IUserAddress {
-  type: UserAddressType;
-  address: string;
-}
-
 export interface IUser {
   userId: string;
-  addresses: IUserAddress[];
-  nonce?: string;
+  handle?: string;
 }
 
-export interface IUserWithRoles {
-  userId: string;
+export interface IUserWithAddresses extends IUser {
   addresses: IUserAddress[];
+}
+
+export interface IUserWithRoles extends IUser {
   roleIds: string[];
-  nonceClaim?: string;
-  decodedToken?: JWTPayload;
 }
 
-export class UserTokenExpiredError extends Error {
-  constructor() {
-    super("User token has expired");
-  }
-}
+export class UserNonceModel implements IUserNonce {
+  public readonly address: IUserAddress;
+  public readonly domain: string;
+  public readonly nonce: string;
+  public readonly uri: string;
+  public readonly expiresAt: string;
+  public readonly issuedAt: string;
+  public readonly version?: string;
+  public readonly chainId?: number;
 
-export class UserTokenNoAddressError extends Error {
-  constructor() {
-    super("User token has no address");
-  }
-}
-
-export class UserTokenNoNonceError extends Error {
-  constructor() {
-    super("User token has no nonce");
-  }
-}
-
-export class UserTokenIssuerMismatchError extends Error {
-  constructor() {
-    super("User token issuer does not match");
-  }
-}
-
-export class UserTokenRolesMismatchError extends Error {
-  constructor() {
-    super("User token roles does not match");
-  }
-}
-
-export function roleIdsToAddresses(roleIds: string[]): IUserAddress[] {
-  return roleIds
-    .map((roleId) => {
-      const [type, address] = roleId.split("#");
-      switch (type) {
-        case "EVM":
-          return {
-            type: UserAddressType.EVM,
-            address,
-          };
-        case "BTC":
-          return {
-            type: UserAddressType.BTC,
-            address,
-          };
-        default:
-          return null;
-      }
-    })
-    .filter((a) => a !== null) as IUserAddress[];
-}
-
-/**
- *
- * @param token
- * @param roleIds
- * @param nonce
- * @returns {Promise<UserWithRolesModel>}
- * @throws UserTokenExpiredError | UserTokenNoAddressError | UserTokenNoNonceError | UserTokenIssuerMismatchError | UserTokenRolesMismatchError
- */
-export async function verifyJwtToken({
-  token,
-  roleIds,
-  nonce,
-  payload,
-  issuer,
-  addressType,
-}: {
-  token: string;
-  roleIds?: string[];
-  nonce?: string;
-  payload?: JWTPayload;
-  issuer: string;
-  addressType?: string;
-}): Promise<UserWithRolesModel> {
-  const result = await jwtVerify(token, await promisePublicKey, {
-    ...payload,
-    ...generateRolesFromIds({
-      roles: roleIds,
-      issuer,
-    }),
-    ...(typeof addressType === "string"
-      ? {
-          [namespacedClaim("at", issuer)]: addressType,
-        }
-      : {}),
-    ...(typeof nonce === "string"
-      ? {
-          [namespacedClaim("nonce", issuer)]: nonce,
-        }
-      : {}),
-    issuer,
-  });
-
-  const userId = result.payload.sub;
-  if (!userId) {
-    throw new UserTokenNoAddressError();
-  }
-  const roleNamespace = namespacedClaim("role/", issuer);
-  const roleIdsFromToken = Object.entries(result.payload)
-    .filter(([k, v]) => v && k.includes(roleNamespace))
-    .map(([k]) => k.replace(roleNamespace, ""));
-
-  if (roleIds && roleIdsFromToken.length !== roleIds?.length) {
-    throw new UserTokenRolesMismatchError();
-  }
-  for (const roleId of roleIdsFromToken) {
-    if (roleIds && !roleIds.includes(roleId)) {
-      throw new UserTokenRolesMismatchError();
-    }
+  constructor(obj: IUserNonce) {
+    this.address = obj.address;
+    this.domain = obj.domain;
+    this.nonce = obj.nonce;
+    this.uri = obj.uri;
+    this.expiresAt = obj.expiresAt;
+    this.issuedAt = obj.issuedAt;
+    this.version = obj.version;
+    this.chainId = obj.chainId;
   }
 
-  const expired =
-    result.payload.exp && result.payload.exp * 1000 - Date.now() < 0;
-  if (expired && result.payload.exp) {
-    console.log("expiration on token", result.payload.exp * 1000, Date.now());
-    throw new UserTokenExpiredError();
+  static fromJson(json: any): UserNonceModel {
+    return new UserNonceModel(json);
   }
-  const nonceClaim = result.payload[namespacedClaim("nonce", issuer)] as string;
-  if (typeof nonceClaim === "undefined") {
-    throw new UserTokenNoNonceError();
+
+  toJson(): IUserNonce {
+    return {
+      address: this.address,
+      domain: this.domain,
+      nonce: this.nonce,
+      uri: this.uri,
+      expiresAt: this.expiresAt,
+      issuedAt: this.issuedAt,
+      version: this.version,
+      chainId: this.chainId,
+    };
   }
-  return new UserWithRolesModel({
-    userId,
-    addresses: roleIdsToAddresses(roleIdsFromToken),
-    roleIds: roleIdsFromToken,
-    nonce,
-    nonceClaim,
-    decodedToken: result.payload,
-  });
 }
 
 export class UserModel implements IUser {
   public readonly userId: string;
-  public readonly addresses: IUserAddress[];
-  public readonly nonce?: string;
+  public readonly handle?: string;
 
   constructor(obj: IUser) {
     this.userId = obj.userId;
+    this.handle = obj.handle;
+  }
+
+  static fromJson(json: any): UserModel {
+    return new UserModel(json);
+  }
+
+  toJson(): IUser {
+    const json: IUser = {
+      userId: this.userId,
+    };
+    if (this.handle !== undefined) {
+      json.handle = this.handle;
+    }
+    return json;
+  }
+}
+
+export class UserWithAddressesModel
+  extends UserModel
+  implements IUserWithAddresses
+{
+  public readonly addresses: IUserAddress[];
+
+  constructor(obj: IUserWithAddresses) {
+    super(obj);
     this.addresses = obj.addresses;
-    this.nonce = obj.nonce;
   }
 
-  public fromPartial(partial: Partial<IUser>): UserModel {
-    return UserModel.fromJson({
-      ...this.toJson(),
-      ...partial,
-    });
+  static fromJson(json: any): UserWithAddressesModel {
+    return new UserWithAddressesModel(json);
   }
 
-  public static fromJson(json: any): UserModel {
-    return new UserModel({
-      userId: json.userId,
-      addresses: json.addresses,
-      nonce: json.nonce,
-    });
-  }
-
-  public toJson(): IUser {
+  toJson(): IUserWithAddresses {
     return {
+      ...super.toJson(),
       addresses: this.addresses,
-      nonce: this.nonce,
-      userId: this.userId,
     };
-  }
-
-  public toString(): string {
-    return JSON.stringify(this.toJson());
-  }
-
-  public equals(other: UserModel): boolean {
-    return (
-      this.addresses === other.addresses &&
-      this.nonce === other.nonce &&
-      this.userId === other.userId
-    );
-  }
-
-  public clone(): UserModel {
-    return new UserModel(this.toJson());
-  }
-
-  public static fromString(str: string): UserModel {
-    return UserModel.fromJson(JSON.parse(str));
   }
 }
 
-export class UserWithRolesModel implements IUserWithRoles, IUser {
-  public readonly userId: string;
-  public readonly nonceClaim?: string;
-  public roleIds: string[];
+export class UserWithRolesModel extends UserModel implements IUserWithRoles {
+  public readonly roleIds: string[];
 
-  public decodedToken?: JWTPayload;
-
-  public get addresses(): IUserAddress[] {
-    return this._user.addresses;
-  }
-
-  private _user: UserModel;
-
-  constructor(obj: IUserWithRoles & IUser & { decodedToken?: JWTPayload }) {
-    this._user = UserModel.fromJson(obj);
+  constructor(obj: IUserWithRoles) {
+    super(obj);
     this.roleIds = obj.roleIds;
-    this.nonceClaim = obj.nonceClaim;
-    this.decodedToken = obj.decodedToken;
-    this.userId = obj.userId;
   }
 
-  public get nonce(): string | undefined {
-    return this._user.nonce;
+  static fromJson(json: any): UserWithRolesModel {
+    return new UserWithRolesModel(json);
   }
 
-  public hasRole(roleId: string): boolean {
-    return this.roleIds.includes(roleId);
-  }
-
-  public fromPartial(partial: Partial<IUserWithRoles>): UserWithRolesModel {
-    return new UserWithRolesModel({
-      ...this.toJson(),
-      ...partial,
-    });
-  }
-
-  public static fromJson(json: any): UserWithRolesModel {
-    return new UserWithRolesModel({
-      addresses: json.addresses,
-      roleIds: json.roleIds,
-      decodedToken: json.decodedToken,
-      nonceClaim: json.nonceClaim,
-      nonce: json.nonce,
-      userId: json.userId,
-    });
-  }
-
-  public toJson(): IUserWithRoles {
+  toJson(): IUserWithRoles {
     return {
-      addresses: this.addresses,
+      ...super.toJson(),
       roleIds: this.roleIds,
-      nonceClaim: this.nonceClaim,
-      decodedToken: this.decodedToken,
-      userId: this.userId,
     };
   }
-
-  public toString(): string {
-    return JSON.stringify(this.toJson());
-  }
 }
-
-export const promisePublicKey = new Promise<KeyLike>(
-  async (resolve, reject) => {
-    if ((global as any).promisePrivateKeys) {
-      await (global as any).promisePrivateKeys;
-    }
-    if (!process.env.AUTH_MESSAGE_PUBLIC_KEY) {
-      resolve("" as any);
-    }
-    importSPKI(process.env.AUTH_MESSAGE_PUBLIC_KEY ?? "", "ECDH-ES+A128KW", {
-      extractable: true,
-    }).then(resolve, reject);
-  },
-);

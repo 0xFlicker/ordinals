@@ -24,6 +24,9 @@ interface TableNames {
   readonly funding: string;
   readonly claims: string;
   readonly openEditionClaims: string;
+  readonly user: string;
+  readonly uploads: string;
+  readonly wallet: string;
 }
 
 interface ConfigEnv {
@@ -49,6 +52,7 @@ export interface GraphqlProps {
   readonly uploadBucket: s3.Bucket;
   readonly walletTable: dynamodb.Table;
   readonly uploadsTable: dynamodb.Table;
+  readonly usersTable: dynamodb.Table;
   readonly fundingSecKeyEnvelope: Envelope;
   readonly parentInscriptionSecKeyEnvelope: Envelope;
   readonly domainName: string;
@@ -72,6 +76,7 @@ export class Graphql extends Construct {
       uploadBucket,
       walletTable,
       uploadsTable,
+      usersTable,
       fundingSecKeyEnvelope,
       parentInscriptionSecKeyEnvelope,
       domainName,
@@ -111,6 +116,7 @@ export class Graphql extends Construct {
             openEditionClaims: openEditionClaimsTable.tableName,
             wallet: walletTable.tableName,
             uploads: uploadsTable.tableName,
+            users: usersTable.tableName,
           }),
           INSCRIPTION_BUCKET: inscriptionBucket.bucketName,
           UPLOAD_BUCKET: uploadBucket.bucketName,
@@ -226,6 +232,7 @@ export class Graphql extends Construct {
     claimsTable.grantReadWriteData(graphqlLambda);
     openEditionClaimsTable.grantReadWriteData(graphqlLambda);
     walletTable.grantReadWriteData(graphqlLambda);
+    usersTable.grantReadWriteData(graphqlLambda);
     uploadsTable.grantReadWriteData(graphqlLambda);
 
     inscriptionBucket.grantReadWrite(graphqlLambda);
@@ -265,6 +272,7 @@ export class Graphql extends Construct {
             claims: claimsTable.tableName,
             openEditionClaims: openEditionClaimsTable.tableName,
             wallet: walletTable.tableName,
+            users: usersTable.tableName,
           }),
           INSCRIPTION_BUCKET: inscriptionBucket.bucketName,
           UPLOAD_BUCKET: uploadBucket.bucketName,
@@ -286,7 +294,7 @@ export class Graphql extends Construct {
     claimsTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
     openEditionClaimsTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
     walletTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
-
+    usersTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
     inscriptionBucket.grantReadWrite(s3CollectionMetaUpdateLambda);
     uploadBucket.grantReadWrite(s3CollectionMetaUpdateLambda);
 

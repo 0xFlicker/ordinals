@@ -12,6 +12,7 @@ import {
   generateRolesFromIds,
   namespacedClaim,
   IUserWithRoles,
+  IUserAddress,
 } from "@0xflick/ordinals-rbac-models";
 
 export async function decryptJweToken(
@@ -22,75 +23,65 @@ export async function decryptJweToken(
   return decrypted;
 }
 
-export async function createJwtTokenSingleSubject({
-  user,
+export async function createJwtTokenForNewUser({
+  address,
   nonce,
-  payload,
   issuer,
-  addressType,
+}: {
+  address: IUserAddress;
+  nonce: string;
+  issuer: string;
+}): Promise<string> {
+  const key = await jwkKey;
+  return await new SignJWT({
+    address,
+    nonce,
+  })
+    .setProtectedHeader({ alg: "ES512" })
+    .setIssuedAt()
+    .setIssuer(issuer)
+    .setExpirationTime("20m")
+    .sign(key);
+}
+
+export async function createJwtTokenForAddressAddition({
+  userId,
+  address,
+  issuer,
+}: {
+  userId: string;
+  address: { type: "evm" | "btc"; address: string };
+  issuer: string;
+}): Promise<string> {
+  const key = await jwkKey;
+  return await new SignJWT({
+    address,
+  })
+    .setProtectedHeader({ alg: "ES512" })
+    .setSubject(userId)
+    .setIssuedAt()
+    .setIssuer(issuer)
+    .setExpirationTime("20m")
+    .sign(key);
+}
+
+export async function createJwtTokenForLogin({
+  user,
+  issuer,
 }: {
   user: IUserWithRoles;
-  nonce: string;
-  payload?: JWTPayload;
   issuer: string;
-  addressType?: string;
 }): Promise<string> {
-  // Create a JWS signed with the private key
   const key = await jwkKey;
-
-  const jws = await new SignJWT({
-    ...payload,
-    [namespacedClaim("at", issuer)]: addressType,
-    [namespacedClaim("nonce", issuer)]: nonce,
-    ...generateRolesFromIds({
-      roles: user.roleIds,
-      issuer,
-    }),
+  return await new SignJWT({
+    [namespacedClaim("roles", issuer)]: user.roleIds,
   })
-    .setProtectedHeader({
-      alg: "ES512",
-    })
+    .setProtectedHeader({ alg: "ES512" })
     .setSubject(user.userId)
     .setIssuedAt()
     .setIssuer(issuer)
-    .setExpirationTime(Date.now() / 1000 + 60 * 60 * 24 * 3) // 3 days
+    .setExpirationTime("7d")
     .sign(key);
-  return jws;
-}
-
-export async function upgradeJwtTokenNewAddress({
-  addressesToAdd,
-  jwt,
-  issuer,
-}: {
-  jwt: JWTVerifyResult;
-  addressesToAdd: { network: "bitcoin" | "ethereum"; address: string }[];
-  issuer: string;
-}) {
-  const privKey = await jwkKey;
-
-  // links between linked accounts take the form:
-  // namespacedClaim(network): address[]
-
-  const newPayload = {
-    ...jwt.payload,
-    ...addressesToAdd.reduce((acc, { network, address }) => {
-      const claim = namespacedClaim(network, issuer);
-      const existing: string[] = (jwt.payload[claim] as any) ?? [];
-      return {
-        ...acc,
-        [claim]: [...existing, address],
-      };
-    }, {}),
-  };
-
-  const newJws = await new SignJWT(newPayload)
-    .setProtectedHeader({
-      alg: "ES512",
-    })
-    .sign(privKey);
-
-  return newJws;
 }
 
 export const jwkKey = new Promise<KeyLike>(async (resolve, reject) => {

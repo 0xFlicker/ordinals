@@ -1,9 +1,12 @@
 import {
-  createJwtTokenSingleSubject,
+  createJwtTokenForLogin,
+  createJwtTokenForNewUser,
   decryptJweToken,
-  namespacedClaim,
-  roleIdsToAddresses,
+  IUserAddress,
   UserAddressType,
+  UserDAO,
+  verifyJwtForNewUserCreation,
+  verifyJwtToken,
 } from "@0xflick/ordinals-rbac";
 import { v4 as uuidv4 } from "uuid";
 import { Verifier } from "bip322-js";
@@ -16,6 +19,12 @@ import {
   authMessageEthereum,
 } from "@0xflick/ordinals-models";
 import { verifyMessage } from "ethers";
+import { AuthError, EReason } from "./errors.js";
+import { createLogger } from "@0xflick/ordinals-backend";
+
+const logger = createLogger({
+  name: "graphql/auth/resolvers",
+});
 
 export const resolvers: AuthModule.Resolvers = {
   Query: {
@@ -34,25 +43,185 @@ export const resolvers: AuthModule.Resolvers = {
       const token = getToken(namespace);
       return new Web3UserModel(user.userId, token);
     },
+    checkUserExistsForAddress: async (_, { address }, { userDao }) => {
+      const user = await userDao.getUserByAddress({ address });
+      return !!user;
+    },
+    checkUserExistsForHandle: async (_, { handle }, { userDao }) => {
+      try {
+        await userDao.getUserByHandle({ handle });
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
   },
   Mutation: {
-    siwe: async (
+    signupBitcoin: async (
       _,
       { address, jwe },
       {
         authMessageDomain,
         authMessageJwtClaimIssuer,
-        userDao,
+        userNonceDao,
         setToken,
+        userDao,
         userRolesDao,
-        rolesDao,
       },
     ) => {
       const { protectedHeader, plaintext } = await decryptJweToken(jwe);
       const signature = Buffer.from(plaintext).toString("utf8");
       const nonce = protectedHeader.kid!;
+      const userNonceRequest = await userNonceDao.getNonce(address, nonce);
 
-      const userNonceRequest = await userDao.getNonce(address, nonce);
+      if (!userNonceRequest) {
+        return {
+          token: null,
+          problems: [{ message: "Invalid nonce" }],
+        };
+      }
+      const {
+        domain,
+        expiresAt,
+        issuedAt,
+        uri,
+        address: { address: nonceAddress, type },
+      } = userNonceRequest;
+
+      if (nonceAddress !== address) {
+        return {
+          token: null,
+          problems: [{ message: "Invalid address" }],
+        };
+      }
+      if (domain !== authMessageDomain) {
+        return {
+          token: null,
+          problems: [{ message: "Invalid domain" }],
+        };
+      }
+      if (uri !== authMessageJwtClaimIssuer) {
+        return {
+          token: null,
+          problems: [{ message: "Invalid uri" }],
+        };
+      }
+      if (expiresAt < new Date().toISOString()) {
+        return {
+          token: null,
+          problems: [{ message: "Expired nonce" }],
+        };
+      }
+      if (type !== UserAddressType.BTC) {
+        return {
+          token: null,
+          problems: [{ message: "Invalid address type" }],
+        };
+      }
+
+      try {
+        const messageToSign = authMessageBitcoin({
+          address,
+          domain,
+          expirationTime: expiresAt,
+          issuedAt,
+          uri,
+          nonce,
+          network: addressToBitcoinNetwork(address),
+        });
+        const verified = Verifier.verifySignature(
+          address,
+          messageToSign,
+          signature,
+        );
+        if (!verified) {
+          return {
+            token: null,
+            problems: [{ message: "Invalid signature" }],
+          };
+        }
+        const roleIds: string[] = [];
+        for await (const roleId of userRolesDao.getRoleIds(address)) {
+          roleIds.push(roleId);
+        }
+
+        const { userId } = await userDao.getUserWithAddresses(address);
+        logger.info(`User ID: ${userId}`);
+        const { handle } = await userDao.getUserById({ userId });
+        const token = await createJwtTokenForLogin({
+          user: {
+            userId,
+            handle,
+            roleIds,
+          },
+          issuer: authMessageJwtClaimIssuer,
+        });
+        setToken(token);
+        return {
+          user: new Web3UserModel(userId, token),
+        };
+      } catch (error) {
+        logger.error(error, `Error getting user with addresses: ${address}`);
+        return {
+          user: null,
+          problems: [{ message: "User not found" }],
+        };
+      }
+    },
+    signupAnonymously: async (
+      _,
+      { request },
+      {
+        setToken,
+        userDao,
+        userRolesDao,
+        rolesDao,
+        rolePermissionsDao,
+        authMessageJwtClaimIssuer,
+      },
+    ) => {
+      const { token, handle } = request;
+      const { address, nonce } = await verifyJwtToken(token);
+      if (!address) {
+        throw new AuthError("Invalid token", EReason.INVALID_TOKEN);
+      }
+      const { address: addressInfo, type: addressType } =
+        address as IUserAddress;
+
+      const userId = uuidv4();
+      await userDao.createUser({
+        userId,
+        handle,
+      });
+      await userDao.bindAddressToUser(
+        userRolesDao,
+        rolesDao,
+        rolePermissionsDao,
+        userId,
+        addressInfo,
+        addressType,
+      );
+
+      const newToken = await createJwtTokenForNewUser({
+        address: { address: addressInfo, type: addressType },
+        nonce: nonce as string,
+        issuer: authMessageJwtClaimIssuer,
+      });
+      setToken(newToken);
+      return {
+        user: new Web3UserModel(userId, newToken),
+      };
+    },
+    siwe: async (
+      _,
+      { address, jwe },
+      { authMessageDomain, authMessageJwtClaimIssuer, userNonceDao, setToken },
+    ) => {
+      const { protectedHeader, plaintext } = await decryptJweToken(jwe);
+      const signature = Buffer.from(plaintext).toString("utf8");
+      const nonce = protectedHeader.kid!;
+
+      const userNonceRequest = await userNonceDao.getNonce(address, nonce);
       if (!userNonceRequest) {
         throw new Error("Invalid nonce");
       }
@@ -66,76 +235,79 @@ export const resolvers: AuthModule.Resolvers = {
         address: { address: nonceAddress, type },
       } = userNonceRequest;
       if (nonceAddress !== address) {
-        throw new Error("Invalid address");
+        return {
+          token: null,
+          problems: [{ message: "Invalid address" }],
+        };
       }
       if (type !== UserAddressType.EVM) {
-        throw new Error("Invalid address type");
+        return {
+          token: null,
+          problems: [{ message: "Invalid address type" }],
+        };
       }
       if (domain !== authMessageDomain) {
-        throw new Error("Invalid domain");
+        return {
+          token: null,
+          problems: [{ message: "Invalid domain" }],
+        };
       }
       if (uri !== authMessageJwtClaimIssuer) {
-        throw new Error("Invalid uri");
+        return {
+          token: null,
+          problems: [{ message: "Invalid uri" }],
+        };
       }
       if (version !== "1") {
-        throw new Error("Invalid version");
+        return {
+          token: null,
+          problems: [{ message: "Invalid version" }],
+        };
       }
       if (expiresAt < new Date().toISOString()) {
-        throw new Error("Expired nonce");
+        return {
+          token: null,
+          problems: [{ message: "Expired nonce" }],
+        };
       }
 
-      const messageToSign = authMessageEthereum({
-        address,
-        chainId: chainId!,
-        domain,
-        expirationTime: expiresAt,
-        issuedAt,
-        uri,
-        version: version!,
-        nonce,
-      });
-      const recoveredAddress = verifyMessage(messageToSign, signature);
-      if (recoveredAddress !== address) {
-        throw new Error("Invalid signature");
-      }
-      const roleIds: string[] = [];
-      for await (const roleId of userRolesDao.getRoleIds(address)) {
-        roleIds.push(roleId);
-      }
-      const roleId = `${UserAddressType.EVM}#${address}`;
-      let role = await rolesDao.get(roleId);
-      let userId: string | undefined;
-      for await (const u of userRolesDao.getUsers(roleId)) {
-        userId = u;
-        break;
-      }
-      if (!userId) {
-        userId = uuidv4();
-      }
-      if (!role) {
-        role = await rolesDao.create({
-          id: roleId,
-          name: `${UserAddressType.EVM}: ${address}`,
+      try {
+        const messageToSign = authMessageEthereum({
+          address,
+          chainId: chainId!,
+          domain,
+          expirationTime: expiresAt,
+          issuedAt,
+          uri,
+          version: version!,
+          nonce,
         });
+        const recoveredAddress = verifyMessage(messageToSign, signature);
+        if (recoveredAddress !== address) {
+          return {
+            token: null,
+            problems: [{ message: "Invalid signature" }],
+          };
+        }
+        const token = await createJwtTokenForNewUser({
+          address: { address, type },
+          nonce,
+          issuer: authMessageJwtClaimIssuer,
+        });
+        setToken(token, "siwe");
+        return {
+          token,
+        };
+      } catch (error) {
+        return {
+          token: null,
+          problems: [
+            {
+              message: "Invalid signature",
+            },
+          ],
+        };
       }
-      const token = await createJwtTokenSingleSubject({
-        user: {
-          userId,
-          addresses: roleIdsToAddresses(roleIds),
-          roleIds,
-        },
-        nonce,
-        issuer: authMessageJwtClaimIssuer,
-        addressType: UserAddressType.EVM,
-        payload: {
-          [namespacedClaim("chainId", authMessageJwtClaimIssuer)]: chainId,
-        },
-      });
-      setToken(token, "siwe");
-      return new Web3LoginUserModel({
-        userId,
-        token,
-      });
     },
     siwb: async (
       _,
@@ -143,84 +315,97 @@ export const resolvers: AuthModule.Resolvers = {
       {
         authMessageDomain,
         authMessageJwtClaimIssuer,
-        userDao,
+        userNonceDao,
         setToken,
         userRolesDao,
-        rolesDao,
       },
     ) => {
       const { protectedHeader, plaintext } = await decryptJweToken(jwe);
       const signature = Buffer.from(plaintext).toString("utf8");
       const nonce = protectedHeader.kid!;
-      const userNonceRequest = await userDao.getNonce(address, nonce);
+      const userNonceRequest = await userNonceDao.getNonce(address, nonce);
 
       if (!userNonceRequest) {
-        throw new Error("Invalid nonce");
+        return {
+          token: null,
+          problems: [{ message: "Invalid nonce" }],
+        };
       }
-      const { domain, expiresAt, issuedAt, uri } = userNonceRequest;
-
-      if (domain !== authMessageDomain) {
-        throw new Error("Invalid domain");
-      }
-      if (uri !== authMessageJwtClaimIssuer) {
-        throw new Error("Invalid uri");
-      }
-      if (expiresAt < new Date().toISOString()) {
-        throw new Error("Expired nonce");
-      }
-
-      const messageToSign = authMessageBitcoin({
-        address,
+      const {
         domain,
-        expirationTime: expiresAt,
+        expiresAt,
         issuedAt,
         uri,
-        nonce,
-        network: addressToBitcoinNetwork(address),
-      });
-      const verified = Verifier.verifySignature(
-        address,
-        messageToSign,
-        signature,
-      );
-      if (!verified) {
-        throw new Error("Invalid signature");
+        address: { address: nonceAddress, type },
+      } = userNonceRequest;
+
+      if (nonceAddress !== address) {
+        return {
+          token: null,
+          problems: [{ message: "Invalid address" }],
+        };
       }
-      const roleIds: string[] = [];
-      for await (const roleId of userRolesDao.getRoleIds(address)) {
-        roleIds.push(roleId);
+      if (domain !== authMessageDomain) {
+        return {
+          token: null,
+          problems: [{ message: "Invalid domain" }],
+        };
       }
-      const roleId = `${UserAddressType.EVM}#${address}`;
-      let role = await rolesDao.get(roleId);
-      let userId: string | undefined;
-      for await (const u of userRolesDao.getUsers(roleId)) {
-        userId = u;
-        break;
+      if (uri !== authMessageJwtClaimIssuer) {
+        return {
+          token: null,
+          problems: [{ message: "Invalid uri" }],
+        };
       }
-      if (!userId) {
-        userId = uuidv4();
+      if (expiresAt < new Date().toISOString()) {
+        return {
+          token: null,
+          problems: [{ message: "Expired nonce" }],
+        };
       }
-      if (!role) {
-        role = await rolesDao.create({
-          id: roleId,
-          name: `${UserAddressType.EVM}: ${address}`,
+
+      try {
+        const messageToSign = authMessageBitcoin({
+          address,
+          domain,
+          expirationTime: expiresAt,
+          issuedAt,
+          uri,
+          nonce,
+          network: addressToBitcoinNetwork(address),
         });
+        const verified = Verifier.verifySignature(
+          address,
+          messageToSign,
+          signature,
+        );
+        if (!verified) {
+          return {
+            token: null,
+            problems: [{ message: "Invalid signature" }],
+          };
+        }
+        const roleIds: string[] = [];
+        for await (const roleId of userRolesDao.getRoleIds(address)) {
+          roleIds.push(roleId);
+        }
+
+        const token = await createJwtTokenForNewUser({
+          address: { address, type },
+          nonce,
+          issuer: authMessageJwtClaimIssuer,
+        });
+        setToken(token, "siwe");
+        return {
+          token,
+        };
+      } catch (error) {
+        logger.error(error);
+        return {
+          token: null,
+          problems: [{ message: "Invalid signature" }],
+        };
       }
-      const token = await createJwtTokenSingleSubject({
-        user: {
-          userId,
-          addresses: roleIdsToAddresses(roleIds),
-          roleIds,
-        },
-        nonce,
-        issuer: authMessageJwtClaimIssuer,
-        addressType: UserAddressType.BTC,
-      });
-      setToken(token, "siwb");
-      return new Web3LoginUserModel({
-        userId,
-        token,
-      });
     },
     signOutBitcoin: async (_, __, { clearToken }) => {
       // TODO: different tokens for bitcoin and ethereum

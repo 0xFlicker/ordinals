@@ -29,12 +29,6 @@ type Web3User {
   token: String
 }
 
-type Web3LoginUser {
-  id: ID!
-  user: Web3User!
-  token: String!
-}
-
 type Mutation {
   nonceEthereum(address: ID!, chainId: Int!): Nonce!
   nonceBitcoin(address: ID!): Nonce!
@@ -105,97 +99,6 @@ type Mutation {
 type Query {
   presale(id: ID!): PresaleResponse
   presales(query: PresaleQuery!): PresalesResult!
-}
-
-type InscriptionData {
-  textContent: String
-  base64Content: String
-  contentType: String!
-}
-
-enum FeeLevel {
-  GLACIAL
-  LOW
-  MEDIUM
-  HIGH
-}
-
-input InscriptionFileUploadedInput {
-  id: String!
-}
-
-input InscriptionFileInlineInput {
-  contentType: String!
-  base64Content: String!
-}
-
-input InscriptionDataInput {
-  uploadedFile: InscriptionFileUploadedInput
-  inlineFile: InscriptionFileInlineInput
-  metaJson: String
-}
-
-input InscriptionRequestInput {
-  files: [InscriptionDataInput!]!
-  destinationAddress: String!
-  network: BitcoinNetwork!
-  feeLevel: FeeLevel
-  feePerByte: Int
-  parentInscriptionId: String
-}
-
-input InscriptionUploadFileRequest {
-  fileName: String!
-  contentType: String!
-}
-
-input InscriptionUploadRequest {
-  files: [InscriptionUploadFileRequest!]!
-}
-
-type InscriptionUploadFileData {
-  id: String!
-  fileName: String!
-  uploadUrl: String
-  multipartUploadId: String
-}
-
-type InscriptionUploadData {
-  files: [InscriptionUploadFileData!]!
-}
-
-type InscriptionProblem {
-  fileName: String!
-  message: String
-  code: Int
-}
-
-type InscriptionUploadResponse {
-  data: InscriptionUploadData
-  problems: [InscriptionProblem!]
-}
-
-type CreateInscriptionProblem {
-  message: String!
-  code: Int
-}
-
-type CreateInscriptionResponse {
-  data: InscriptionFunding
-  problems: [CreateInscriptionProblem!]
-}
-
-type Mutation {
-  createInscriptionRequest(
-    input: InscriptionRequestInput!
-  ): CreateInscriptionResponse!
-  uploadInscription(
-    input: InscriptionUploadRequest!
-  ): InscriptionUploadResponse!
-}
-
-type Query {
-  signMultipartUpload(uploadId: String!, partNumber: Int!): String!
 }
 
 enum PermissionAction {
@@ -332,6 +235,97 @@ type Query {
   #   network: BitcoinNetwork
   #   inscriptions: [EstimateInscriptionFundingInput!]!
   # ): EstimateInscriptionFundingResult!
+}
+
+type InscriptionData {
+  textContent: String
+  base64Content: String
+  contentType: String!
+}
+
+enum FeeLevel {
+  GLACIAL
+  LOW
+  MEDIUM
+  HIGH
+}
+
+input InscriptionFileUploadedInput {
+  id: String!
+}
+
+input InscriptionFileInlineInput {
+  contentType: String!
+  base64Content: String!
+}
+
+input InscriptionDataInput {
+  uploadedFile: InscriptionFileUploadedInput
+  inlineFile: InscriptionFileInlineInput
+  metaJson: String
+}
+
+input InscriptionRequestInput {
+  files: [InscriptionDataInput!]!
+  destinationAddress: String!
+  network: BitcoinNetwork!
+  feeLevel: FeeLevel
+  feePerByte: Int
+  parentInscriptionId: String
+}
+
+input InscriptionUploadFileRequest {
+  fileName: String!
+  contentType: String!
+}
+
+input InscriptionUploadRequest {
+  files: [InscriptionUploadFileRequest!]!
+}
+
+type InscriptionUploadFileData {
+  id: String!
+  fileName: String!
+  uploadUrl: String
+  multipartUploadId: String
+}
+
+type InscriptionUploadData {
+  files: [InscriptionUploadFileData!]!
+}
+
+type InscriptionProblem {
+  fileName: String!
+  message: String
+  code: Int
+}
+
+type InscriptionUploadResponse {
+  data: InscriptionUploadData
+  problems: [InscriptionProblem!]
+}
+
+type CreateInscriptionProblem {
+  message: String!
+  code: Int
+}
+
+type CreateInscriptionResponse {
+  data: InscriptionFunding
+  problems: [CreateInscriptionProblem!]
+}
+
+type Mutation {
+  createInscriptionRequest(
+    input: InscriptionRequestInput!
+  ): CreateInscriptionResponse!
+  uploadInscription(
+    input: InscriptionUploadRequest!
+  ): InscriptionUploadResponse!
+}
+
+type Query {
+  signMultipartUpload(uploadId: String!, partNumber: Int!): String!
 }
 
 type KeyValue {
@@ -522,12 +516,23 @@ type Query {
   ): AxolotlFeeEstimate!
 }
 
-type Mutation {
-  siwe(address: ID!, jwe: String!): Web3LoginUser!
-  siwb(address: ID!, jwe: String!): Web3LoginUser!
+type AppInfo {
+  name: String!
+  pubKey: String!
+}
 
-  signOutEthereum: Boolean!
-  signOutBitcoin: Boolean!
+type AuthProblem {
+  message: String!
+}
+
+input SignupAnonymouslyRequest {
+  token: String!
+  handle: String!
+}
+
+type SignupAnonymouslyResponse {
+  user: Web3User
+  problems: [AuthProblem!]
 }
 
 enum Web3Namespace {
@@ -535,15 +540,32 @@ enum Web3Namespace {
   SIWB
 }
 
-type Query {
-  self(namespace: Web3Namespace!): Web3User
+type SignatureResponse {
+  token: String
+  problems: [AuthProblem!]
 }
 
-type AppInfo {
-  name: String!
-  pubKey: String!
+type SignupBitcoinResponse {
+  user: Web3User
+  problems: [AuthProblem!]
 }
 
 type Query {
   appInfo: AppInfo!
+  self(namespace: Web3Namespace!): Web3User
+  checkUserExistsForAddress(address: ID!): Boolean!
+  checkUserExistsForHandle(handle: String!): Boolean!
+}
+
+type Mutation {
+  signupAnonymously(
+    request: SignupAnonymouslyRequest!
+  ): SignupAnonymouslyResponse!
+  siwe(address: ID!, jwe: String!): SignatureResponse!
+  siwb(address: ID!, jwe: String!): SignatureResponse!
+
+  signupBitcoin(address: ID!, jwe: String!): SignupBitcoinResponse!
+
+  signOutEthereum: Boolean!
+  signOutBitcoin: Boolean!
 }

@@ -1,0 +1,3 @@
+query CheckName($handle: String!) {
+  checkUserExistsForHandle(handle: $handle)
+}

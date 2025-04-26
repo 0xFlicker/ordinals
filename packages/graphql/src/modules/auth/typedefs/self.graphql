@@ -1,8 +1,0 @@
-enum Web3Namespace {
-  SIWE
-  SIWB
-}
-
-type Query {
-  self(namespace: Web3Namespace!): Web3User
-}

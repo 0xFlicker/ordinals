@@ -34,6 +34,11 @@ export type AppInfo = {
   pubKey: Scalars['String']['output'];
 };
 
+export type AuthProblem = {
+  __typename?: 'AuthProblem';
+  message: Scalars['String']['output'];
+};
+
 export type AxolotlAvailableClaimedFunding = {
   __typename?: 'AxolotlAvailableClaimedFunding';
   claimingAddress: Scalars['String']['output'];
@@ -355,8 +360,10 @@ export type Mutation = {
   role: Role;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
-  siwb: Web3LoginUser;
-  siwe: Web3LoginUser;
+  signupAnonymously: SignupAnonymouslyResponse;
+  signupBitcoin: SignupBitcoinResponse;
+  siwb: SignatureResponse;
+  siwe: SignatureResponse;
   uploadInscription: InscriptionUploadResponse;
 };
 
@@ -421,6 +428,17 @@ export type MutationPresaleArgs = {
 
 export type MutationRoleArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationSignupAnonymouslyArgs = {
+  request: SignupAnonymouslyRequest;
+};
+
+
+export type MutationSignupBitcoinArgs = {
+  address: Scalars['ID']['input'];
+  jwe: Scalars['String']['input'];
 };
 
 
@@ -550,6 +568,8 @@ export type Query = {
   appInfo: AppInfo;
   axolotlAvailableOpenEditionFundingClaims: Array<AxolotlAvailableOpenEditionFunding>;
   axolotlEstimateFee: AxolotlFeeEstimate;
+  checkUserExistsForAddress: Scalars['Boolean']['output'];
+  checkUserExistsForHandle: Scalars['Boolean']['output'];
   collection: Collection;
   collections: Array<Collection>;
   currentBitcoinFees: FeeEstimate;
@@ -575,6 +595,16 @@ export type QueryAxolotlEstimateFeeArgs = {
   feeLevel?: InputMaybe<FeeLevel>;
   feePerByte?: InputMaybe<Scalars['Int']['input']>;
   network: BitcoinNetwork;
+};
+
+
+export type QueryCheckUserExistsForAddressArgs = {
+  address: Scalars['ID']['input'];
+};
+
+
+export type QueryCheckUserExistsForHandleArgs = {
+  handle: Scalars['String']['input'];
 };
 
 
@@ -661,11 +691,27 @@ export type RoleUnbindFromUserArgs = {
   userId: Scalars['String']['input'];
 };
 
-export type Web3LoginUser = {
-  __typename?: 'Web3LoginUser';
-  id: Scalars['ID']['output'];
-  token: Scalars['String']['output'];
-  user: Web3User;
+export type SignatureResponse = {
+  __typename?: 'SignatureResponse';
+  problems?: Maybe<Array<AuthProblem>>;
+  token?: Maybe<Scalars['String']['output']>;
+};
+
+export type SignupAnonymouslyRequest = {
+  handle: Scalars['String']['input'];
+  token: Scalars['String']['input'];
+};
+
+export type SignupAnonymouslyResponse = {
+  __typename?: 'SignupAnonymouslyResponse';
+  problems?: Maybe<Array<AuthProblem>>;
+  user?: Maybe<Web3User>;
+};
+
+export type SignupBitcoinResponse = {
+  __typename?: 'SignupBitcoinResponse';
+  problems?: Maybe<Array<AuthProblem>>;
+  user?: Maybe<Web3User>;
 };
 
 export enum Web3Namespace {

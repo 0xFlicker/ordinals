@@ -20,7 +20,7 @@
         "${workspaceRoot}/node_modules/.bin/jest"
       ],
       "args": ["--runInBand", "--watchAll=false", "${file}"],
-      "cwd": "${workspaceRoot}/packages/test",
+      "cwd": "${workspaceRoot}/packages/rbac",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     }

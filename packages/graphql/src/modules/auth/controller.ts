@@ -2,22 +2,22 @@ import { Context } from "../../context/index.js";
 import { AuthError } from "./errors.js";
 import {
   TAllowedAction,
+  TokenModel,
   UserAddressType,
   UserWithRolesModel,
+  verifyJwtForLogin,
   verifyJwtToken,
 } from "@0xflick/ordinals-rbac-models";
 
 export async function verifyAuthorizedUser({
   getToken,
   userRolesDao,
-  authMessageJwtClaimIssuer,
   namespace,
   rolePermissionsDao,
   authorizer,
 }: {
   getToken: Context["getToken"];
   userRolesDao: Context["userRolesDao"];
-  authMessageJwtClaimIssuer: Context["authMessageJwtClaimIssuer"];
   rolePermissionsDao: Context["rolePermissionsDao"];
   namespace?: string;
   authorizer?: (item: TAllowedAction[], user: UserWithRolesModel) => boolean;
@@ -25,7 +25,6 @@ export async function verifyAuthorizedUser({
   const user = await authorizedUser({
     getToken,
     userRolesDao,
-    authMessageJwtClaimIssuer,
     namespace,
   });
 
@@ -74,12 +73,10 @@ export async function defaultAuthorizer({
 export async function authorizedUser({
   getToken,
   userRolesDao,
-  authMessageJwtClaimIssuer,
   namespace,
 }: {
   getToken: Context["getToken"];
   userRolesDao: Context["userRolesDao"];
-  authMessageJwtClaimIssuer: Context["authMessageJwtClaimIssuer"];
   namespace?: string;
 }) {
   const token = getToken(namespace);
@@ -87,38 +84,26 @@ export async function authorizedUser({
   if (!token) {
     throw new AuthError("Not authenticated", "NOT_AUTHENTICATED");
   }
-  let addressType: string | undefined;
-  switch (namespace) {
-    case "siwb":
-      addressType = UserAddressType.BTC;
-      break;
-    case "siwe  ":
-      addressType = UserAddressType.EVM;
-      break;
-    default:
-      addressType = undefined;
-  }
-  const user = await verifyJwtToken({
-    token,
-    issuer: authMessageJwtClaimIssuer,
-    addressType,
-  });
+
+  const user = await verifyJwtForLogin(token, TokenModel.JWT_CLAIM_ISSUER);
   if (!user) {
     throw new AuthError("Invalid token", "NOT_AUTHENTICATED");
   }
 
-  // Now that we have the user, and know their address, we can check the roles
   const roleIds: string[] = [];
   for await (const roleId of userRolesDao.getRoleIds(user.userId)) {
     roleIds.push(roleId);
   }
 
-  // Now verify with roleIds
-  await verifyJwtToken({
-    token,
-    roleIds,
-    issuer: authMessageJwtClaimIssuer,
-  });
+  // Verify that no roles are claimed that don't exist
+  for (const roleId of user.roleIds) {
+    if (!roleIds.includes(roleId)) {
+      throw new AuthError("Invalid token", "NOT_AUTHENTICATED");
+    }
+  }
 
-  return user;
+  return new UserWithRolesModel({
+    ...user,
+    roleIds,
+  });
 }

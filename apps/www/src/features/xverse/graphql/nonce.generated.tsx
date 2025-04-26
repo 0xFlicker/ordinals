@@ -16,7 +16,15 @@ export type SiwbMutationVariables = Types.Exact<{
 }>;
 
 
-export type SiwbMutation = { __typename?: 'Mutation', siwb: { __typename?: 'Web3LoginUser', token: string } };
+export type SiwbMutation = { __typename?: 'Mutation', siwb: { __typename?: 'SignatureResponse', token?: string | null } };
+
+export type SignupBitcoinMutationVariables = Types.Exact<{
+  address: Types.Scalars['ID']['input'];
+  jwe: Types.Scalars['String']['input'];
+}>;
+
+
+export type SignupBitcoinMutation = { __typename?: 'Mutation', signupBitcoin: { __typename?: 'SignupBitcoinResponse', user?: { __typename?: 'Web3User', id: string, token?: string | null } | null } };
 
 
 export const BitcoinNonceDocument = gql`
@@ -88,3 +96,40 @@ export function useSiwbMutation(baseOptions?: Apollo.MutationHookOptions<SiwbMut
 export type SiwbMutationHookResult = ReturnType<typeof useSiwbMutation>;
 export type SiwbMutationResult = Apollo.MutationResult<SiwbMutation>;
 export type SiwbMutationOptions = Apollo.BaseMutationOptions<SiwbMutation, SiwbMutationVariables>;
+export const SignupBitcoinDocument = gql`
+    mutation SignupBitcoin($address: ID!, $jwe: String!) {
+  signupBitcoin(address: $address, jwe: $jwe) {
+    user {
+      id
+      token
+    }
+  }
+}
+    `;
+export type SignupBitcoinMutationFn = Apollo.MutationFunction<SignupBitcoinMutation, SignupBitcoinMutationVariables>;
+
+/**
+ * __useSignupBitcoinMutation__
+ *
+ * To run a mutation, you first call `useSignupBitcoinMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useSignupBitcoinMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [signupBitcoinMutation, { data, loading, error }] = useSignupBitcoinMutation({
+ *   variables: {
+ *      address: // value for 'address'
+ *      jwe: // value for 'jwe'
+ *   },
+ * });
+ */
+export function useSignupBitcoinMutation(baseOptions?: Apollo.MutationHookOptions<SignupBitcoinMutation, SignupBitcoinMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<SignupBitcoinMutation, SignupBitcoinMutationVariables>(SignupBitcoinDocument, options);
+      }
+export type SignupBitcoinMutationHookResult = ReturnType<typeof useSignupBitcoinMutation>;
+export type SignupBitcoinMutationResult = Apollo.MutationResult<SignupBitcoinMutation>;
+export type SignupBitcoinMutationOptions = Apollo.BaseMutationOptions<SignupBitcoinMutation, SignupBitcoinMutationVariables>;

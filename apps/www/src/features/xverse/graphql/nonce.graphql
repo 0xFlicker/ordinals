@@ -11,3 +11,12 @@ mutation SIWB($address: ID!, $jwe: String!) {
     token
   }
 }
+
+mutation SignupBitcoin($address: ID!, $jwe: String!) {
+  signupBitcoin(address: $address, jwe: $jwe) {
+    user {
+      id
+      token
+    }
+  }
+}

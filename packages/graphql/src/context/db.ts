@@ -13,10 +13,12 @@ import {
   RolePermissionsDAO,
   RolesDAO,
   UserDAO,
+  UserNonceDAO,
   UserRolesDAO,
   createDynamoDbRolePermissionsDao,
   createDynamoDbRolesDao,
   createDynamoDbUserDao,
+  createDynamoDbUserNonceDao,
   createDynamoDbUserRolesDao,
 } from "@0xflick/ordinals-rbac";
 import { IConfigContext } from "./config.js";
@@ -31,6 +33,7 @@ export interface DbContext {
   rolesDao: RolesDAO;
   rolePermissionsDao: RolePermissionsDAO;
   userDao: UserDAO;
+  userNonceDao: UserNonceDAO;
   claimsDao: ClaimsDao;
   openEditionClaimsDao: OpenEditionClaimsDao;
   uploadsDao: UploadsDAO;
@@ -59,6 +62,10 @@ export function createDbContext(config: IConfigContext) {
       db,
     }),
     userDao: createDynamoDbUserDao({
+      userTableName: config.tableNames.users,
+      db,
+    }),
+    userNonceDao: createDynamoDbUserNonceDao({
       userNonceTableName: config.tableNames.userNonce,
       db,
     }),

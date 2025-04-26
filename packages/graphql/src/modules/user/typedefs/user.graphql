@@ -29,12 +29,6 @@ type Web3User {
   token: String
 }
 
-type Web3LoginUser {
-  id: ID!
-  user: Web3User!
-  token: String!
-}
-
 type Mutation {
   nonceEthereum(address: ID!, chainId: Int!): Nonce!
   nonceBitcoin(address: ID!): Nonce!
