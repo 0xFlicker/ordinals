@@ -248,37 +248,37 @@ export const resolvers: AuthModule.Resolvers = {
       } = userNonceRequest;
       if (nonceAddress !== address) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid address" }],
         };
       }
       if (type !== UserAddressType.EVM) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid address type" }],
         };
       }
       if (domain !== authMessageDomain) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid domain" }],
         };
       }
       if (uri !== authMessageJwtClaimIssuer) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid uri" }],
         };
       }
       if (version !== "1") {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid version" }],
         };
       }
       if (expiresAt < new Date().toISOString()) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Expired nonce" }],
         };
       }
@@ -297,7 +297,7 @@ export const resolvers: AuthModule.Resolvers = {
         const recoveredAddress = verifyMessage(messageToSign, signature);
         if (recoveredAddress !== address) {
           return {
-            token: null,
+            data: null,
             problems: [{ message: "Invalid signature" }],
           };
         }
@@ -308,11 +308,13 @@ export const resolvers: AuthModule.Resolvers = {
         });
         setToken(token, "siwe");
         return {
-          token,
+          data: {
+            token,
+          },
         };
       } catch (error) {
         return {
-          token: null,
+          data: null,
           problems: [
             {
               message: "Invalid signature",

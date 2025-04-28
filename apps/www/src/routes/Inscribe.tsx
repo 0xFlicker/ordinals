@@ -30,7 +30,7 @@ import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import InputAdornment from "@mui/material/InputAdornment";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useBitflickWallet } from "@/features/wallet-standard/hooks/useBitflickWallet";
+import { useBitflickWallet } from "@/features/wallet-standard/Context";
 
 export const Inscribe: FC<{
   initialBitcoinNetwork: BitcoinNetworkType;
@@ -60,21 +60,21 @@ export const Inscribe: FC<{
       },
     });
   const {
-    login,
     isConnected,
     isConnecting,
     ordinalsAddress: discoveredAddress,
     setIntent,
     setNeedsBitcoinSelection,
+    connectBtcAsync,
+    loginBtcAsync,
   } = useBitflickWallet();
 
   const handleWalletClick = useCallback(async () => {
-    setIntent("login");
-    if (!isConnected) {
-      setNeedsBitcoinSelection(true);
-      return;
+    const result = await connectBtcAsync();
+    if (result && result.addresses.length > 0) {
+      console.log("result", result);
     }
-  }, [isConnected, setIntent, setNeedsBitcoinSelection]);
+  }, [connectBtcAsync]);
 
   const { handleCreate, paymentRequest } = useInscribe({
     network: BitcoinNetwork.Regtest,
@@ -94,7 +94,11 @@ export const Inscribe: FC<{
       try {
         if (!isConnected) {
           setPendingFiles(files);
-          await login();
+          const result = await connectBtcAsync();
+          if (result && result.addresses.length > 0) {
+            console.log("result", result);
+            await loginBtcAsync(result.addresses[0].address);
+          }
         }
 
         handleCreate(files);
@@ -106,7 +110,7 @@ export const Inscribe: FC<{
         }
       }
     },
-    [isConnected, handleCreate, login]
+    [isConnected, handleCreate, connectBtcAsync, loginBtcAsync]
   );
 
   const handleCustomFeeChange = (

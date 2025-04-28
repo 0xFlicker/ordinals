@@ -2,7 +2,7 @@ import React, { FC, useCallback, useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
-import { useBitflickWallet } from "../hooks/useBitflickWallet";
+import { useBitflickWallet } from "../Context";
 import {
   BtcWalletProvider,
   EvmWalletProvider,
@@ -89,7 +89,6 @@ export const WalletPicker: FC<WalletPickerProps> = ({
         setLoginAttempted(true);
         setNeedsLogin(true);
       } else if (!isConnected) {
-        console.log("handleProviderClick setNeedsConnect(true)");
         setNeedsConnect(true);
       }
     },

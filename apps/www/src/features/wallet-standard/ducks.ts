@@ -72,20 +72,7 @@ export interface WalletStandardState {
 }
 
 export const initialState: WalletStandardState = {
-  availableProviders: [
-    // {
-    //   type: WalletProviderType.SATS_CONNECT,
-    //   name: "Xverse",
-    //   icon: "/images/wallets/xverse.png",
-    //   provider: null,
-    // },
-    // {
-    //   type: WalletProviderType.CONNECT_KIT,
-    //   name: "Connect Kit",
-    //   icon: "/images/wallets/connectkit.jpeg",
-    //   provider: null,
-    // },
-  ],
+  availableProviders: [],
   isConnected: false,
   isConnecting: false,
   isLoggedIn: false,

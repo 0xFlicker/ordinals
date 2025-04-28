@@ -45,7 +45,13 @@ const config: CodegenConfig = {
     },
     "src/features/": {
       preset: "near-operation-file",
-      documents: "src/features/**/*.graphql",
+      documents: [
+        "src/features/**/*.graphql",
+        "src/features/**/*.ts",
+        "src/features/**/*.tsx",
+        "!src/features/**/*.generated.ts",
+        "!src/features/**/*.generated.tsx",
+      ],
       presetConfig: {
         extension: ".generated.tsx",
         baseTypesPath: "../graphql/types.ts",

@@ -54,6 +54,10 @@ export const resolvers: UserModule.Resolvers = {
         type: addressToGraphqlAddress(address.type),
       }));
     },
+    handle: async (user, _, { userDao }) => {
+      logger.info("handle", { user });
+      return user.handle;
+    },
     allowedActions: async (
       { id },
       _,

@@ -1,5 +1,5 @@
-import React, { FC } from "react";
-import { useBitflickWallet } from "../hooks/useBitflickWallet";
+import React, { FC, useEffect } from "react";
+import { useBitflickWallet } from "../Context";
 import Button from "@mui/material/Button";
 import { BitcoinIcon } from "@/components/BitcoinIcon";
 import { EthereumIcon } from "@/components/EthereumIcon";
@@ -15,8 +15,6 @@ export const WalletConnectButton: FC<{
   intent?: WalletConnectIntent;
 }> = ({ pickBtc = true, pickEvm = true, intent = "connect" }) => {
   const {
-    connect,
-    login,
     isConnected,
     isLoggedIn,
     setNeedsBitcoinSelection,
@@ -26,11 +24,13 @@ export const WalletConnectButton: FC<{
     activeBtcProvider,
     activeEvmProvider,
     setIntent,
+    handle,
   } = useBitflickWallet();
 
-  // Set the intent when the component mounts or when intent prop changes
-  React.useEffect(() => {
-    setIntent(intent);
+  useEffect(() => {
+    if (typeof intent === "string") {
+      setIntent(intent);
+    }
   }, [intent, setIntent]);
 
   const renderIcons = () => {
@@ -64,7 +64,9 @@ export const WalletConnectButton: FC<{
   };
 
   const getButtonText = () => {
-    if (isLoggedIn) {
+    if (handle) {
+      return handle;
+    } else if (isLoggedIn) {
       return "Connected";
     } else if (isConnected) {
       return "Login";
@@ -120,6 +122,7 @@ export const WalletConnectButton: FC<{
       onClick={handleConnect}
       startIcon={renderIcons()}
       disabled={isLoggedIn}
+      color={isLoggedIn ? "success" : "primary"}
     >
       {getButtonText()}
     </Button>

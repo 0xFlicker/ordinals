@@ -23,7 +23,7 @@ import {
   IUserWithRoles,
   UserWithRolesModel,
 } from "@0xflick/ordinals-rbac-models";
-import { useBitflickWallet } from "@/features/wallet-standard/hooks/useBitflickWallet";
+import { useBitflickWallet } from "@/features/wallet-standard/Context";
 // Define the possible states for the signup flow
 type SignupState = "CONNECT" | "SIGN" | "PICK_HANDLE";
 
@@ -97,8 +97,8 @@ export const SignupCard: FC<{
   // const { handleBitcoinConnect, isConnected, isConnecting, ordinalsAddress } =
   //   useXverseConnect();
   const {
-    connectBtc,
-    loginBtc,
+    connectBtcAsync,
+    loginBtcAsync,
     isConnected,
     isConnecting,
     isLoggedIn,
@@ -168,14 +168,14 @@ export const SignupCard: FC<{
     switch (signupState) {
       case "CONNECT":
         if (isConnected) {
-          await connectBtc();
+          await connectBtcAsync();
         } else {
           setNeedsBitcoinSelection(true);
         }
         break;
       case "SIGN":
         if (btcAccounts.length > 0) {
-          const response = await loginBtc(btcAccounts[0].address);
+          const response = await loginBtcAsync(btcAccounts[0].address);
           if (!response) {
             setNeedsBitcoinSelection(true);
           } else if ("user" in response && response.user) {
@@ -207,9 +207,9 @@ export const SignupCard: FC<{
     signupState,
     isConnected,
     btcAccounts,
-    connectBtc,
+    connectBtcAsync,
     setNeedsBitcoinSelection,
-    loginBtc,
+    loginBtcAsync,
     onSignup,
   ]);
 

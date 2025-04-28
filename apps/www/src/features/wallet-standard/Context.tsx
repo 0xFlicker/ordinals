@@ -1,5 +1,5 @@
 "use client";
-import { BitcoinWalletStandardProvider } from "@exodus/bitcoin-wallet-standard-react";
+
 import type { Dispatch, FC, ReactNode } from "react";
 import {
   createContext,
@@ -14,51 +14,36 @@ import React from "react";
 import { EIP1193Provider } from "viem";
 import { CloseReason, WalletPicker } from "./components/WalletPicker";
 import { CustomModal } from "../../components/Modal";
-import { useBitflickWallet } from "./hooks/useBitflickWallet";
+import { useBitflickWalletImpl } from "./hooks/useBitflickWalletImpl";
 
-const WalletStandardContext = createContext<{
-  state: WalletStandardState;
-  dispatch: Dispatch<any>;
-  connectors: {
-    id: string;
-    name: string;
-    icon: string;
-    provider: any;
-  }[];
-}>({
-  state: initialState,
-  dispatch: () => {},
-  connectors: [],
-});
+const WalletStandardContext = createContext<ReturnType<
+  typeof useBitflickWalletImpl
+> | null>(null);
 
 const WalletStandardModalProvider: FC<{ children: NonNullable<ReactNode> }> = ({
   children,
 }) => {
-  const { state, dispatch } = useWalletStandard();
-  const isModalOpen =
-    state.flags.needsBitcoinSelection || state.flags.needsEvmSelection;
-  const { login, isLoggingIn } = useBitflickWallet();
+  const {
+    intent,
+    flags,
+    setNeedsBitcoinSelection,
+    setNeedsEvmSelection,
+    setIntent,
+  } = useBitflickWallet();
+  const isModalOpen = flags.needsBitcoinSelection || flags.needsEvmSelection;
 
   const handleCloseModal = (reason: CloseReason) => {
     // Always close the modal by resetting the selection flags
-    dispatch(actions.setNeedsBitcoinSelection(false));
-    dispatch(actions.setNeedsEvmSelection(false));
+    setNeedsBitcoinSelection(false);
+    setNeedsEvmSelection(false);
 
     // Handle different close reasons based on intent
-    if (reason === CloseReason.CONNECT) {
-      // If we're in login intent and just connected, proceed to login
-      if (state.intent === "login" && !isLoggingIn) {
-        login({
-          btc: state.flags.needsBitcoinSelection,
-          evm: state.flags.needsEvmSelection,
-        });
-      }
-    } else if (reason === CloseReason.LOGIN) {
+    if (reason === CloseReason.LOGIN) {
       // Login completed successfully, clear the intent
-      dispatch(actions.setIntent(undefined));
+      setIntent(undefined);
     } else if (reason === CloseReason.CLOSE) {
       // User manually closed the modal, clear the intent
-      dispatch(actions.setIntent(undefined));
+      setIntent(undefined);
     }
   };
 
@@ -68,12 +53,12 @@ const WalletStandardModalProvider: FC<{ children: NonNullable<ReactNode> }> = ({
       <CustomModal
         isOpen={isModalOpen}
         onClose={() => {
-          dispatch(actions.setNeedsBitcoinSelection(false));
-          dispatch(actions.setNeedsEvmSelection(false));
-          dispatch(actions.setIntent(undefined));
+          setNeedsBitcoinSelection(false);
+          setNeedsEvmSelection(false);
+          setIntent(undefined);
         }}
       >
-        <WalletPicker onClose={handleCloseModal} intent={state.intent} />
+        <WalletPicker onClose={handleCloseModal} intent={intent} />
       </CustomModal>
     </>
   );
@@ -84,9 +69,10 @@ const WalletStandardInnerProvider: FC<{ children: NonNullable<ReactNode> }> = ({
 }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const connectors = useDynamicInjectedConnectors();
+  const bitflick = useBitflickWalletImpl({ state, dispatch, connectors });
 
   return (
-    <WalletStandardContext.Provider value={{ state, dispatch, connectors }}>
+    <WalletStandardContext.Provider value={bitflick}>
       <WalletStandardModalProvider>{children}</WalletStandardModalProvider>
     </WalletStandardContext.Provider>
   );
@@ -98,9 +84,14 @@ export const WalletStandardProvider: FC<{
   return <WalletStandardInnerProvider>{children}</WalletStandardInnerProvider>;
 };
 
-export const useWalletStandard = () => {
-  const { state, dispatch, connectors } = useContext(WalletStandardContext);
-  return { state, dispatch, connectors };
+export const useBitflickWallet = () => {
+  const response = useContext(WalletStandardContext);
+  if (!response) {
+    throw new Error(
+      "useWalletStandard must be used within a WalletStandardProvider"
+    );
+  }
+  return response;
 };
 
 // eip-6963
