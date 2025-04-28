@@ -12,8 +12,9 @@ import { reducer, initialState, WalletStandardState, actions } from "./ducks";
 
 import React from "react";
 import { EIP1193Provider } from "viem";
-import { WalletPicker } from "./components/WalletPicker";
+import { CloseReason, WalletPicker } from "./components/WalletPicker";
 import { CustomModal } from "../../components/Modal";
+import { useBitflickWallet } from "./hooks/useBitflickWallet";
 
 const WalletStandardContext = createContext<{
   state: WalletStandardState;
@@ -30,27 +31,63 @@ const WalletStandardContext = createContext<{
   connectors: [],
 });
 
+const WalletStandardModalProvider: FC<{ children: NonNullable<ReactNode> }> = ({
+  children,
+}) => {
+  const { state, dispatch } = useWalletStandard();
+  const isModalOpen =
+    state.flags.needsBitcoinSelection || state.flags.needsEvmSelection;
+  const { login, isLoggingIn } = useBitflickWallet();
+
+  const handleCloseModal = (reason: CloseReason) => {
+    // Always close the modal by resetting the selection flags
+    dispatch(actions.setNeedsBitcoinSelection(false));
+    dispatch(actions.setNeedsEvmSelection(false));
+
+    // Handle different close reasons based on intent
+    if (reason === CloseReason.CONNECT) {
+      // If we're in login intent and just connected, proceed to login
+      if (state.intent === "login" && !isLoggingIn) {
+        login({
+          btc: state.flags.needsBitcoinSelection,
+          evm: state.flags.needsEvmSelection,
+        });
+      }
+    } else if (reason === CloseReason.LOGIN) {
+      // Login completed successfully, clear the intent
+      dispatch(actions.setIntent(undefined));
+    } else if (reason === CloseReason.CLOSE) {
+      // User manually closed the modal, clear the intent
+      dispatch(actions.setIntent(undefined));
+    }
+  };
+
+  return (
+    <>
+      {children}
+      <CustomModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          dispatch(actions.setNeedsBitcoinSelection(false));
+          dispatch(actions.setNeedsEvmSelection(false));
+          dispatch(actions.setIntent(undefined));
+        }}
+      >
+        <WalletPicker onClose={handleCloseModal} intent={state.intent} />
+      </CustomModal>
+    </>
+  );
+};
+
 const WalletStandardInnerProvider: FC<{ children: NonNullable<ReactNode> }> = ({
   children,
 }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const connectors = useDynamicInjectedConnectors();
-  const isModalOpen = state.needsBitcoinSelection || state.needsEvmSelection;
-
-  const handleCloseModal = () => {
-    dispatch(actions.setNeedsBitcoinSelection(false));
-    dispatch(actions.setNeedsEvmSelection(false));
-  };
 
   return (
     <WalletStandardContext.Provider value={{ state, dispatch, connectors }}>
-      {children}
-      <CustomModal isOpen={isModalOpen} onClose={handleCloseModal}>
-        <WalletPicker
-          pickBtc={state.needsBitcoinSelection}
-          pickEvm={state.needsEvmSelection}
-        />
-      </CustomModal>
+      <WalletStandardModalProvider>{children}</WalletStandardModalProvider>
     </WalletStandardContext.Provider>
   );
 };

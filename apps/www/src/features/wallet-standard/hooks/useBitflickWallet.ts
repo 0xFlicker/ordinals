@@ -3,20 +3,59 @@ import { UiWallet, useWallets } from "@wallet-standard/react";
 import { v4 as uuidv4 } from "uuid";
 import { magicEdenIcon, useMagicEden } from "@/features/magic-eden/Context";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import {
   BtcWalletProvider,
   EvmWalletProvider,
   WalletProvider,
   WalletProviderType,
+  WalletStandardIntent,
   actions,
 } from "../ducks";
 import { useWalletStandard } from "../Context";
 import { BtcAccount } from "../types";
 import { useWeb3SiwbSignInMutation } from "@/features/auth/hooks/signin.generated";
 import { useBitcoinNonceMutation } from "@/features/xverse/graphql/nonce.generated";
-import { createJweRequest } from "@0xflick/ordinals-rbac-models";
+import {
+  UserAddressType,
+  UserWithRolesAndAddressesModel,
+  createJweRequest,
+} from "@0xflick/ordinals-rbac-models";
 import { useConnect, injected, useSignMessage } from "wagmi";
+
+// Global locks to prevent multiple executions across renders
+let globalIsConnecting = false;
+let globalIsLoggingIn = false;
+
+// Singleton service to manage async operations
+class AsyncOperationManager {
+  private static instance: AsyncOperationManager;
+  private operations: Map<string, boolean> = new Map();
+
+  private constructor() {}
+
+  static getInstance(): AsyncOperationManager {
+    if (!AsyncOperationManager.instance) {
+      AsyncOperationManager.instance = new AsyncOperationManager();
+    }
+    return AsyncOperationManager.instance;
+  }
+
+  isOperationRunning(operationId: string): boolean {
+    return this.operations.get(operationId) || false;
+  }
+
+  startOperation(operationId: string): void {
+    this.operations.set(operationId, true);
+  }
+
+  endOperation(operationId: string): void {
+    this.operations.set(operationId, false);
+  }
+}
+
+// Get the singleton instance
+const operationManager = AsyncOperationManager.getInstance();
 
 export const useBitflickWallet = () => {
   const wallets = useWallets();
@@ -80,6 +119,27 @@ export const useBitflickWallet = () => {
     [dispatch]
   );
 
+  const setNeedsConnect = useCallback(
+    (needsConnect: boolean) => {
+      dispatch(actions.setNeedsConnect(needsConnect));
+    },
+    [dispatch]
+  );
+
+  const setNeedsLogin = useCallback(
+    (needsLogin: boolean) => {
+      dispatch(actions.setNeedsLogin(needsLogin));
+    },
+    [dispatch]
+  );
+
+  const setIntent = useCallback(
+    (intent?: WalletStandardIntent) => {
+      dispatch(actions.setIntent(intent));
+    },
+    [dispatch]
+  );
+
   const needsBitcoinSelection = useMemo(() => {
     return (
       state.activeBtcProvider?.chainType === "btc" &&
@@ -124,7 +184,7 @@ export const useBitflickWallet = () => {
             const { accounts } = response;
 
             if (accounts && accounts.length > 0) {
-              console.log("accounts", accounts);
+              dispatch(actions.setIsConnected(true));
               dispatch(
                 actions.setEvmAccounts(
                   accounts.map((account) => ({ address: account }))
@@ -138,8 +198,8 @@ export const useBitflickWallet = () => {
         console.error(error);
       } finally {
         setIsConnecting(false);
-        setNeedsEvmSelection(false);
-        setNeedsBitcoinSelection(false);
+        console.log("connectEvm finally setNeedsConnect(false)");
+        setNeedsConnect(false);
       }
     },
     [
@@ -149,8 +209,7 @@ export const useBitflickWallet = () => {
       setIsConnecting,
       connectors,
       connectAsync,
-      setNeedsEvmSelection,
-      setNeedsBitcoinSelection,
+      setNeedsConnect,
     ]
   );
 
@@ -197,6 +256,10 @@ export const useBitflickWallet = () => {
                 : []),
             ];
             dispatch(actions.setBtcAccounts(btcAddresses));
+            dispatch(actions.setIsConnected(true));
+            if (state.intent === "login") {
+              setNeedsLogin(true);
+            }
             break;
           }
           case WalletProviderType.SATS_CONNECT: {
@@ -228,6 +291,10 @@ export const useBitflickWallet = () => {
                   : []),
               ];
               dispatch(actions.setBtcAccounts(btcAddresses));
+              dispatch(actions.setIsConnected(true));
+              if (state.intent === "login") {
+                setNeedsLogin(true);
+              }
             }
             break;
           }
@@ -244,50 +311,57 @@ export const useBitflickWallet = () => {
         console.error(error);
       } finally {
         setIsConnecting(false);
-        setNeedsBitcoinSelection(false);
-        setNeedsEvmSelection(false);
+        console.log("connectBtc finally setNeedsConnect(false)");
+        setNeedsConnect(false);
       }
     },
     [
       needsBitcoinSelection,
       state.activeBtcProvider,
       state.intendedBtcPurposes,
+      state.intent,
       dispatch,
       setIsConnecting,
       setIsConnected,
       magicEden,
+      setNeedsLogin,
       xverse,
+      setNeedsConnect,
     ]
   );
 
   const connect = useCallback(
-    async ({ btc, evm }: { btc: boolean; evm: boolean }) => {
+    async ({ btc, evm }: { btc?: boolean; evm?: boolean } = {}) => {
+      console.log("connect");
       let modalNeeded = false;
-      if (btc && !state.needsBitcoinSelection) {
+      if (btc && !state.flags.needsBitcoinSelection) {
         dispatch(actions.setNeedsBitcoinSelection(true));
         modalNeeded = true;
       }
-      if (evm && !state.needsEvmSelection) {
+      if (evm && !state.flags.needsEvmSelection) {
         dispatch(actions.setNeedsEvmSelection(true));
         modalNeeded = true;
       }
       if (modalNeeded) {
         return;
       }
-      if (btc) {
-        return await connectBtc();
+
+      if (btc || state.activeBtcProvider) {
+        await connectBtc();
+      } else if (evm || state.activeEvmProvider) {
+        await connectEvm();
+      } else {
+        throw new Error("Unsupported provider");
       }
-      if (evm) {
-        return await connectEvm();
-      }
-      throw new Error("Unsupported provider");
     },
     [
+      state.flags.needsBitcoinSelection,
+      state.flags.needsEvmSelection,
+      state.activeBtcProvider,
+      state.activeEvmProvider,
+      dispatch,
       connectBtc,
       connectEvm,
-      dispatch,
-      state.needsBitcoinSelection,
-      state.needsEvmSelection,
     ]
   );
 
@@ -302,6 +376,7 @@ export const useBitflickWallet = () => {
       if (!address) {
         throw new Error("No address provided");
       }
+      let wasLoaded = false;
       try {
         setIsLoggingIn(true);
         const { data: nonceData } = await fetchNonce({
@@ -336,8 +411,15 @@ export const useBitflickWallet = () => {
         if (!siwbData) {
           throw new Error("No SIWB data received");
         }
-
+        if (!siwbData.siwb.data?.user) {
+          return {
+            token: siwbData.siwb.data?.token,
+            user: null,
+          };
+        }
+        setHandle(siwbData.siwb.data?.user.handle);
         setIsLoggedIn(true);
+        wasLoaded = true;
         return {
           token: siwbData.siwb.data?.token,
           user: siwbData.siwb.data?.user,
@@ -345,16 +427,22 @@ export const useBitflickWallet = () => {
       } catch (error) {
         console.error(error);
       } finally {
+        if (!wasLoaded) {
+          setHandle(null);
+        }
         setIsLoggingIn(false);
+        setNeedsLogin(false);
       }
     },
     [
-      fetchNonce,
-      fetchSiwb,
-      magicEden,
-      setIsLoggedIn,
-      setIsLoggingIn,
       state.activeEvmProvider,
+      state.evmAccounts,
+      setIsLoggingIn,
+      fetchNonce,
+      signMessageAsync,
+      fetchSiwb,
+      setIsLoggedIn,
+      setNeedsLogin,
     ]
   );
   const loginBtc = useCallback(
@@ -412,11 +500,35 @@ export const useBitflickWallet = () => {
             if (!siwbData) {
               throw new Error("No SIWB data received");
             }
+            if (!siwbData.siwb.data?.user) {
+              throw new Error("No user data received");
+            }
             setIsLoggedIn(true);
             wasLoaded = true;
+            if ("userId" in siwbData.siwb.data?.user) {
+              return {
+                token: siwbData.siwb.data?.token,
+                user: new UserWithRolesAndAddressesModel({
+                  userId: siwbData.siwb.data?.user?.id,
+                  handle: siwbData.siwb.data?.user?.handle,
+                  addresses: siwbData.siwb.data?.user?.addresses.map(
+                    (address) => ({
+                      address: address.address,
+                      type:
+                        address.type === "BTC"
+                          ? UserAddressType.BTC
+                          : UserAddressType.EVM,
+                    })
+                  ),
+                  roleIds: siwbData.siwb.data?.user?.roles.map(
+                    (role) => role.id
+                  ),
+                }),
+              };
+            }
             return {
               token: siwbData.siwb.data?.token,
-              user: siwbData.siwb.data?.user,
+              user: null,
             };
           } catch (error) {
             console.error(error, "magic eden error");
@@ -425,6 +537,7 @@ export const useBitflickWallet = () => {
               setHandle(null);
             }
             setIsLoggingIn(false);
+            setNeedsLogin(false);
           }
         }
       }
@@ -435,6 +548,7 @@ export const useBitflickWallet = () => {
       magicEden,
       setIsLoggedIn,
       setIsLoggingIn,
+      setNeedsLogin,
       state.activeBtcProvider,
       xverse,
     ]
@@ -449,43 +563,93 @@ export const useBitflickWallet = () => {
       address?: string;
       btc?: boolean;
       evm?: boolean;
-    }) => {
+    } = {}) => {
       let modalNeeded = false;
-      if (btc && !state.needsBitcoinSelection) {
+      if (btc && !state.flags.needsBitcoinSelection) {
         dispatch(actions.setNeedsBitcoinSelection(true));
         modalNeeded = true;
       }
-      if (evm && !state.needsEvmSelection) {
+      if (evm && !state.flags.needsEvmSelection) {
         dispatch(actions.setNeedsEvmSelection(true));
         modalNeeded = true;
       }
       if (modalNeeded) {
         return;
       }
-      if (btc) {
+
+      if (btc || state.activeBtcProvider) {
         address = address ?? state.btcAccounts[0]?.address;
         if (!address) {
           throw new Error("No address provided");
         }
-        return await loginBtc(address);
-      }
-      if (evm) {
+        await loginBtc(address);
+      } else if (evm || state.activeEvmProvider) {
         address = address ?? state.evmAccounts[0]?.address;
         if (!address) {
           throw new Error("No address provided");
         }
-        return await loginEvm(address);
+        await loginEvm(address);
+      } else {
+        throw new Error("Unsupported provider");
       }
-      throw new Error("Unsupported provider");
     },
     [
-      dispatch,
-      loginEvm,
-      loginBtc,
+      state.flags.needsBitcoinSelection,
+      state.flags.needsEvmSelection,
       state.activeBtcProvider,
       state.activeEvmProvider,
+      state.btcAccounts,
+      state.evmAccounts,
+      dispatch,
+      loginBtc,
+      loginEvm,
     ]
   );
+
+  // Use a stable ID for each operation
+  const connectOperationId = useMemo(() => "connect", []);
+  const loginOperationId = useMemo(() => "login", []);
+
+  useEffect(() => {
+    // Only run if needsLogin is true and the operation is not already running
+    if (
+      state.flags.needsLogin &&
+      !operationManager.isOperationRunning(loginOperationId)
+    ) {
+      // Mark the operation as running
+      operationManager.startOperation(loginOperationId);
+
+      // Immediately set the flag to false to prevent multiple executions
+      dispatch(actions.setNeedsLogin(false));
+
+      // Execute the operation
+      login().finally(() => {
+        // Mark the operation as not running
+        operationManager.endOperation(loginOperationId);
+      });
+    }
+  }, [state.flags.needsLogin, login, dispatch, loginOperationId]);
+
+  useEffect(() => {
+    // Only run if needsConnect is true and the operation is not already running
+    if (
+      state.flags.needsConnect &&
+      !operationManager.isOperationRunning(connectOperationId)
+    ) {
+      // Mark the operation as running
+      operationManager.startOperation(connectOperationId);
+
+      // Immediately set the flag to false to prevent multiple executions
+      dispatch(actions.setNeedsConnect(false));
+
+      // Execute the operation
+      connect().finally(() => {
+        // Mark the operation as not running
+        operationManager.endOperation(connectOperationId);
+      });
+    }
+  }, [state.flags.needsConnect, connect, dispatch, connectOperationId]);
+
   const signMessage = useCallback(
     async (address: string, message: string) => {
       if (!state.activeBtcProvider) {
@@ -512,7 +676,6 @@ export const useBitflickWallet = () => {
     [state.activeBtcProvider, magicEden, xverse]
   );
 
-  // Check once for magic eden
   useEffect(() => {
     if (magicEden && magicEden.isMagicEden) {
       registerProvider({
@@ -525,7 +688,6 @@ export const useBitflickWallet = () => {
     }
   }, [magicEden, registerProvider]);
 
-  // Create a string representation of all connector ready states
   const connectorReadyStatesKey = connectors
     .map((connector) => `${connector.name}:${connector.provider.ready}`)
     .join(",");
@@ -539,14 +701,13 @@ export const useBitflickWallet = () => {
         icon: connector.icon,
         chainType: "evm",
       });
-      // }
     }
   }, [connectors, registerProvider, connectorReadyStatesKey]);
 
   useEffect(() => {
     const startTime = Date.now();
-    const timeoutDuration = 10000; // 10 seconds
-    const intervalDuration = 500; // 500ms
+    const timeoutDuration = 10000;
+    const intervalDuration = 500;
 
     const xverseProvider = (window as any).XverseProviders;
     if (xverseProvider) {
@@ -613,10 +774,14 @@ export const useBitflickWallet = () => {
     signMessage,
     setNeedsBitcoinSelection,
     setNeedsEvmSelection,
+    setNeedsConnect,
+    setNeedsLogin,
     setActiveBtcProvider,
     setActiveEvmProvider,
     registerProvider,
+    setIntent,
     handle,
     ...state,
+    ...state.flags,
   };
 };

@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from "react";
+import React, { FC, useCallback, useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
@@ -10,30 +10,49 @@ import {
   WalletProviderType,
   isBtcProvider,
   isEvmProvider,
+  WalletStandardIntent,
 } from "../ducks";
 import { useTheme } from "@mui/material/styles";
 import { useMediaQuery } from "@mui/material";
 
+export enum CloseReason {
+  CONNECT = "CONNECT",
+  LOGIN = "LOGIN",
+  CLOSE = "CLOSE",
+}
+
 interface WalletPickerProps {
   onProviderSelected?: (provider: WalletProvider) => void;
-  onClose?: () => void;
-  pickBtc?: boolean;
-  pickEvm?: boolean;
+  onClose?: (reason: CloseReason) => void;
+  intent?: WalletStandardIntent;
 }
 
 export const WalletPicker: FC<WalletPickerProps> = ({
   onProviderSelected,
   onClose,
-  pickBtc = true,
-  pickEvm = true,
+  intent,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const paperRef = useRef<HTMLDivElement>(null);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  const [loginAttempted, setLoginAttempted] = useState<boolean>(false);
 
-  const { availableProviders, setActiveBtcProvider, setActiveEvmProvider } =
-    useBitflickWallet();
+  const {
+    availableProviders,
+    setActiveBtcProvider,
+    setActiveEvmProvider,
+    setIntent,
+    isConnected,
+    isLoggedIn,
+    needsBitcoinSelection,
+    needsEvmSelection,
+    setNeedsConnect,
+    setNeedsLogin,
+  } = useBitflickWallet();
+
+  const pickBtc = needsBitcoinSelection;
+  const pickEvm = needsEvmSelection;
 
   // Filter providers by type
   const btcProviders = availableProviders.filter(
@@ -51,11 +70,48 @@ export const WalletPicker: FC<WalletPickerProps> = ({
       provider.type === WalletProviderType.SAFE
   );
 
+  const handleProviderClick = useCallback(
+    async (provider: WalletProvider) => {
+      if (intent) {
+        setIntent(intent);
+      }
+
+      if (isBtcProvider(provider)) {
+        await setActiveBtcProvider(provider);
+      } else {
+        await setActiveEvmProvider(provider);
+      }
+
+      onProviderSelected?.(provider);
+
+      // If we're connected and the intent is login, trigger login
+      if (isConnected && intent === "login" && !loginAttempted) {
+        setLoginAttempted(true);
+        setNeedsLogin(true);
+      } else if (!isConnected) {
+        console.log("handleProviderClick setNeedsConnect(true)");
+        setNeedsConnect(true);
+      }
+    },
+    [
+      isConnected,
+      intent,
+      loginAttempted,
+      setActiveBtcProvider,
+      setActiveEvmProvider,
+      setIntent,
+      setLoginAttempted,
+      setNeedsConnect,
+      setNeedsLogin,
+      onProviderSelected,
+    ]
+  );
+
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose?.();
+        onClose?.(CloseReason.CLOSE);
       } else if (e.key === "Tab") {
         // Let the default tab behavior handle focus
         return;
@@ -76,12 +132,7 @@ export const WalletPicker: FC<WalletPickerProps> = ({
         const allProviders = [...btcProviders, ...evmProviders];
         if (focusedIndex < allProviders.length) {
           const newProvider = allProviders[focusedIndex];
-          if (isBtcProvider(newProvider)) {
-            await setActiveBtcProvider(newProvider, true);
-          } else if (isEvmProvider(newProvider)) {
-            await setActiveEvmProvider(newProvider, true);
-          }
-          onProviderSelected?.(newProvider);
+          handleProviderClick(newProvider);
         }
       }
     };
@@ -94,6 +145,7 @@ export const WalletPicker: FC<WalletPickerProps> = ({
     btcProviders,
     evmProviders,
     focusedIndex,
+    handleProviderClick,
     onClose,
     onProviderSelected,
     setActiveBtcProvider,
@@ -107,14 +159,13 @@ export const WalletPicker: FC<WalletPickerProps> = ({
     }
   }, [btcProviders.length, evmProviders.length]);
 
-  const handleProviderClick = (provider: WalletProvider) => {
-    if (isBtcProvider(provider)) {
-      setActiveBtcProvider(provider, true);
-    } else {
-      setActiveEvmProvider(provider, true);
+  useEffect(() => {
+    if (isConnected && isLoggedIn && intent === "login") {
+      onClose?.(CloseReason.LOGIN);
+    } else if (isConnected && intent === "connect") {
+      onClose?.(CloseReason.CONNECT);
     }
-    onProviderSelected?.(provider);
-  };
+  }, [isConnected, isLoggedIn, onClose, intent]);
 
   const renderProviderButton = (provider: WalletProvider, index: number) => {
     const isFocused = focusedIndex === index;

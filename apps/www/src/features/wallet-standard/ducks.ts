@@ -12,8 +12,6 @@ export enum WalletProviderType {
   SAFE = "safe",
 }
 
-type WalletChainType = "btc" | "evm";
-
 interface BaseWalletProvider {
   id: string;
   type: WalletProviderType;
@@ -50,6 +48,14 @@ export interface EvmAccount {
   address: string;
 }
 
+export type WalletStandardIntent = "connect" | "login";
+
+type WalletFlags =
+  | "needsBitcoinSelection"
+  | "needsEvmSelection"
+  | "needsConnect"
+  | "needsLogin";
+
 export interface WalletStandardState {
   activeBtcProvider?: BtcWalletProvider;
   activeEvmProvider?: EvmWalletProvider;
@@ -60,9 +66,9 @@ export interface WalletStandardState {
   isLoggingIn: boolean;
   btcAccounts: BtcAccount[];
   evmAccounts: EvmAccount[];
-  needsBitcoinSelection: boolean;
-  needsEvmSelection: boolean;
   intendedBtcPurposes: AddressPurpose[];
+  intent?: WalletStandardIntent;
+  flags: Record<WalletFlags, boolean>;
 }
 
 export const initialState: WalletStandardState = {
@@ -86,9 +92,14 @@ export const initialState: WalletStandardState = {
   isLoggingIn: false,
   btcAccounts: [],
   evmAccounts: [],
-  needsBitcoinSelection: false,
-  needsEvmSelection: false,
   intendedBtcPurposes: [AddressPurpose.Ordinals],
+  intent: undefined,
+  flags: {
+    needsBitcoinSelection: false,
+    needsEvmSelection: false,
+    needsConnect: false,
+    needsLogin: false,
+  },
 };
 export const walletStandardSlice = createSlice({
   name: "walletStandard",
@@ -139,16 +150,28 @@ export const walletStandardSlice = createSlice({
       state.evmAccounts = action.payload;
     },
     setNeedsBitcoinSelection: (state, action: PayloadAction<boolean>) => {
-      state.needsBitcoinSelection = action.payload;
+      state.flags.needsBitcoinSelection = action.payload;
     },
     setNeedsEvmSelection: (state, action: PayloadAction<boolean>) => {
-      state.needsEvmSelection = action.payload;
+      state.flags.needsEvmSelection = action.payload;
+    },
+    setNeedsConnect: (state, action: PayloadAction<boolean>) => {
+      state.flags.needsConnect = action.payload;
+    },
+    setNeedsLogin: (state, action: PayloadAction<boolean>) => {
+      state.flags.needsLogin = action.payload;
     },
     setIntendedBtcPurposes: (
       state,
       action: PayloadAction<AddressPurpose[]>
     ) => {
       state.intendedBtcPurposes = action.payload;
+    },
+    setIntent: (
+      state,
+      action: PayloadAction<WalletStandardIntent | undefined>
+    ) => {
+      state.intent = action.payload;
     },
   },
 });

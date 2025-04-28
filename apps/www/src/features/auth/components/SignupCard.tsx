@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useCheckNameLazyQuery } from "../hooks/checkName.generated";
 import { useGetAppInfoQuery } from "../hooks/app.generated";
 import {
+  IUserWithAddresses,
   IUserWithRoles,
   UserWithRolesModel,
 } from "@0xflick/ordinals-rbac-models";
@@ -90,7 +91,7 @@ const PickHandleContent: FC<{
 };
 
 export const SignupCard: FC<{
-  onSignup?: (user: IUserWithRoles) => void;
+  onSignup?: (user: IUserWithRoles | IUserWithAddresses) => void;
 }> = ({ onSignup }) => {
   const router = useRouter();
   // const { handleBitcoinConnect, isConnected, isConnecting, ordinalsAddress } =

@@ -14,7 +14,24 @@ export const WalletConnectButton: FC<{
   pickEvm?: boolean;
   intent?: WalletConnectIntent;
 }> = ({ pickBtc = true, pickEvm = true, intent = "connect" }) => {
-  const { connect, login } = useBitflickWallet();
+  const {
+    connect,
+    login,
+    isConnected,
+    isLoggedIn,
+    setNeedsBitcoinSelection,
+    setNeedsEvmSelection,
+    setNeedsConnect,
+    setNeedsLogin,
+    activeBtcProvider,
+    activeEvmProvider,
+    setIntent,
+  } = useBitflickWallet();
+
+  // Set the intent when the component mounts or when intent prop changes
+  React.useEffect(() => {
+    setIntent(intent);
+  }, [intent, setIntent]);
 
   const renderIcons = () => {
     if (pickBtc && !pickEvm) {
@@ -46,18 +63,54 @@ export const WalletConnectButton: FC<{
     return null;
   };
 
+  const getButtonText = () => {
+    if (isLoggedIn) {
+      return "Connected";
+    } else if (isConnected) {
+      return "Login";
+    } else {
+      return intent === "login" ? "Connect & Login" : "Connect";
+    }
+  };
+
   const handleConnect = () => {
     if (intent === "connect") {
-      // Default to Bitcoin if both are enabled
-      connect({
-        btc: true,
-        evm: true,
-      });
+      if (isConnected) {
+        // Already connected, do nothing
+        return;
+      }
+      if ((pickBtc && !activeBtcProvider) || (pickEvm && !activeEvmProvider)) {
+        if (pickBtc) {
+          setNeedsBitcoinSelection(true);
+        }
+        if (pickEvm) {
+          setNeedsEvmSelection(true);
+        }
+      } else {
+        console.log("WalletConnectButton setNeedsConnect(true)");
+        setNeedsConnect(true);
+      }
     } else if (intent === "login") {
-      login({
-        btc: true,
-        evm: true,
-      });
+      if (isLoggedIn) {
+        // Already logged in, do nothing
+        return;
+      } else if (isConnected) {
+        // Connected but not logged in, proceed to login
+        setNeedsLogin(true);
+      } else if (
+        (pickBtc && !activeBtcProvider) ||
+        (pickEvm && !activeEvmProvider)
+      ) {
+        if (pickBtc) {
+          setNeedsBitcoinSelection(true);
+        }
+        if (pickEvm) {
+          setNeedsEvmSelection(true);
+        }
+      } else {
+        console.log("WalletConnectButton setNeedsConnect(true)");
+        setNeedsConnect(true);
+      }
     }
   };
 
@@ -66,8 +119,9 @@ export const WalletConnectButton: FC<{
       variant="contained"
       onClick={handleConnect}
       startIcon={renderIcons()}
+      disabled={isLoggedIn}
     >
-      Connect
+      {getButtonText()}
     </Button>
   );
 };
