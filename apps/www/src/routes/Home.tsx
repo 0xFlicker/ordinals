@@ -8,7 +8,7 @@ import NextImage from "next/image";
 import { FC } from "react";
 import { AppLink } from "@/components/AppLink";
 
-// import Grid2 from "@mui/material/Unstable_Grid2";
+// import Grid2 from "@mui/material/Grid";
 // import Card from "@mui/material/Card";
 // import CardContent from "@mui/material/CardContent";
 // import CardActions from "@mui/material/CardActions";

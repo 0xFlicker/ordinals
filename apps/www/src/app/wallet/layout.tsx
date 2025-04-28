@@ -1,5 +1,5 @@
 import { Inter } from "next/font/google";
-import { SignupProvider } from "./context";
+import Context from "./context";
 import { AddressPurpose } from "sats-connect";
 import { BitcoinNetworkType } from "sats-connect";
 
@@ -13,14 +13,14 @@ export const metadata = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: NonNullable<React.ReactNode>;
 }) {
   return (
-    <SignupProvider
+    <Context
       initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
       initialBitcoinPurpose={[AddressPurpose.Ordinals]}
     >
       {children}
-    </SignupProvider>
+    </Context>
   );
 }

@@ -10,7 +10,6 @@ import { Start } from "../Start/Start";
 export const Content: FC<{
   collectionId: string;
   initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose;
   step: "start" | "agreement" | "claim" | "pay" | "done";
 }> = ({ collectionId, initialBitcoinNetwork, step }) => {
   const router = useRouter();

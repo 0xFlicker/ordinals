@@ -5,13 +5,13 @@ import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
-import Grid2 from "@mui/material/Unstable_Grid2";
+import Grid2 from "@mui/material/Grid";
 import NextImage from "next/image";
 import QR from "qrcode.react";
 import { FC } from "react";
 import { AppLink } from "@/components/AppLink";
 
-// import Grid2 from "@mui/material/Unstable_Grid2";
+// import Grid2 from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardActionArea from "@mui/material/CardActionArea";
@@ -50,10 +50,10 @@ export const NFTNyc: FC<{}> = () => {
   return (
     <DefaultProvider>
       <Container maxWidth="lg" sx={{ mt: 2, mb: 16 }}>
-        <Grid2 container>
+        <Grid2 container columns={12}>
           <Grid2
             component={Paper}
-            sm={12}
+            size={12}
             elevation={2}
             minHeight={384}
             width="100%"
@@ -86,7 +86,7 @@ export const NFTNyc: FC<{}> = () => {
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           </Grid2>
-          <Grid2 component={Card} elevation={6} sm={12} width="100%">
+          <Grid2 component={Card} elevation={6} size={12} width="100%">
             <CardActionArea href="/op-lock-cat">
               <CardContent
                 component={Box}
@@ -147,7 +147,7 @@ export const NFTNyc: FC<{}> = () => {
               </CardContent>
             </CardActionArea>
           </Grid2>
-          <Grid2 component={Card} elevation={6} sm={12} width="100%">
+          <Grid2 component={Card} elevation={6} size={12} width="100%">
             <CardActionArea href="https://warpcast.com/~/invite-page/6097?id=6207e4ee">
               <CardContent
                 component={Box}
@@ -201,7 +201,7 @@ export const NFTNyc: FC<{}> = () => {
               </CardContent>
             </CardActionArea>
           </Grid2>
-          <Grid2 component={Card} elevation={6} sm={12} width="100%">
+          <Grid2 component={Card} elevation={6} size={12} width="100%">
             <CardActionArea href="https://x.com/0xflick">
               <CardContent
                 component={Box}
@@ -256,7 +256,7 @@ export const NFTNyc: FC<{}> = () => {
               </CardContent>
             </CardActionArea>
           </Grid2>
-          <Grid2 component={Card} elevation={6} sm={12} width="100%">
+          <Grid2 component={Card} elevation={6} size={12} width="100%">
             <CardActionArea href="https://t.me/flick_the_dev">
               <CardContent
                 component={Box}
@@ -311,7 +311,7 @@ export const NFTNyc: FC<{}> = () => {
               </CardContent>
             </CardActionArea>
           </Grid2>
-          <Grid2 component={Card} elevation={6} sm={12} width="100%">
+          <Grid2 component={Card} elevation={6} size={12} width="100%">
             <CardActionArea href="/op-lock-cat">
               <CardContent
                 component={Box}

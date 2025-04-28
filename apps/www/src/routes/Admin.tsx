@@ -1,7 +1,7 @@
 "use client";
 import { FC } from "react";
 import { DefaultProvider } from "@/context/default";
-import Grid2 from "@mui/material/Unstable_Grid2";
+import Grid from "@mui/material/Grid";
 import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
 import { AdminPanel } from "@/features/admin";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
@@ -20,11 +20,17 @@ export const AdminRoute: FC<{
         ethereumAutoConnect={false}
       >
         <AutoConnect>
-          <Grid2 container spacing={2}>
-            <Grid2 xs={12} sm={6} md={4}>
+          <Grid container spacing={2} columns={12}>
+            <Grid
+              size={{
+                xs: 12,
+                sm: 6,
+                md: 4,
+              }}
+            >
               <AdminPanel />
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
         </AutoConnect>
       </SwitchableNetwork>
     </DefaultProvider>

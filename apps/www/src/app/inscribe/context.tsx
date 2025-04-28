@@ -1,29 +1,42 @@
 "use client";
-
+import { FC, PropsWithChildren, ReactNode } from "react";
+import {
+  AddressPurpose,
+  BitcoinNetwork,
+  BitcoinNetworkType,
+} from "sats-connect";
+import { MultiChainProvider } from "@/context/multiChain";
 import { DefaultProvider } from "@/context/default";
-import { AutoConnect } from "@/features/web3";
-import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
-import type { AddressPurpose, BitcoinNetworkType } from "sats-connect";
+import { WalletStandardProvider } from "@/features/wallet-standard/Context";
+import { MagicEdenProvider } from "@/features/magic-eden/Context";
 
-export const Context = ({
+export default function Context({
   children,
   initialBitcoinNetwork,
   initialBitcoinPurpose,
 }: {
-  children: React.ReactNode;
-  initialBitcoinNetwork: BitcoinNetworkType;
+  children: NonNullable<ReactNode>;
+  initialBitcoinNetwork: BitcoinNetwork["type"];
   initialBitcoinPurpose: AddressPurpose[];
-}) => {
+}) {
   return (
-    <DefaultProvider>
-      <SwitchableNetwork
-        title="bitflick"
-        initialBitcoinNetwork={initialBitcoinNetwork}
-        initialBitcoinPurpose={initialBitcoinPurpose}
-        ethereumAutoConnect={false}
-      >
-        <AutoConnect>{children}</AutoConnect>
-      </SwitchableNetwork>
-    </DefaultProvider>
+    <MultiChainProvider
+      bitcoinNetwork={initialBitcoinNetwork}
+      bitcoinPurpose={initialBitcoinPurpose}
+    >
+      <DefaultProvider>
+        <MultiChainProvider
+          bitcoinNetwork={initialBitcoinNetwork}
+          bitcoinPurpose={initialBitcoinPurpose}
+        >
+          <MagicEdenProvider
+            network={initialBitcoinNetwork}
+            purpose={initialBitcoinPurpose}
+          >
+            <WalletStandardProvider>{children}</WalletStandardProvider>
+          </MagicEdenProvider>
+        </MultiChainProvider>
+      </DefaultProvider>
+    </MultiChainProvider>
   );
-};
+}

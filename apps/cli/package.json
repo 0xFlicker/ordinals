@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "cli": "node --loader ts-node/esm src/index.ts",
+    "cli": "node --import \"./register.js\" src/index.ts",
     "start:dev": "ts-node-dev -r dotenv/config -- src/index.ts | bunyan",
     "cli:debug": "node --inspect-brk --loader ts-node/esm src/index.ts",
     "schema:types": "yarn graphql-codegen --config codegen.ts"

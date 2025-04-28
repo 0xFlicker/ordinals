@@ -1,6 +1,6 @@
-mutation BindRoleToUSer($roleId: ID!, $address: String!) {
+mutation BindRoleToUser($roleId: ID!, $userId: String!) {
   role(id: $roleId) {
-    bindToUser(userAddress: $address) {
+    bindToUser(userId: $userId) {
       allowedActions {
         action
         resource

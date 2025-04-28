@@ -203,7 +203,15 @@ export const SignupCard: FC<{
     //     setSignupState("PICK_HANDLE");
     //   }
     // }
-  }, [connectBtc, signupState, onSignup]);
+  }, [
+    signupState,
+    isConnected,
+    btcAccounts,
+    connectBtc,
+    setNeedsBitcoinSelection,
+    loginBtc,
+    onSignup,
+  ]);
 
   // Handle the signup with handle
   const handleSignup = useCallback(async () => {

@@ -23,15 +23,15 @@ export async function bootstrap({
 
   const roleId = createRoleResponse.createRole.id;
 
-  await sdk.BindRoleToUSer(
-    {
-      address: adminAddress,
-      roleId,
-    },
-    {
-      authorization: `Bearer ${token}`,
-    },
-  );
+  // await sdk.BindRoleToUSer(
+  //   {
+  //     address: adminAddress,
+  //     roleId,
+  //   },
+  //   {
+  //     authorization: `Bearer ${token}`,
+  //   },
+  // );
 
   console.log("Done!");
 }

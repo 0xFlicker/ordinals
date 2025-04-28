@@ -7,10 +7,8 @@ import {
   promisePublicKey,
   EActions,
   EResource,
-  verifyJwtToken,
   UserAddressType,
   verifyJwtForLogin,
-  namespacedClaim,
 } from "@0xflick/ordinals-rbac-models";
 import * as jose from "jose";
 import { RolePermissionsDAO } from "./rolePermissions.js";
@@ -100,7 +98,7 @@ describe("#Token DAO", () => {
       },
       issuer: TokenModel.JWT_CLAIM_ISSUER,
     });
-    const decoded = await verifyJwtForLogin(token, TokenModel.JWT_CLAIM_ISSUER);
+    const decoded = await verifyJwtForLogin(token);
 
     expect(decoded).toBeDefined();
     expect(decoded).toEqual(

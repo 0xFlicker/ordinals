@@ -80,7 +80,6 @@ export async function authorizedUser({
   namespace?: string;
 }) {
   const token = getToken(namespace);
-
   if (!token) {
     throw new AuthError("Not authenticated", "NOT_AUTHENTICATED");
   }

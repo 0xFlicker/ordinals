@@ -3,7 +3,7 @@ import { DefaultProvider } from "@/context/default";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
-import Grid2 from "@mui/material/Unstable_Grid2/Grid2";
+import Grid from "@mui/material/Grid";
 import { useXverse } from "@/features/xverse/Context";
 import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
@@ -17,23 +17,29 @@ export const Field: FC<{
   value: ReactNode;
 }> = ({ label, value }) => {
   return (
-    <Grid2
+    <Grid
       container
       sx={{
         ml: 2,
       }}
+      columns={12}
     >
-      <Grid2 xs={12} md={2}>
+      <Grid size={2}>
         <Typography variant="body1" gutterBottom fontWeight="bold">
           {label}:
         </Typography>
-      </Grid2>
-      <Grid2 xs={12} md={8}>
+      </Grid>
+      <Grid
+        size={{
+          xs: 12,
+          md: 8,
+        }}
+      >
         <Typography variant="body1" gutterBottom>
           {value}
         </Typography>
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   );
 };
 
@@ -79,13 +85,16 @@ export default function Profile() {
       <SwitchableNetwork
         title="profile"
         initialBitcoinNetwork={BitcoinNetworkType.Testnet}
-        initialBitcoinPurpose={[AddressPurpose.Ordinals, AddressPurpose.Payment]}
+        initialBitcoinPurpose={[
+          AddressPurpose.Ordinals,
+          AddressPurpose.Payment,
+        ]}
       >
-        <Grid2 container spacing={2} maxWidth="lg">
-          <Grid2 xs={12} alignContent="center">
+        <Grid container spacing={2} maxWidth="lg" columns={12}>
+          <Grid size={12} alignContent="center">
             <ProfileCard />
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </SwitchableNetwork>
     </DefaultProvider>
   );

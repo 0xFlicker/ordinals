@@ -23,7 +23,9 @@ export async function siwe({ chainId, url }: { chainId: number; url: string }) {
   });
 
   const {
-    siwe: { token },
+    siwe: {
+      data: { token },
+    },
   } = await sdk.SIWE({
     address,
     jwe,

@@ -1,8 +1,8 @@
 {
   "extends": "@0xflick/tsconfig/tsconfig.base.json",
   "compilerOptions": {
-    "module": "NodeNext",
     "target": "ES2022",
+    "module": "ES2022",
     "composite": true /* Enable the use of the ES2015 module loader. */,
     "rootDir": "./src" /* Specify the root folder within your source files. */,
     "outDir": "dist" /* Specify an output folder for all emitted files. */,

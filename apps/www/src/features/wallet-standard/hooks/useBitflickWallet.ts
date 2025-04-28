@@ -198,7 +198,6 @@ export const useBitflickWallet = () => {
         console.error(error);
       } finally {
         setIsConnecting(false);
-        console.log("connectEvm finally setNeedsConnect(false)");
         setNeedsConnect(false);
       }
     },
@@ -311,7 +310,6 @@ export const useBitflickWallet = () => {
         console.error(error);
       } finally {
         setIsConnecting(false);
-        console.log("connectBtc finally setNeedsConnect(false)");
         setNeedsConnect(false);
       }
     },
@@ -332,7 +330,6 @@ export const useBitflickWallet = () => {
 
   const connect = useCallback(
     async ({ btc, evm }: { btc?: boolean; evm?: boolean } = {}) => {
-      console.log("connect");
       let modalNeeded = false;
       if (btc && !state.flags.needsBitcoinSelection) {
         dispatch(actions.setNeedsBitcoinSelection(true));
@@ -350,8 +347,6 @@ export const useBitflickWallet = () => {
         await connectBtc();
       } else if (evm || state.activeEvmProvider) {
         await connectEvm();
-      } else {
-        throw new Error("Unsupported provider");
       }
     },
     [
@@ -589,8 +584,6 @@ export const useBitflickWallet = () => {
           throw new Error("No address provided");
         }
         await loginEvm(address);
-      } else {
-        throw new Error("Unsupported provider");
       }
     },
     [
@@ -780,6 +773,13 @@ export const useBitflickWallet = () => {
     setActiveEvmProvider,
     registerProvider,
     setIntent,
+    ordinalsAddress: state.btcAccounts?.find(
+      (account) => account.purpose === AddressPurpose.Ordinals
+    )?.address,
+    paymentAddress: state.btcAccounts?.find(
+      (account) => account.purpose === AddressPurpose.Payment
+    )?.address,
+
     handle,
     ...state,
     ...state.flags,

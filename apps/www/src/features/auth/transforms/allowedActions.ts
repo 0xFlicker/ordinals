@@ -42,6 +42,10 @@ export function graphqlResourceToEResource(resource: PermissionResource) {
       return EResource.USER;
     case PermissionResource.Affiliate:
       return EResource.AFFILIATE;
+    case PermissionResource.Inscription:
+      return EResource.INSCRIPTION;
+    case PermissionResource.Collection:
+      return EResource.COLLECTION;
     default:
       throw new Error(`Unknown resource ${resource}`);
   }

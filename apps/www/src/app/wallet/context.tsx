@@ -1,5 +1,5 @@
 "use client";
-import { FC, PropsWithChildren } from "react";
+import { FC, PropsWithChildren, ReactNode } from "react";
 import {
   AddressPurpose,
   BitcoinNetwork,
@@ -10,53 +10,33 @@ import { DefaultProvider } from "@/context/default";
 import { WalletStandardProvider } from "@/features/wallet-standard/Context";
 import { MagicEdenProvider } from "@/features/magic-eden/Context";
 
-export const SignupProvider: FC<
-  PropsWithChildren<{
-    initialBitcoinNetwork: BitcoinNetwork["type"];
-    initialBitcoinPurpose: AddressPurpose[];
-    ethereumAutoConnect?: boolean;
-  }>
-> = ({ children, initialBitcoinNetwork, initialBitcoinPurpose }) => {
-  return (
-    <DefaultProvider>
-      <MultiChainProvider
-        bitcoinNetwork={initialBitcoinNetwork}
-        bitcoinPurpose={initialBitcoinPurpose}
-      >
-        <MagicEdenProvider
-          network={initialBitcoinNetwork}
-          purpose={initialBitcoinPurpose}
-        >
-          <WalletStandardProvider>
-            <SignupRoute
-              initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-              initialBitcoinPurpose={[
-                AddressPurpose.Ordinals,
-                AddressPurpose.Payment,
-              ]}
-            >
-              {children}
-            </SignupRoute>
-          </WalletStandardProvider>
-        </MagicEdenProvider>
-      </MultiChainProvider>
-    </DefaultProvider>
-  );
-};
-
-const SignupRoute: FC<
-  PropsWithChildren<{
-    initialBitcoinNetwork: BitcoinNetwork["type"];
-    initialBitcoinPurpose: AddressPurpose[];
-    ethereumAutoConnect?: boolean;
-  }>
-> = ({ children, initialBitcoinNetwork, initialBitcoinPurpose }) => {
+export default function Context({
+  children,
+  initialBitcoinNetwork,
+  initialBitcoinPurpose,
+}: {
+  children: NonNullable<ReactNode>;
+  initialBitcoinNetwork: BitcoinNetwork["type"];
+  initialBitcoinPurpose: AddressPurpose[];
+}) {
   return (
     <MultiChainProvider
       bitcoinNetwork={initialBitcoinNetwork}
       bitcoinPurpose={initialBitcoinPurpose}
     >
-      {children}
+      <DefaultProvider>
+        <MultiChainProvider
+          bitcoinNetwork={initialBitcoinNetwork}
+          bitcoinPurpose={initialBitcoinPurpose}
+        >
+          <MagicEdenProvider
+            network={initialBitcoinNetwork}
+            purpose={initialBitcoinPurpose}
+          >
+            <WalletStandardProvider>{children}</WalletStandardProvider>
+          </MagicEdenProvider>
+        </MultiChainProvider>
+      </DefaultProvider>
     </MultiChainProvider>
   );
-};
+}

@@ -34,13 +34,13 @@ const logger = createLogger({
   name: "inscription-request-resolvers",
 });
 
-const canUploadInscription = defaultAdminStrategyAll(
-  EResource.INSCRIPTION,
-  isActionOnResource({
-    action: EActions.UPDATE,
-    resource: EResource.INSCRIPTION,
-  }),
-);
+// const canUploadInscription = defaultAdminStrategyAll(
+//   EResource.INSCRIPTION,
+//   isActionOnResource({
+//     action: EActions.UPDATE,
+//     resource: EResource.INSCRIPTION,
+//   }),
+// );
 
 const resolvers: InscriptionRequestModule.Resolvers = {
   Mutation: {
@@ -62,16 +62,10 @@ const resolvers: InscriptionRequestModule.Resolvers = {
       } = context;
 
       requireMutation(info);
-      const user = await verifyAuthorizedUser(context);
+      const { userId } = await verifyAuthorizedUser(context);
 
-      const {
-        files,
-        destinationAddress,
-        network,
-        feeLevel,
-        feePerByte,
-        parentInscriptionId,
-      } = input;
+      const { files, destinationAddress, network, feeLevel, feePerByte } =
+        input;
       if (!isValidTaprootAddress(destinationAddress)) {
         throw new InscriptionRequestError("INVALID_DESTINATION_ADDRESS");
       }
@@ -159,7 +153,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         fundingDao,
       });
 
-      const permission = await rolesDao.get(`I#${user.userId}`);
+      const permission = await rolesDao.get(`I#${userId}`);
       await Promise.all([
         permission
           ? rolePermissionsDao.bind({
@@ -170,7 +164,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
             })
           : rolesDao
               .create({
-                id: `I#${user.userId}`,
+                id: `I#${userId}`,
                 name: "Inscriptions",
               })
               .then((permission) =>
@@ -182,7 +176,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
                     identifier: inscriptionTransaction.id,
                   }),
                   userRolesDao.bind({
-                    userId: user.userId,
+                    userId: userId,
                     roleId: permission.id,
                     rolesDao,
                   }),
@@ -208,7 +202,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
           type: "address-inscription",
           createdAt: new Date(),
           sizeEstimate: inscriptionTransaction.totalFee,
-          creatorUserId: user.userId,
+          creatorUserId: userId,
         }),
         ...inscriptionTransaction.writableInscriptions.map((f, index) =>
           fundingDocDao.saveInscriptionContent({
@@ -230,10 +224,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
     uploadInscription: async (_, { input }, context, info) => {
       const { requireMutation } = context;
       requireMutation(info);
-      await verifyAuthorizedUser({
-        authorizer: canUploadInscription,
-        ...context,
-      });
+      await verifyAuthorizedUser(context);
       const { files } = input;
       let wasError = false;
       const problems: InscriptionProblem[] = [];

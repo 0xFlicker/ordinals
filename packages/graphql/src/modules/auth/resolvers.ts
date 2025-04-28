@@ -2,9 +2,8 @@ import {
   createJwtTokenForLogin,
   createJwtTokenForNewUser,
   decryptJweToken,
-  IUserAddress,
   UserAddressType,
-  verifyJwtToken,
+  verifyJwtForNewUserCreation,
 } from "@0xflick/ordinals-rbac";
 import { v4 as uuidv4 } from "uuid";
 import { Verifier } from "bip322-js";
@@ -191,12 +190,11 @@ export const resolvers: AuthModule.Resolvers = {
       },
     ) => {
       const { token, handle } = request;
-      const { address, nonce } = await verifyJwtToken(token);
+      const { address, nonce } = await verifyJwtForNewUserCreation(token);
       if (!address) {
         throw new AuthError("Invalid token", EReason.INVALID_TOKEN);
       }
-      const { address: addressInfo, type: addressType } =
-        address as IUserAddress;
+      const { address: addressInfo, type: addressType } = address;
 
       const userId = uuidv4();
       await userDao.createUser({

@@ -17,18 +17,26 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export type Address = {
+  __typename?: 'Address';
+  address: Scalars['String']['output'];
+  type: AddressType;
+};
+
+export enum AddressType {
+  Btc = 'BTC',
+  Evm = 'EVM'
+}
+
 export type AppInfo = {
   __typename?: 'AppInfo';
   name: Scalars['String']['output'];
   pubKey: Scalars['String']['output'];
 };
 
-export type AssociatedAddresses = {
-  __typename?: 'AssociatedAddresses';
-  evmSignedAddress: Array<Scalars['ID']['output']>;
-  frameFid?: Maybe<Scalars['ID']['output']>;
-  frameVerifiedAddresses?: Maybe<Array<Scalars['ID']['output']>>;
-  taprootAddress: Array<Scalars['ID']['output']>;
+export type AuthProblem = {
+  __typename?: 'AuthProblem';
+  message: Scalars['String']['output'];
 };
 
 export type AxolotlAvailableClaimedFunding = {
@@ -240,6 +248,8 @@ export type InscriptionFunding = {
   fundingAmountSats: Scalars['Int']['output'];
   fundingGenesisTxId?: Maybe<Scalars['String']['output']>;
   fundingGenesisTxUrl?: Maybe<Scalars['String']['output']>;
+  fundingRefundTxId?: Maybe<Scalars['String']['output']>;
+  fundingRefundTxUrl?: Maybe<Scalars['String']['output']>;
   fundingRevealTxId?: Maybe<Scalars['String']['output']>;
   fundingRevealTxUrl?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
@@ -266,7 +276,7 @@ export type InscriptionFundingProblem = {
 
 export type InscriptionFundingQuery = {
   collectionId?: InputMaybe<Scalars['ID']['input']>;
-  fundingStatus?: InputMaybe<FundingStatus>;
+  fundingStatus: FundingStatus;
   limit?: InputMaybe<Scalars['Int']['input']>;
   next?: InputMaybe<Scalars['String']['input']>;
 };
@@ -348,10 +358,12 @@ export type Mutation = {
   nonceFrame: Nonce;
   presale: PresaleResponse;
   role: Role;
+  signInBitcoin: SignInBitcoinResponse;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
-  siwb: Web3LoginUser;
-  siwe: Web3LoginUser;
+  signUpAnonymously: SignUpAnonymouslyResponse;
+  siwb: SiwbResponse;
+  siwe: SiweResponse;
   uploadInscription: InscriptionUploadResponse;
 };
 
@@ -419,6 +431,17 @@ export type MutationRoleArgs = {
 };
 
 
+export type MutationSignInBitcoinArgs = {
+  address: Scalars['ID']['input'];
+  jwe: Scalars['String']['input'];
+};
+
+
+export type MutationSignUpAnonymouslyArgs = {
+  request: SignUpAnonymouslyRequest;
+};
+
+
 export type MutationSiwbArgs = {
   address: Scalars['ID']['input'];
   jwe: Scalars['String']['input'];
@@ -437,6 +460,7 @@ export type MutationUploadInscriptionArgs = {
 
 export type Nonce = {
   __typename?: 'Nonce';
+  address: Address;
   chainId?: Maybe<Scalars['Int']['output']>;
   domain: Scalars['String']['output'];
   expiration: Scalars['String']['output'];
@@ -476,6 +500,7 @@ export enum PermissionResource {
   Affiliate = 'AFFILIATE',
   All = 'ALL',
   Collection = 'COLLECTION',
+  Inscription = 'INSCRIPTION',
   Presale = 'PRESALE',
   Role = 'ROLE',
   User = 'USER'
@@ -543,6 +568,8 @@ export type Query = {
   appInfo: AppInfo;
   axolotlAvailableOpenEditionFundingClaims: Array<AxolotlAvailableOpenEditionFunding>;
   axolotlEstimateFee: AxolotlFeeEstimate;
+  checkUserExistsForAddress: Scalars['Boolean']['output'];
+  checkUserExistsForHandle: Scalars['Boolean']['output'];
   collection: Collection;
   collections: Array<Collection>;
   currentBitcoinFees: FeeEstimate;
@@ -554,7 +581,7 @@ export type Query = {
   roles: Array<Role>;
   self?: Maybe<Web3User>;
   signMultipartUpload: Scalars['String']['output'];
-  userByAddress: Web3User;
+  user: Web3User;
 };
 
 
@@ -568,6 +595,16 @@ export type QueryAxolotlEstimateFeeArgs = {
   feeLevel?: InputMaybe<FeeLevel>;
   feePerByte?: InputMaybe<Scalars['Int']['input']>;
   network: BitcoinNetwork;
+};
+
+
+export type QueryCheckUserExistsForAddressArgs = {
+  address: Scalars['ID']['input'];
+};
+
+
+export type QueryCheckUserExistsForHandleArgs = {
+  handle: Scalars['String']['input'];
 };
 
 
@@ -606,14 +643,19 @@ export type QueryRoleArgs = {
 };
 
 
+export type QuerySelfArgs = {
+  namespace: Web3Namespace;
+};
+
+
 export type QuerySignMultipartUploadArgs = {
   partNumber: Scalars['Int']['input'];
   uploadId: Scalars['String']['input'];
 };
 
 
-export type QueryUserByAddressArgs = {
-  address: Scalars['ID']['input'];
+export type QueryUserArgs = {
+  id: Scalars['ID']['input'];
 };
 
 export type Role = {
@@ -636,7 +678,7 @@ export type RoleAddPermissionsArgs = {
 
 
 export type RoleBindToUserArgs = {
-  userAddress: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 };
 
 
@@ -646,32 +688,72 @@ export type RoleRemovePermissionsArgs = {
 
 
 export type RoleUnbindFromUserArgs = {
-  userAddress: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 };
 
-export type Web3LoginUser = {
-  __typename?: 'Web3LoginUser';
-  address: Scalars['ID']['output'];
-  token: Scalars['String']['output'];
-  user: Web3User;
+export type SignInBitcoinResponse = {
+  __typename?: 'SignInBitcoinResponse';
+  problems?: Maybe<Array<AuthProblem>>;
+  user?: Maybe<Web3User>;
 };
+
+export type SignUpAnonymouslyRequest = {
+  handle: Scalars['String']['input'];
+  token: Scalars['String']['input'];
+};
+
+export type SignUpAnonymouslyResponse = {
+  __typename?: 'SignUpAnonymouslyResponse';
+  problems?: Maybe<Array<AuthProblem>>;
+  user?: Maybe<Web3User>;
+};
+
+export type SiwbData = {
+  __typename?: 'SiwbData';
+  token: Scalars['String']['output'];
+  user?: Maybe<Web3User>;
+};
+
+export type SiwbResponse = {
+  __typename?: 'SiwbResponse';
+  data?: Maybe<SiwbData>;
+  problems?: Maybe<Array<AuthProblem>>;
+};
+
+export type SiweData = {
+  __typename?: 'SiweData';
+  token: Scalars['String']['output'];
+  user?: Maybe<Web3User>;
+};
+
+export type SiweResponse = {
+  __typename?: 'SiweResponse';
+  data?: Maybe<SiweData>;
+  problems?: Maybe<Array<AuthProblem>>;
+};
+
+export enum Web3Namespace {
+  Siwb = 'SIWB',
+  Siwe = 'SIWE'
+}
 
 export type Web3User = {
   __typename?: 'Web3User';
+  addresses: Array<Address>;
   allowedActions: Array<Permission>;
-  associatedAddresses: AssociatedAddresses;
+  handle: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;
 };
 
-export type BindRoleToUSerMutationVariables = Exact<{
+export type BindRoleToUserMutationVariables = Exact<{
   roleId: Scalars['ID']['input'];
-  address: Scalars['String']['input'];
+  userId: Scalars['String']['input'];
 }>;
 
 
-export type BindRoleToUSerMutation = { __typename?: 'Mutation', role: { __typename?: 'Role', bindToUser: { __typename?: 'Web3User', allowedActions: Array<{ __typename?: 'Permission', action: PermissionAction, resource: PermissionResource }> } } };
+export type BindRoleToUserMutation = { __typename?: 'Mutation', role: { __typename?: 'Role', bindToUser: { __typename?: 'Web3User', allowedActions: Array<{ __typename?: 'Permission', action: PermissionAction, resource: PermissionResource }> } } };
 
 export type CreateRoleMutationVariables = Exact<{ [key: string]: never; }>;
 
@@ -721,7 +803,7 @@ export type SiweMutationVariables = Exact<{
 }>;
 
 
-export type SiweMutation = { __typename?: 'Mutation', siwe: { __typename?: 'Web3LoginUser', token: string } };
+export type SiweMutation = { __typename?: 'Mutation', siwe: { __typename?: 'SiweResponse', data?: { __typename?: 'SiweData', token: string } | null } };
 
 export type RevealedQueryVariables = Exact<{
   collectionId: Scalars['ID']['input'];
@@ -739,10 +821,10 @@ export type ListFundingsQueryVariables = Exact<{
 export type ListFundingsQuery = { __typename?: 'Query', inscriptionFundings: { __typename?: 'InscriptionFundingsResult', next?: string | null, count?: number | null, fundings?: Array<{ __typename?: 'InscriptionFunding', id: string, fundingAmountSats: number, fundingAddress: string, destinationAddress: string, network: BitcoinNetwork, status: FundingStatus, fundingGenesisTxId?: string | null, fundingRevealTxId?: string | null }> | null, problems?: Array<{ __typename?: 'InscriptionFundingProblem', code?: string | null, message?: string | null }> | null } };
 
 
-export const BindRoleToUSerDocument = gql`
-    mutation BindRoleToUSer($roleId: ID!, $address: String!) {
+export const BindRoleToUserDocument = gql`
+    mutation BindRoleToUser($roleId: ID!, $userId: String!) {
   role(id: $roleId) {
-    bindToUser(userAddress: $address) {
+    bindToUser(userId: $userId) {
       allowedActions {
         action
         resource
@@ -833,7 +915,9 @@ export const EthereumNonceDocument = gql`
 export const SiweDocument = gql`
     mutation SIWE($address: ID!, $jwe: String!) {
   siwe(address: $address, jwe: $jwe) {
-    token
+    data {
+      token
+    }
   }
 }
     `;
@@ -884,8 +968,8 @@ const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationTy
 
 export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = defaultWrapper) {
   return {
-    BindRoleToUSer(variables: BindRoleToUSerMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<BindRoleToUSerMutation> {
-      return withWrapper((wrappedRequestHeaders) => client.request<BindRoleToUSerMutation>(BindRoleToUSerDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'BindRoleToUSer', 'mutation', variables);
+    BindRoleToUser(variables: BindRoleToUserMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<BindRoleToUserMutation> {
+      return withWrapper((wrappedRequestHeaders) => client.request<BindRoleToUserMutation>(BindRoleToUserDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'BindRoleToUser', 'mutation', variables);
     },
     CreateRole(variables?: CreateRoleMutationVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<CreateRoleMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<CreateRoleMutation>(CreateRoleDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'CreateRole', 'mutation', variables);

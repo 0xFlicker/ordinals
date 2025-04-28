@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
-import Grid2 from "@mui/material/Unstable_Grid2";
+import Grid2 from "@mui/material/Grid";
 import NextImage from "next/image";
 import QR from "qrcode.react";
 import { FC } from "react";
@@ -18,10 +18,10 @@ export const OpLockCat: FC<{}> = () => {
   return (
     <DefaultProvider>
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Grid2 container rowSpacing={4}>
+        <Grid2 container rowSpacing={4} columns={12}>
           <Grid2
             component={Paper}
-            sm={12}
+            size={12}
             elevation={2}
             minHeight={256}
             width="100%"
@@ -58,7 +58,7 @@ export const OpLockCat: FC<{}> = () => {
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           </Grid2>
-          <Grid2 sm={12} width="100%" paddingY={4}>
+          <Grid2 size={12} width="100%" paddingY={4}>
             <Typography
               component="p"
               width="100%"
@@ -73,8 +73,10 @@ export const OpLockCat: FC<{}> = () => {
             </Typography>
           </Grid2>
           <Grid2
-            sm={12}
-            md={4}
+            size={{
+              sm: 12,
+              md: 4,
+            }}
             width="100%"
             sx={{
               display: "flex",
@@ -96,8 +98,10 @@ export const OpLockCat: FC<{}> = () => {
             />
           </Grid2>
           <Grid2
-            sm={12}
-            md={4}
+            size={{
+              sm: 12,
+              md: 4,
+            }}
             width="100%"
             sx={{
               display: "flex",
@@ -111,8 +115,10 @@ export const OpLockCat: FC<{}> = () => {
             </Typography>
           </Grid2>
           <Grid2
-            sm={12}
-            md={4}
+            size={{
+              sm: 12,
+              md: 4,
+            }}
             width="100%"
             sx={{
               display: "flex",
@@ -134,8 +140,10 @@ export const OpLockCat: FC<{}> = () => {
             />
           </Grid2>
           <Grid2
-            sm={12}
-            md={4}
+            size={{
+              sm: 12,
+              md: 4,
+            }}
             width="100%"
             sx={{
               display: "flex",
@@ -152,8 +160,10 @@ export const OpLockCat: FC<{}> = () => {
             />
           </Grid2>
           <Grid2
-            sm={12}
-            md={4}
+            size={{
+              sm: 12,
+              md: 4,
+            }}
             width="100%"
             sx={{
               display: "flex",
@@ -166,8 +176,10 @@ export const OpLockCat: FC<{}> = () => {
             </Typography>
           </Grid2>
           <Grid2
-            sm={12}
-            md={4}
+            size={{
+              sm: 12,
+              md: 4,
+            }}
             width="100%"
             sx={{
               display: "flex",
@@ -184,7 +196,7 @@ export const OpLockCat: FC<{}> = () => {
             />
           </Grid2>
           <Grid2
-            sm={12}
+            size={12}
             width="100%"
             sx={{
               display: "flex",

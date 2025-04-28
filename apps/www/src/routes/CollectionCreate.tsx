@@ -1,7 +1,7 @@
 "use client";
 import { FC, useCallback, useState } from "react";
 import { DefaultProvider } from "@/context/default";
-import Grid2 from "@mui/material/Unstable_Grid2";
+import Grid from "@mui/material/Grid";
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
@@ -100,29 +100,29 @@ export const CollectionCreate: FC<{
   ]);
   return (
     <>
-      <Grid2 container spacing={2} sx={{ mt: 10 }}>
-        <Grid2 xs={12} sm={12} md={12}>
+      <Grid container spacing={2} sx={{ mt: 10 }} columns={12}>
+        <Grid size={12}>
           <TextField
             label="Collection Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-        </Grid2>
-        <Grid2 xs={12} sm={12} md={12}>
+        </Grid>
+        <Grid size={12}>
           <TextField
             label="Collection Description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-        </Grid2>
-        <Grid2 xs={12} sm={12} md={12}>
+        </Grid>
+        <Grid size={12}>
           <TextField
             label="Max Supply"
             value={maxSupply}
             onChange={(e) => setMaxSupply(Number(e.target.value))}
           />
-        </Grid2>
-        <Grid2 xs={12} sm={12} md={12}>
+        </Grid>
+        <Grid size={12}>
           <FormGroup>
             <FormControlLabel
               control={<Checkbox />}
@@ -142,8 +142,8 @@ export const CollectionCreate: FC<{
               </div>
             )}
           </Dropzone>
-        </Grid2>
-        <Grid2 xs={12} sm={12} md={12}>
+        </Grid>
+        <Grid size={12}>
           <button
             className="btn btn-primary"
             onClick={handleCreate}
@@ -151,8 +151,8 @@ export const CollectionCreate: FC<{
           >
             Create Collection
           </button>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </>
   );
 };

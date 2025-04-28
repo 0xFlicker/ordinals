@@ -1,5 +1,5 @@
 import { FC, ReactNode } from "react";
-import Grid2 from "@mui/material/Unstable_Grid2";
+import Grid from "@mui/material/GridLegacy";
 import Typography from "@mui/material/Typography";
 
 export const Field: FC<{
@@ -7,15 +7,16 @@ export const Field: FC<{
   value: ReactNode | string;
 }> = ({ label, value }) => {
   return (
-    <Grid2
+    <Grid
       container
       width="100%"
       sx={{
         ml: 2,
       }}
       alignItems="center"
+      columns={12}
     >
-      <Grid2 xs={12} md={2} alignItems="center">
+      <Grid item xs={12} md={2} alignItems="center">
         {typeof label === "string" ? (
           <Typography variant="body1" gutterBottom fontWeight="bold">
             {label}
@@ -23,8 +24,9 @@ export const Field: FC<{
         ) : (
           label
         )}
-      </Grid2>
-      <Grid2
+      </Grid>
+      <Grid
+        item
         xs={12}
         md={8}
         alignItems="center"
@@ -41,7 +43,7 @@ export const Field: FC<{
         ) : (
           value
         )}
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   );
 };

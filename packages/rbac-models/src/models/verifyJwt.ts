@@ -112,7 +112,7 @@ export async function verifyJwtForNewUserCreation(
 
   return {
     address: {
-      ...address,
+      address: address.address!,
       type: mapAddressType(address.type),
     },
     nonce,
@@ -146,7 +146,7 @@ export async function verifyJwtForAddressAddition(
   return {
     userId: sub,
     newAddress: {
-      ...address,
+      address: address.address!,
       type: mapAddressType(address.type),
     },
   };

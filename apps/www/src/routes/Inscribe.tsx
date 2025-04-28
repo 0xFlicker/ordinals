@@ -1,7 +1,6 @@
 "use client";
 import { FC, useCallback, useState, useEffect } from "react";
-import { DefaultProvider } from "@/context/default";
-import Grid2 from "@mui/material/Unstable_Grid2";
+import Grid2 from "@mui/material/Grid";
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
@@ -10,22 +9,17 @@ import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Typography from "@mui/material/Typography";
 import { Pay } from "@/features/inscription";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
-import { AutoConnect } from "@/features/web3";
 import Dropzone from "react-dropzone";
 import { useCreateCollectionWithUpload } from "@/features/collections/hooks/useCreateCollectionWithUpload";
-import { useSignMultipartUpload } from "@/features/inscribe/hooks/useSignMultipartUpload";
-import { useCreateCollectionParentInscription } from "@/features/collections/hooks/useCreateCollectionParentInscription";
 import { BitcoinNetwork, FeeLevel } from "@/graphql/types";
 import { useRouter } from "next/navigation";
 import {
   InscribeError,
-  InscribeErrorTotalFileSizeTooLarge,
   useInscribe,
 } from "@/features/inscribe/hooks/useInscribe";
-import { useXverse } from "@/features/xverse";
-import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
 import { CardContent } from "@mui/material";
 import { useFeeEstimateQuery } from "@/features/inscribe/hooks/bitcoinFees.generated";
@@ -36,7 +30,7 @@ import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import InputAdornment from "@mui/material/InputAdornment";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useXverseConnect } from "@/features/xverse/hooks/useXverseConnect";
+import { useBitflickWallet } from "@/features/wallet-standard/hooks/useBitflickWallet";
 
 export const Inscribe: FC<{
   initialBitcoinNetwork: BitcoinNetworkType;
@@ -65,27 +59,22 @@ export const Inscribe: FC<{
         ),
       },
     });
-  // const {
-  //   state: { ordinalsAddress: xverseOrdinalsAddress, verifiedOrdinalsAddress },
-  //   isConnected,
-  //   connect,
-  //   siwb,
-  // } = useXverse();
   const {
-    handleBitcoinConnect,
+    login,
     isConnected,
     isConnecting,
-    ordinalsAddress: xverseOrdinalsAddress,
-  } = useXverseConnect();
+    ordinalsAddress: discoveredAddress,
+    setIntent,
+    setNeedsBitcoinSelection,
+  } = useBitflickWallet();
 
   const handleWalletClick = useCallback(async () => {
+    setIntent("login");
     if (!isConnected) {
-      const { ordinalsAddress: newestAddress } = await handleBitcoinConnect();
-      if (newestAddress && ordinalsAddress.length === 0) {
-        setOrdinalsAddress(newestAddress);
-      }
+      setNeedsBitcoinSelection(true);
+      return;
     }
-  }, [isConnected, handleBitcoinConnect, ordinalsAddress.length]);
+  }, [isConnected, setIntent, setNeedsBitcoinSelection]);
 
   const { handleCreate, paymentRequest } = useInscribe({
     network: BitcoinNetwork.Regtest,
@@ -105,7 +94,7 @@ export const Inscribe: FC<{
       try {
         if (!isConnected) {
           setPendingFiles(files);
-          await handleBitcoinConnect();
+          await login();
         }
 
         handleCreate(files);
@@ -117,7 +106,7 @@ export const Inscribe: FC<{
         }
       }
     },
-    [isConnected, handleCreate, handleBitcoinConnect]
+    [isConnected, handleCreate, login]
   );
 
   const handleCustomFeeChange = (
@@ -161,14 +150,24 @@ export const Inscribe: FC<{
   return (
     <>
       {paymentRequest ? (
-        <Grid2 sx={{ mt: 4 }} xs={12} sm={12} md={12}>
-          <Pay fundingId={paymentRequest.id} network={paymentRequest.network} />
+        <Grid2 container spacing={2} sx={{ mt: 10 }} columns={12}>
+          <Grid2 size={12}>
+            <Pay
+              fundingId={paymentRequest.id}
+              network={paymentRequest.network}
+            />
+          </Grid2>
         </Grid2>
       ) : (
         <Card sx={{ mt: 4, p: 4 }}>
           <CardContent>
-            <Grid2 container spacing={2}>
-              <Grid2 xs={12} sm={12} md={12}>
+            <Grid2 container spacing={2} columns={12}>
+              <Grid2
+                sx={{
+                  mt: 4,
+                }}
+                size={12}
+              >
                 <Typography variant="h6" gutterBottom>
                   Inscribe
                 </Typography>
@@ -204,7 +203,7 @@ export const Inscribe: FC<{
                     variant="outlined"
                     onClick={handleWalletClick}
                     disabled={
-                      isConnected && ordinalsAddress === xverseOrdinalsAddress
+                      isConnected && ordinalsAddress === discoveredAddress
                     }
                   >
                     {isConnected ? "Wallet" : "Connect"}
@@ -322,7 +321,7 @@ export const Inscribe: FC<{
                   )}
                 </Box>
               </Grid2>
-              <Grid2 xs={12} sm={12} md={12}>
+              <Grid2 size={12}>
                 <Dropzone onDrop={handleDrop} multiple>
                   {({ getRootProps, getInputProps }) => (
                     <Box
