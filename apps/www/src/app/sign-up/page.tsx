@@ -2,8 +2,13 @@
 import { AppBar } from "@/components/AppBar";
 import Container from "@mui/material/Container";
 import { SignupCard } from "@/features/auth/components/SignupCard";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function Signup() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get("r");
+
   return (
     <>
       <AppBar left="Sign Up" />
@@ -15,7 +20,11 @@ export default function Signup() {
           alignItems: "center",
         }}
       >
-        <SignupCard />
+        <SignupCard
+          onSignup={() => {
+            router.push(redirectPath || `/`);
+          }}
+        />
       </Container>
     </>
   );

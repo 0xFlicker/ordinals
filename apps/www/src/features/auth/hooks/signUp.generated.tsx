@@ -3,17 +3,17 @@ import type * as Types from '../../../graphql/types';
 import { gql } from '@apollo/client';
 import * as Apollo from '@apollo/client';
 const defaultOptions = {} as const;
-export type SignupAnonymouslyMutationVariables = Types.Exact<{
-  request: Types.SignupAnonymouslyRequest;
+export type SignUpAnonymouslyMutationVariables = Types.Exact<{
+  request: Types.SignUpAnonymouslyRequest;
 }>;
 
 
-export type SignupAnonymouslyMutation = { __typename?: 'Mutation', signupAnonymously: { __typename?: 'SignupAnonymouslyResponse', user?: { __typename?: 'Web3User', id: string, roles: Array<{ __typename?: 'Role', id: string }> } | null, problems?: Array<{ __typename?: 'AuthProblem', message: string }> | null } };
+export type SignUpAnonymouslyMutation = { __typename?: 'Mutation', signUpAnonymously: { __typename?: 'SignUpAnonymouslyResponse', user?: { __typename?: 'Web3User', id: string, roles: Array<{ __typename?: 'Role', id: string }> } | null, problems?: Array<{ __typename?: 'AuthProblem', message: string }> | null } };
 
 
-export const SignupAnonymouslyDocument = gql`
-    mutation SignupAnonymously($request: SignupAnonymouslyRequest!) {
-  signupAnonymously(request: $request) {
+export const SignUpAnonymouslyDocument = gql`
+    mutation SignUpAnonymously($request: SignUpAnonymouslyRequest!) {
+  signUpAnonymously(request: $request) {
     user {
       id
       roles {
@@ -26,29 +26,29 @@ export const SignupAnonymouslyDocument = gql`
   }
 }
     `;
-export type SignupAnonymouslyMutationFn = Apollo.MutationFunction<SignupAnonymouslyMutation, SignupAnonymouslyMutationVariables>;
+export type SignUpAnonymouslyMutationFn = Apollo.MutationFunction<SignUpAnonymouslyMutation, SignUpAnonymouslyMutationVariables>;
 
 /**
- * __useSignupAnonymouslyMutation__
+ * __useSignUpAnonymouslyMutation__
  *
- * To run a mutation, you first call `useSignupAnonymouslyMutation` within a React component and pass it any options that fit your needs.
- * When your component renders, `useSignupAnonymouslyMutation` returns a tuple that includes:
+ * To run a mutation, you first call `useSignUpAnonymouslyMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useSignUpAnonymouslyMutation` returns a tuple that includes:
  * - A mutate function that you can call at any time to execute the mutation
  * - An object with fields that represent the current status of the mutation's execution
  *
  * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
  *
  * @example
- * const [signupAnonymouslyMutation, { data, loading, error }] = useSignupAnonymouslyMutation({
+ * const [signUpAnonymouslyMutation, { data, loading, error }] = useSignUpAnonymouslyMutation({
  *   variables: {
  *      request: // value for 'request'
  *   },
  * });
  */
-export function useSignupAnonymouslyMutation(baseOptions?: Apollo.MutationHookOptions<SignupAnonymouslyMutation, SignupAnonymouslyMutationVariables>) {
+export function useSignUpAnonymouslyMutation(baseOptions?: Apollo.MutationHookOptions<SignUpAnonymouslyMutation, SignUpAnonymouslyMutationVariables>) {
         const options = {...defaultOptions, ...baseOptions}
-        return Apollo.useMutation<SignupAnonymouslyMutation, SignupAnonymouslyMutationVariables>(SignupAnonymouslyDocument, options);
+        return Apollo.useMutation<SignUpAnonymouslyMutation, SignUpAnonymouslyMutationVariables>(SignUpAnonymouslyDocument, options);
       }
-export type SignupAnonymouslyMutationHookResult = ReturnType<typeof useSignupAnonymouslyMutation>;
-export type SignupAnonymouslyMutationResult = Apollo.MutationResult<SignupAnonymouslyMutation>;
-export type SignupAnonymouslyMutationOptions = Apollo.BaseMutationOptions<SignupAnonymouslyMutation, SignupAnonymouslyMutationVariables>;
+export type SignUpAnonymouslyMutationHookResult = ReturnType<typeof useSignUpAnonymouslyMutation>;
+export type SignUpAnonymouslyMutationResult = Apollo.MutationResult<SignUpAnonymouslyMutation>;
+export type SignUpAnonymouslyMutationOptions = Apollo.BaseMutationOptions<SignUpAnonymouslyMutation, SignUpAnonymouslyMutationVariables>;

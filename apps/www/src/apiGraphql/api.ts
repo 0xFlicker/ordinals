@@ -358,12 +358,12 @@ export type Mutation = {
   nonceFrame: Nonce;
   presale: PresaleResponse;
   role: Role;
+  signInBitcoin: SignInBitcoinResponse;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
-  signupAnonymously: SignupAnonymouslyResponse;
-  signupBitcoin: SignupBitcoinResponse;
-  siwb: SignatureResponse;
-  siwe: SignatureResponse;
+  signUpAnonymously: SignUpAnonymouslyResponse;
+  siwb: SiwbResponse;
+  siwe: SiweResponse;
   uploadInscription: InscriptionUploadResponse;
 };
 
@@ -431,14 +431,14 @@ export type MutationRoleArgs = {
 };
 
 
-export type MutationSignupAnonymouslyArgs = {
-  request: SignupAnonymouslyRequest;
+export type MutationSignInBitcoinArgs = {
+  address: Scalars['ID']['input'];
+  jwe: Scalars['String']['input'];
 };
 
 
-export type MutationSignupBitcoinArgs = {
-  address: Scalars['ID']['input'];
-  jwe: Scalars['String']['input'];
+export type MutationSignUpAnonymouslyArgs = {
+  request: SignUpAnonymouslyRequest;
 };
 
 
@@ -581,7 +581,7 @@ export type Query = {
   roles: Array<Role>;
   self?: Maybe<Web3User>;
   signMultipartUpload: Scalars['String']['output'];
-  userByAddress: Web3User;
+  user: Web3User;
 };
 
 
@@ -654,8 +654,8 @@ export type QuerySignMultipartUploadArgs = {
 };
 
 
-export type QueryUserByAddressArgs = {
-  address: Scalars['ID']['input'];
+export type QueryUserArgs = {
+  id: Scalars['ID']['input'];
 };
 
 export type Role = {
@@ -691,27 +691,45 @@ export type RoleUnbindFromUserArgs = {
   userId: Scalars['String']['input'];
 };
 
-export type SignatureResponse = {
-  __typename?: 'SignatureResponse';
+export type SignInBitcoinResponse = {
+  __typename?: 'SignInBitcoinResponse';
   problems?: Maybe<Array<AuthProblem>>;
-  token?: Maybe<Scalars['String']['output']>;
+  user?: Maybe<Web3User>;
 };
 
-export type SignupAnonymouslyRequest = {
+export type SignUpAnonymouslyRequest = {
   handle: Scalars['String']['input'];
   token: Scalars['String']['input'];
 };
 
-export type SignupAnonymouslyResponse = {
-  __typename?: 'SignupAnonymouslyResponse';
+export type SignUpAnonymouslyResponse = {
+  __typename?: 'SignUpAnonymouslyResponse';
   problems?: Maybe<Array<AuthProblem>>;
   user?: Maybe<Web3User>;
 };
 
-export type SignupBitcoinResponse = {
-  __typename?: 'SignupBitcoinResponse';
-  problems?: Maybe<Array<AuthProblem>>;
+export type SiwbData = {
+  __typename?: 'SiwbData';
+  token: Scalars['String']['output'];
   user?: Maybe<Web3User>;
+};
+
+export type SiwbResponse = {
+  __typename?: 'SiwbResponse';
+  data?: Maybe<SiwbData>;
+  problems?: Maybe<Array<AuthProblem>>;
+};
+
+export type SiweData = {
+  __typename?: 'SiweData';
+  token: Scalars['String']['output'];
+  user?: Maybe<Web3User>;
+};
+
+export type SiweResponse = {
+  __typename?: 'SiweResponse';
+  data?: Maybe<SiweData>;
+  problems?: Maybe<Array<AuthProblem>>;
 };
 
 export enum Web3Namespace {
@@ -723,6 +741,7 @@ export type Web3User = {
   __typename?: 'Web3User';
   addresses: Array<Address>;
   allowedActions: Array<Permission>;
+  handle: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;

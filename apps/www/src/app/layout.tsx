@@ -1,7 +1,7 @@
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import { baseUrl } from "@/utils/config";
-
+import Context from "./context";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -16,7 +16,9 @@ export default async function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <Context>{children}</Context>
+      </body>
     </html>
   );
 }

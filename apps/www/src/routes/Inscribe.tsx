@@ -36,6 +36,7 @@ import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import InputAdornment from "@mui/material/InputAdornment";
 import CircularProgress from "@mui/material/CircularProgress";
+import { useXverseConnect } from "@/features/xverse/hooks/useXverseConnect";
 
 export const Inscribe: FC<{
   initialBitcoinNetwork: BitcoinNetworkType;
@@ -53,7 +54,6 @@ export const Inscribe: FC<{
   const [networkSelectOpen, setNetworkSelectOpen] = useState<boolean>(false);
   const [feeLevelSelectOpen, setFeeLevelSelectOpen] = useState<boolean>(false);
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [isSiwbPending, setIsSiwbPending] = useState<boolean>(false);
 
   const { data: feeEstimate, loading: feeEstimateLoading } =
@@ -65,21 +65,27 @@ export const Inscribe: FC<{
         ),
       },
     });
+  // const {
+  //   state: { ordinalsAddress: xverseOrdinalsAddress, verifiedOrdinalsAddress },
+  //   isConnected,
+  //   connect,
+  //   siwb,
+  // } = useXverse();
   const {
-    state: { ordinalsAddress: xverseOrdinalsAddress, verifiedOrdinalsAddress },
+    handleBitcoinConnect,
     isConnected,
-    connect,
-    siwb,
-  } = useXverse();
+    isConnecting,
+    ordinalsAddress: xverseOrdinalsAddress,
+  } = useXverseConnect();
 
   const handleWalletClick = useCallback(async () => {
     if (!isConnected) {
-      const { ordinalsAddress } = await connect();
-      setOrdinalsAddress(ordinalsAddress);
-    } else if (xverseOrdinalsAddress) {
-      setOrdinalsAddress(xverseOrdinalsAddress);
+      const { ordinalsAddress: newestAddress } = await handleBitcoinConnect();
+      if (newestAddress && ordinalsAddress.length === 0) {
+        setOrdinalsAddress(newestAddress);
+      }
     }
-  }, [xverseOrdinalsAddress, isConnected, connect]);
+  }, [isConnected, handleBitcoinConnect, ordinalsAddress.length]);
 
   const { handleCreate, paymentRequest } = useInscribe({
     network: BitcoinNetwork.Regtest,
@@ -98,22 +104,8 @@ export const Inscribe: FC<{
     async (files: File[]) => {
       try {
         if (!isConnected) {
-          setIsConnecting(true);
           setPendingFiles(files);
-          await connect();
-          setIsConnecting(false);
-          return;
-        }
-
-        if (!verifiedOrdinalsAddress) {
-          setIsSiwbPending(true);
-          await siwb();
-          setIsSiwbPending(false);
-          if (pendingFiles) {
-            handleCreate(pendingFiles);
-            setPendingFiles(null);
-          }
-          return;
+          await handleBitcoinConnect();
         }
 
         handleCreate(files);
@@ -125,68 +117,8 @@ export const Inscribe: FC<{
         }
       }
     },
-    [
-      handleCreate,
-      isConnected,
-      connect,
-      siwb,
-      verifiedOrdinalsAddress,
-      pendingFiles,
-    ]
+    [isConnected, handleCreate, handleBitcoinConnect]
   );
-
-  // Effect to handle connection state changes
-  useEffect(() => {
-    if (isConnected && !isConnecting && pendingFiles) {
-      // If we're connected but not verified, trigger SIWB
-      if (!verifiedOrdinalsAddress) {
-        setIsSiwbPending(true);
-        siwb()
-          .then(() => {
-            setIsSiwbPending(false);
-            handleCreate(pendingFiles);
-            setPendingFiles(null);
-          })
-          .catch((error) => {
-            if (error instanceof InscribeError) {
-              setInscribeError(error);
-            } else {
-              throw error;
-            }
-          });
-      } else {
-        // If we're connected and verified, process the files directly
-        handleCreate(pendingFiles);
-        setPendingFiles(null);
-      }
-    }
-  }, [
-    isConnected,
-    isConnecting,
-    pendingFiles,
-    verifiedOrdinalsAddress,
-    siwb,
-    handleCreate,
-  ]);
-
-  // Effect to handle SIWB state changes
-  useEffect(() => {
-    if (
-      !isSiwbPending &&
-      pendingFiles &&
-      isConnected &&
-      verifiedOrdinalsAddress
-    ) {
-      handleCreate(pendingFiles);
-      setPendingFiles(null);
-    }
-  }, [
-    isSiwbPending,
-    pendingFiles,
-    isConnected,
-    verifiedOrdinalsAddress,
-    handleCreate,
-  ]);
 
   const handleCustomFeeChange = (
     event: React.ChangeEvent<HTMLInputElement>

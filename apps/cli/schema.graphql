@@ -27,6 +27,7 @@ type Web3User {
   roles: [Role!]!
   allowedActions: [Permission!]!
   token: String
+  handle: String!
 }
 
 type Mutation {
@@ -36,7 +37,7 @@ type Mutation {
 }
 
 type Query {
-  userByAddress(address: ID!): Web3User!
+  user(id: ID!): Web3User!
 }
 
 input PresaleRequest {
@@ -157,86 +158,6 @@ type Mutation {
   role(id: ID!): Role!
 }
 
-enum FundingStatus {
-  FUNDING
-  FUNDED
-  GENESIS
-  REVEALED
-  EXPIRED
-}
-
-type InscriptionFunding {
-  id: ID!
-
-  fundingAmountBtc: String!
-  fundingAmountSats: Int!
-  fundingAddress: String!
-  destinationAddress: String!
-  network: BitcoinNetwork!
-  qrValue: String!
-  qrSrc: String!
-
-  status: FundingStatus!
-  fundingGenesisTxId: String
-  fundingGenesisTxUrl: String
-  fundingRevealTxId: String
-  fundingRevealTxUrl: String
-  fundingRefundTxId: String
-  fundingRefundTxUrl: String
-
-  overhead: Int!
-  padding: Int!
-  count: Int!
-  fee: Int!
-
-  inscriptionContent(index: Int!): InscriptionData!
-  inscriptionContents: [InscriptionData!]!
-}
-
-input InscriptionFundingQuery {
-  collectionId: ID
-  fundingStatus: FundingStatus!
-  next: String
-  limit: Int
-}
-
-type InscriptionFundingProblem {
-  code: String
-  message: String
-}
-
-type InscriptionFundingsResult {
-  fundings: [InscriptionFunding!]
-  problems: [InscriptionFundingProblem!]
-  next: String
-  count: Int
-}
-
-# input EstimateInscriptionFundingInput {
-#   size: Int!
-#   contentType: String!
-#   meta: [KeyValueInput!]
-# }
-
-# type EstimateInscriptionFundingResult {
-#   fundingAmountBtc: String!
-#   fundingAmountSats: Int!
-#   totalFeeBtc: String!
-#   totalFeeSats: Int!
-# }
-
-type Query {
-  inscriptionFunding(id: ID!): InscriptionFunding
-  inscriptionFundings(
-    query: InscriptionFundingQuery!
-  ): InscriptionFundingsResult!
-  # estimateInscriptionFundingSize(
-  #   destinationAddress: String
-  #   network: BitcoinNetwork
-  #   inscriptions: [EstimateInscriptionFundingInput!]!
-  # ): EstimateInscriptionFundingResult!
-}
-
 type InscriptionData {
   textContent: String
   base64Content: String
@@ -326,6 +247,86 @@ type Mutation {
 
 type Query {
   signMultipartUpload(uploadId: String!, partNumber: Int!): String!
+}
+
+enum FundingStatus {
+  FUNDING
+  FUNDED
+  GENESIS
+  REVEALED
+  EXPIRED
+}
+
+type InscriptionFunding {
+  id: ID!
+
+  fundingAmountBtc: String!
+  fundingAmountSats: Int!
+  fundingAddress: String!
+  destinationAddress: String!
+  network: BitcoinNetwork!
+  qrValue: String!
+  qrSrc: String!
+
+  status: FundingStatus!
+  fundingGenesisTxId: String
+  fundingGenesisTxUrl: String
+  fundingRevealTxId: String
+  fundingRevealTxUrl: String
+  fundingRefundTxId: String
+  fundingRefundTxUrl: String
+
+  overhead: Int!
+  padding: Int!
+  count: Int!
+  fee: Int!
+
+  inscriptionContent(index: Int!): InscriptionData!
+  inscriptionContents: [InscriptionData!]!
+}
+
+input InscriptionFundingQuery {
+  collectionId: ID
+  fundingStatus: FundingStatus!
+  next: String
+  limit: Int
+}
+
+type InscriptionFundingProblem {
+  code: String
+  message: String
+}
+
+type InscriptionFundingsResult {
+  fundings: [InscriptionFunding!]
+  problems: [InscriptionFundingProblem!]
+  next: String
+  count: Int
+}
+
+# input EstimateInscriptionFundingInput {
+#   size: Int!
+#   contentType: String!
+#   meta: [KeyValueInput!]
+# }
+
+# type EstimateInscriptionFundingResult {
+#   fundingAmountBtc: String!
+#   fundingAmountSats: Int!
+#   totalFeeBtc: String!
+#   totalFeeSats: Int!
+# }
+
+type Query {
+  inscriptionFunding(id: ID!): InscriptionFunding
+  inscriptionFundings(
+    query: InscriptionFundingQuery!
+  ): InscriptionFundingsResult!
+  # estimateInscriptionFundingSize(
+  #   destinationAddress: String
+  #   network: BitcoinNetwork
+  #   inscriptions: [EstimateInscriptionFundingInput!]!
+  # ): EstimateInscriptionFundingResult!
 }
 
 type KeyValue {
@@ -525,12 +526,12 @@ type AuthProblem {
   message: String!
 }
 
-input SignupAnonymouslyRequest {
+input SignUpAnonymouslyRequest {
   token: String!
   handle: String!
 }
 
-type SignupAnonymouslyResponse {
+type SignUpAnonymouslyResponse {
   user: Web3User
   problems: [AuthProblem!]
 }
@@ -540,12 +541,27 @@ enum Web3Namespace {
   SIWB
 }
 
-type SignatureResponse {
-  token: String
+type SiwbData {
+  token: String!
+  user: Web3User
+}
+
+type SiwbResponse {
+  data: SiwbData
   problems: [AuthProblem!]
 }
 
-type SignupBitcoinResponse {
+type SiweData {
+  token: String!
+  user: Web3User
+}
+
+type SiweResponse {
+  data: SiweData
+  problems: [AuthProblem!]
+}
+
+type SignInBitcoinResponse {
   user: Web3User
   problems: [AuthProblem!]
 }
@@ -558,13 +574,13 @@ type Query {
 }
 
 type Mutation {
-  signupAnonymously(
-    request: SignupAnonymouslyRequest!
-  ): SignupAnonymouslyResponse!
-  siwe(address: ID!, jwe: String!): SignatureResponse!
-  siwb(address: ID!, jwe: String!): SignatureResponse!
+  signUpAnonymously(
+    request: SignUpAnonymouslyRequest!
+  ): SignUpAnonymouslyResponse!
+  siwe(address: ID!, jwe: String!): SiweResponse!
+  siwb(address: ID!, jwe: String!): SiwbResponse!
 
-  signupBitcoin(address: ID!, jwe: String!): SignupBitcoinResponse!
+  signInBitcoin(address: ID!, jwe: String!): SignInBitcoinResponse!
 
   signOutEthereum: Boolean!
   signOutBitcoin: Boolean!

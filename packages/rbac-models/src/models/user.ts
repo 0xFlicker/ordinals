@@ -137,3 +137,30 @@ export class UserWithRolesModel extends UserModel implements IUserWithRoles {
     };
   }
 }
+
+interface IUserWithRolesAndAddresses
+  extends IUserWithRoles,
+    IUserWithAddresses {}
+
+export class UserWithRolesAndAddressesModel
+  extends UserWithRolesModel
+  implements IUserWithRolesAndAddresses
+{
+  public readonly addresses: IUserAddress[];
+
+  constructor(obj: IUserWithRolesAndAddresses) {
+    super(obj);
+    this.addresses = obj.addresses;
+  }
+
+  static fromJson(json: any): UserWithRolesAndAddressesModel {
+    return new UserWithRolesAndAddressesModel(json);
+  }
+
+  toJson(): IUserWithRolesAndAddresses {
+    return {
+      ...super.toJson(),
+      addresses: this.addresses,
+    };
+  }
+}

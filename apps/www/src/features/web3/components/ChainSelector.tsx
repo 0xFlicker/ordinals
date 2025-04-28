@@ -12,7 +12,8 @@ import Typography from "@mui/material/Typography";
 import CheckIcon from "@mui/icons-material/CheckCircle";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import { Chain, useChainId, useSwitchNetwork } from "wagmi";
+import { useChainId, useSwitchChain } from "wagmi";
+import type { Chain } from "viem";
 import type { SxProps, TooltipProps } from "@mui/material";
 
 export type TChain = Chain & {
@@ -121,7 +122,7 @@ export const ChainSelector: FC<{
 
   const chainId = useChainId();
 
-  const { chains, error, isLoading, switchNetwork } = useSwitchNetwork();
+  const { chains, error, switchChain } = useSwitchChain();
   const handleMenu = useCallback((event: MouseEvent) => {
     event.stopPropagation();
     setMenuAnchorEl(event.currentTarget);
@@ -132,11 +133,11 @@ export const ChainSelector: FC<{
   const handleSwitch = useCallback(
     (chain: Chain) => {
       onMenuClose();
-      if (switchNetwork && chain?.id) {
-        switchNetwork(chain.id);
+      if (switchChain && chain?.id) {
+        switchChain({ chainId: chain.id });
       }
     },
-    [onMenuClose, switchNetwork]
+    [onMenuClose, switchChain]
   );
 
   const chain = chains.find((c) => c.id === chainId);
@@ -162,7 +163,7 @@ export const ChainSelector: FC<{
             width={40}
             height={40}
           />
-          {isLoading && (
+          {/* {isLoading && (
             <CircularProgress
               variant="indeterminate"
               sx={{
@@ -171,7 +172,7 @@ export const ChainSelector: FC<{
                 position: "absolute",
               }}
             />
-          )}
+          )} */}
         </IconButton>
       </Tooltip>
       <ConnectedDropDownModal
@@ -179,7 +180,7 @@ export const ChainSelector: FC<{
         assetPrefix={assetPrefix}
         handleClose={onMenuClose}
         handleSwitch={handleSwitch}
-        chains={chains}
+        chains={Array.from(chains)}
         currentChain={chain}
       />
     </>

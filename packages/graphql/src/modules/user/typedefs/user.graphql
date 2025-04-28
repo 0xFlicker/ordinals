@@ -27,6 +27,7 @@ type Web3User {
   roles: [Role!]!
   allowedActions: [Permission!]!
   token: String
+  handle: String!
 }
 
 type Mutation {
@@ -36,5 +37,5 @@ type Mutation {
 }
 
 type Query {
-  userByAddress(address: ID!): Web3User!
+  user(id: ID!): Web3User!
 }

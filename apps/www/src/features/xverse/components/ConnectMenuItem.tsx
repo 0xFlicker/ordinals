@@ -9,11 +9,11 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useXverseConnect } from "../hooks/useXverseConnect";
 
 export const ConnectMenuItem: FC = () => {
-  const { isConnected, isConnecting, ordinalsAddress, siwb } =
+  const { isConnected, isConnecting, ordinalsAddress, handleBitcoinConnect } =
     useXverseConnect();
 
   return (
-    <MenuItem onClick={() => siwb(ordinalsAddress)}>
+    <MenuItem onClick={handleBitcoinConnect}>
       <ListItemIcon>
         <BitcoinIcon />
       </ListItemIcon>

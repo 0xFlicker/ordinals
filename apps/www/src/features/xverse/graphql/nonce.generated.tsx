@@ -10,21 +10,13 @@ export type BitcoinNonceMutationVariables = Types.Exact<{
 
 export type BitcoinNonceMutation = { __typename?: 'Mutation', nonceBitcoin: { __typename?: 'Nonce', nonce: string, messageToSign: string, pubKey: string } };
 
-export type SiwbMutationVariables = Types.Exact<{
+export type SignInBitcoinMutationVariables = Types.Exact<{
   address: Types.Scalars['ID']['input'];
   jwe: Types.Scalars['String']['input'];
 }>;
 
 
-export type SiwbMutation = { __typename?: 'Mutation', siwb: { __typename?: 'SignatureResponse', token?: string | null } };
-
-export type SignupBitcoinMutationVariables = Types.Exact<{
-  address: Types.Scalars['ID']['input'];
-  jwe: Types.Scalars['String']['input'];
-}>;
-
-
-export type SignupBitcoinMutation = { __typename?: 'Mutation', signupBitcoin: { __typename?: 'SignupBitcoinResponse', user?: { __typename?: 'Web3User', id: string, token?: string | null } | null } };
+export type SignInBitcoinMutation = { __typename?: 'Mutation', signInBitcoin: { __typename?: 'SignInBitcoinResponse', user?: { __typename?: 'Web3User', id: string, token?: string | null } | null } };
 
 
 export const BitcoinNonceDocument = gql`
@@ -62,43 +54,9 @@ export function useBitcoinNonceMutation(baseOptions?: Apollo.MutationHookOptions
 export type BitcoinNonceMutationHookResult = ReturnType<typeof useBitcoinNonceMutation>;
 export type BitcoinNonceMutationResult = Apollo.MutationResult<BitcoinNonceMutation>;
 export type BitcoinNonceMutationOptions = Apollo.BaseMutationOptions<BitcoinNonceMutation, BitcoinNonceMutationVariables>;
-export const SiwbDocument = gql`
-    mutation SIWB($address: ID!, $jwe: String!) {
-  siwb(address: $address, jwe: $jwe) {
-    token
-  }
-}
-    `;
-export type SiwbMutationFn = Apollo.MutationFunction<SiwbMutation, SiwbMutationVariables>;
-
-/**
- * __useSiwbMutation__
- *
- * To run a mutation, you first call `useSiwbMutation` within a React component and pass it any options that fit your needs.
- * When your component renders, `useSiwbMutation` returns a tuple that includes:
- * - A mutate function that you can call at any time to execute the mutation
- * - An object with fields that represent the current status of the mutation's execution
- *
- * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
- *
- * @example
- * const [siwbMutation, { data, loading, error }] = useSiwbMutation({
- *   variables: {
- *      address: // value for 'address'
- *      jwe: // value for 'jwe'
- *   },
- * });
- */
-export function useSiwbMutation(baseOptions?: Apollo.MutationHookOptions<SiwbMutation, SiwbMutationVariables>) {
-        const options = {...defaultOptions, ...baseOptions}
-        return Apollo.useMutation<SiwbMutation, SiwbMutationVariables>(SiwbDocument, options);
-      }
-export type SiwbMutationHookResult = ReturnType<typeof useSiwbMutation>;
-export type SiwbMutationResult = Apollo.MutationResult<SiwbMutation>;
-export type SiwbMutationOptions = Apollo.BaseMutationOptions<SiwbMutation, SiwbMutationVariables>;
-export const SignupBitcoinDocument = gql`
-    mutation SignupBitcoin($address: ID!, $jwe: String!) {
-  signupBitcoin(address: $address, jwe: $jwe) {
+export const SignInBitcoinDocument = gql`
+    mutation SignInBitcoin($address: ID!, $jwe: String!) {
+  signInBitcoin(address: $address, jwe: $jwe) {
     user {
       id
       token
@@ -106,30 +64,30 @@ export const SignupBitcoinDocument = gql`
   }
 }
     `;
-export type SignupBitcoinMutationFn = Apollo.MutationFunction<SignupBitcoinMutation, SignupBitcoinMutationVariables>;
+export type SignInBitcoinMutationFn = Apollo.MutationFunction<SignInBitcoinMutation, SignInBitcoinMutationVariables>;
 
 /**
- * __useSignupBitcoinMutation__
+ * __useSignInBitcoinMutation__
  *
- * To run a mutation, you first call `useSignupBitcoinMutation` within a React component and pass it any options that fit your needs.
- * When your component renders, `useSignupBitcoinMutation` returns a tuple that includes:
+ * To run a mutation, you first call `useSignInBitcoinMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useSignInBitcoinMutation` returns a tuple that includes:
  * - A mutate function that you can call at any time to execute the mutation
  * - An object with fields that represent the current status of the mutation's execution
  *
  * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
  *
  * @example
- * const [signupBitcoinMutation, { data, loading, error }] = useSignupBitcoinMutation({
+ * const [signInBitcoinMutation, { data, loading, error }] = useSignInBitcoinMutation({
  *   variables: {
  *      address: // value for 'address'
  *      jwe: // value for 'jwe'
  *   },
  * });
  */
-export function useSignupBitcoinMutation(baseOptions?: Apollo.MutationHookOptions<SignupBitcoinMutation, SignupBitcoinMutationVariables>) {
+export function useSignInBitcoinMutation(baseOptions?: Apollo.MutationHookOptions<SignInBitcoinMutation, SignInBitcoinMutationVariables>) {
         const options = {...defaultOptions, ...baseOptions}
-        return Apollo.useMutation<SignupBitcoinMutation, SignupBitcoinMutationVariables>(SignupBitcoinDocument, options);
+        return Apollo.useMutation<SignInBitcoinMutation, SignInBitcoinMutationVariables>(SignInBitcoinDocument, options);
       }
-export type SignupBitcoinMutationHookResult = ReturnType<typeof useSignupBitcoinMutation>;
-export type SignupBitcoinMutationResult = Apollo.MutationResult<SignupBitcoinMutation>;
-export type SignupBitcoinMutationOptions = Apollo.BaseMutationOptions<SignupBitcoinMutation, SignupBitcoinMutationVariables>;
+export type SignInBitcoinMutationHookResult = ReturnType<typeof useSignInBitcoinMutation>;
+export type SignInBitcoinMutationResult = Apollo.MutationResult<SignInBitcoinMutation>;
+export type SignInBitcoinMutationOptions = Apollo.BaseMutationOptions<SignInBitcoinMutation, SignInBitcoinMutationVariables>;

@@ -1,5 +1,5 @@
-mutation SignupAnonymously($request: SignupAnonymouslyRequest!) {
-  signupAnonymously(request: $request) {
+mutation SignUpAnonymously($request: SignUpAnonymouslyRequest!) {
+  signUpAnonymously(request: $request) {
     user {
       id
       roles {

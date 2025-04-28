@@ -27,15 +27,15 @@ import {
   IUserAddress,
   createJweRequest,
   importSPKIKey,
-  verifyJwtForLogin,
   verifyJwtToken,
 } from "@0xflick/ordinals-rbac-models";
 import {
   useBitcoinNonceMutation,
-  useSignupBitcoinMutation,
+  useSignInBitcoinMutation,
   useSiwbMutation,
 } from "./graphql/nonce.generated";
 import { useGetAppInfoQuery } from "@/features/auth/hooks/app.generated";
+import { useSiwbSignIn } from "../auth/hooks/useSignIn";
 
 function useXverseContext(opts: {
   network: BitcoinNetwork["type"];
@@ -50,7 +50,8 @@ function useXverseContext(opts: {
   });
 
   const [fetchNonce] = useBitcoinNonceMutation();
-  const [signupBitcoin] = useSignupBitcoinMutation();
+  const [signInBitcoin] = useSignInBitcoinMutation();
+  const [fetchSiwb] = useSiwbSignIn();
   const { data: appInfoData } = useGetAppInfoQuery();
   const issuer = appInfoData?.appInfo?.name;
 
@@ -313,14 +314,14 @@ function useXverseContext(opts: {
         pubKeyStr: pubKey,
       });
 
-      const { data: tokenData } = await signupBitcoin({
+      const { data: tokenData } = await signInBitcoin({
         variables: {
           address,
           jwe,
         },
       });
 
-      if (!tokenData || !tokenData.signupBitcoin?.user?.token) {
+      if (!tokenData || !tokenData.signInBitcoin?.user?.token) {
         dispatch(
           actionCreators.signatureRequestRejected("Failed to obtain SIWB token")
         );
@@ -328,14 +329,14 @@ function useXverseContext(opts: {
       }
 
       // Store the token in localStorage
-      localStorage.setItem("xverse_token", tokenData.signupBitcoin.user.token);
+      localStorage.setItem("xverse_token", tokenData.signInBitcoin.user.token);
 
       return {
-        token: tokenData.signupBitcoin.user.token,
+        token: tokenData.signInBitcoin.user.token,
         address: state.ordinalsAddress!,
       };
     },
-    [state.ordinalsAddress, fetchNonce, sign, network, signupBitcoin]
+    [state.ordinalsAddress, fetchNonce, sign, network, signInBitcoin]
   );
 
   return {

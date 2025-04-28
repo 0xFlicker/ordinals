@@ -359,12 +359,12 @@ export type Mutation = {
   nonceFrame: Nonce;
   presale: PresaleResponse;
   role: Role;
+  signInBitcoin: SignInBitcoinResponse;
   signOutBitcoin: Scalars['Boolean']['output'];
   signOutEthereum: Scalars['Boolean']['output'];
-  signupAnonymously: SignupAnonymouslyResponse;
-  signupBitcoin: SignupBitcoinResponse;
-  siwb: SignatureResponse;
-  siwe: SignatureResponse;
+  signUpAnonymously: SignUpAnonymouslyResponse;
+  siwb: SiwbResponse;
+  siwe: SiweResponse;
   uploadInscription: InscriptionUploadResponse;
 };
 
@@ -432,14 +432,14 @@ export type MutationRoleArgs = {
 };
 
 
-export type MutationSignupAnonymouslyArgs = {
-  request: SignupAnonymouslyRequest;
+export type MutationSignInBitcoinArgs = {
+  address: Scalars['ID']['input'];
+  jwe: Scalars['String']['input'];
 };
 
 
-export type MutationSignupBitcoinArgs = {
-  address: Scalars['ID']['input'];
-  jwe: Scalars['String']['input'];
+export type MutationSignUpAnonymouslyArgs = {
+  request: SignUpAnonymouslyRequest;
 };
 
 
@@ -579,7 +579,7 @@ export type Query = {
   roles: Array<Role>;
   self?: Maybe<Web3User>;
   signMultipartUpload: Scalars['String']['output'];
-  userByAddress: Web3User;
+  user: Web3User;
 };
 
 
@@ -652,8 +652,8 @@ export type QuerySignMultipartUploadArgs = {
 };
 
 
-export type QueryUserByAddressArgs = {
-  address: Scalars['ID']['input'];
+export type QueryUserArgs = {
+  id: Scalars['ID']['input'];
 };
 
 export type Role = {
@@ -689,27 +689,45 @@ export type RoleUnbindFromUserArgs = {
   userId: Scalars['String']['input'];
 };
 
-export type SignatureResponse = {
-  __typename?: 'SignatureResponse';
+export type SignInBitcoinResponse = {
+  __typename?: 'SignInBitcoinResponse';
   problems?: Maybe<Array<AuthProblem>>;
-  token?: Maybe<Scalars['String']['output']>;
+  user?: Maybe<Web3User>;
 };
 
-export type SignupAnonymouslyRequest = {
+export type SignUpAnonymouslyRequest = {
   handle: Scalars['String']['input'];
   token: Scalars['String']['input'];
 };
 
-export type SignupAnonymouslyResponse = {
-  __typename?: 'SignupAnonymouslyResponse';
+export type SignUpAnonymouslyResponse = {
+  __typename?: 'SignUpAnonymouslyResponse';
   problems?: Maybe<Array<AuthProblem>>;
   user?: Maybe<Web3User>;
 };
 
-export type SignupBitcoinResponse = {
-  __typename?: 'SignupBitcoinResponse';
-  problems?: Maybe<Array<AuthProblem>>;
+export type SiwbData = {
+  __typename?: 'SiwbData';
+  token: Scalars['String']['output'];
   user?: Maybe<Web3User>;
+};
+
+export type SiwbResponse = {
+  __typename?: 'SiwbResponse';
+  data?: Maybe<SiwbData>;
+  problems?: Maybe<Array<AuthProblem>>;
+};
+
+export type SiweData = {
+  __typename?: 'SiweData';
+  token: Scalars['String']['output'];
+  user?: Maybe<Web3User>;
+};
+
+export type SiweResponse = {
+  __typename?: 'SiweResponse';
+  data?: Maybe<SiweData>;
+  problems?: Maybe<Array<AuthProblem>>;
 };
 
 export type Web3Namespace =
@@ -720,6 +738,7 @@ export type Web3User = {
   __typename?: 'Web3User';
   addresses: Array<Address>;
   allowedActions: Array<Permission>;
+  handle: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;
@@ -858,10 +877,13 @@ export type ResolversTypes = {
   PresalesResult: ResolverTypeWrapper<PresalesResult>;
   Query: ResolverTypeWrapper<{}>;
   Role: ResolverTypeWrapper<RoleModel>;
-  SignatureResponse: ResolverTypeWrapper<SignatureResponse>;
-  SignupAnonymouslyRequest: SignupAnonymouslyRequest;
-  SignupAnonymouslyResponse: ResolverTypeWrapper<Omit<SignupAnonymouslyResponse, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
-  SignupBitcoinResponse: ResolverTypeWrapper<Omit<SignupBitcoinResponse, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
+  SignInBitcoinResponse: ResolverTypeWrapper<Omit<SignInBitcoinResponse, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
+  SignUpAnonymouslyRequest: SignUpAnonymouslyRequest;
+  SignUpAnonymouslyResponse: ResolverTypeWrapper<Omit<SignUpAnonymouslyResponse, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
+  SiwbData: ResolverTypeWrapper<Omit<SiwbData, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
+  SiwbResponse: ResolverTypeWrapper<Omit<SiwbResponse, 'data'> & { data?: Maybe<ResolversTypes['SiwbData']> }>;
+  SiweData: ResolverTypeWrapper<Omit<SiweData, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
+  SiweResponse: ResolverTypeWrapper<Omit<SiweResponse, 'data'> & { data?: Maybe<ResolversTypes['SiweData']> }>;
   String: ResolverTypeWrapper<Scalars['String']['output']>;
   Web3Namespace: Web3Namespace;
   Web3User: ResolverTypeWrapper<Web3UserModel>;
@@ -923,10 +945,13 @@ export type ResolversParentTypes = {
   PresalesResult: PresalesResult;
   Query: {};
   Role: RoleModel;
-  SignatureResponse: SignatureResponse;
-  SignupAnonymouslyRequest: SignupAnonymouslyRequest;
-  SignupAnonymouslyResponse: Omit<SignupAnonymouslyResponse, 'user'> & { user?: Maybe<ResolversParentTypes['Web3User']> };
-  SignupBitcoinResponse: Omit<SignupBitcoinResponse, 'user'> & { user?: Maybe<ResolversParentTypes['Web3User']> };
+  SignInBitcoinResponse: Omit<SignInBitcoinResponse, 'user'> & { user?: Maybe<ResolversParentTypes['Web3User']> };
+  SignUpAnonymouslyRequest: SignUpAnonymouslyRequest;
+  SignUpAnonymouslyResponse: Omit<SignUpAnonymouslyResponse, 'user'> & { user?: Maybe<ResolversParentTypes['Web3User']> };
+  SiwbData: Omit<SiwbData, 'user'> & { user?: Maybe<ResolversParentTypes['Web3User']> };
+  SiwbResponse: Omit<SiwbResponse, 'data'> & { data?: Maybe<ResolversParentTypes['SiwbData']> };
+  SiweData: Omit<SiweData, 'user'> & { user?: Maybe<ResolversParentTypes['Web3User']> };
+  SiweResponse: Omit<SiweResponse, 'data'> & { data?: Maybe<ResolversParentTypes['SiweData']> };
   String: Scalars['String']['output'];
   Web3User: Web3UserModel;
 };
@@ -1146,12 +1171,12 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
   nonceFrame?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceFrameArgs, 'trustedBytes'>>;
   presale?: Resolver<ResolversTypes['PresaleResponse'], ParentType, ContextType, RequireFields<MutationPresaleArgs, 'request'>>;
   role?: Resolver<ResolversTypes['Role'], ParentType, ContextType, RequireFields<MutationRoleArgs, 'id'>>;
+  signInBitcoin?: Resolver<ResolversTypes['SignInBitcoinResponse'], ParentType, ContextType, RequireFields<MutationSignInBitcoinArgs, 'address' | 'jwe'>>;
   signOutBitcoin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   signOutEthereum?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  signupAnonymously?: Resolver<ResolversTypes['SignupAnonymouslyResponse'], ParentType, ContextType, RequireFields<MutationSignupAnonymouslyArgs, 'request'>>;
-  signupBitcoin?: Resolver<ResolversTypes['SignupBitcoinResponse'], ParentType, ContextType, RequireFields<MutationSignupBitcoinArgs, 'address' | 'jwe'>>;
-  siwb?: Resolver<ResolversTypes['SignatureResponse'], ParentType, ContextType, RequireFields<MutationSiwbArgs, 'address' | 'jwe'>>;
-  siwe?: Resolver<ResolversTypes['SignatureResponse'], ParentType, ContextType, RequireFields<MutationSiweArgs, 'address' | 'jwe'>>;
+  signUpAnonymously?: Resolver<ResolversTypes['SignUpAnonymouslyResponse'], ParentType, ContextType, RequireFields<MutationSignUpAnonymouslyArgs, 'request'>>;
+  siwb?: Resolver<ResolversTypes['SiwbResponse'], ParentType, ContextType, RequireFields<MutationSiwbArgs, 'address' | 'jwe'>>;
+  siwe?: Resolver<ResolversTypes['SiweResponse'], ParentType, ContextType, RequireFields<MutationSiweArgs, 'address' | 'jwe'>>;
   uploadInscription?: Resolver<ResolversTypes['InscriptionUploadResponse'], ParentType, ContextType, RequireFields<MutationUploadInscriptionArgs, 'input'>>;
 };
 
@@ -1223,7 +1248,7 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   self?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType, RequireFields<QuerySelfArgs, 'namespace'>>;
   signMultipartUpload?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<QuerySignMultipartUploadArgs, 'partNumber' | 'uploadId'>>;
-  userByAddress?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<QueryUserByAddressArgs, 'address'>>;
+  user?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<QueryUserArgs, 'id'>>;
 };
 
 export type RoleResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Role'] = ResolversParentTypes['Role']> = {
@@ -1239,27 +1264,46 @@ export type RoleResolvers<ContextType = Context, ParentType extends ResolversPar
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type SignatureResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SignatureResponse'] = ResolversParentTypes['SignatureResponse']> = {
-  problems?: Resolver<Maybe<Array<ResolversTypes['AuthProblem']>>, ParentType, ContextType>;
-  token?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type SignupAnonymouslyResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SignupAnonymouslyResponse'] = ResolversParentTypes['SignupAnonymouslyResponse']> = {
+export type SignInBitcoinResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SignInBitcoinResponse'] = ResolversParentTypes['SignInBitcoinResponse']> = {
   problems?: Resolver<Maybe<Array<ResolversTypes['AuthProblem']>>, ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type SignupBitcoinResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SignupBitcoinResponse'] = ResolversParentTypes['SignupBitcoinResponse']> = {
+export type SignUpAnonymouslyResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SignUpAnonymouslyResponse'] = ResolversParentTypes['SignUpAnonymouslyResponse']> = {
   problems?: Resolver<Maybe<Array<ResolversTypes['AuthProblem']>>, ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type SiwbDataResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SiwbData'] = ResolversParentTypes['SiwbData']> = {
+  token?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  user?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type SiwbResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SiwbResponse'] = ResolversParentTypes['SiwbResponse']> = {
+  data?: Resolver<Maybe<ResolversTypes['SiwbData']>, ParentType, ContextType>;
+  problems?: Resolver<Maybe<Array<ResolversTypes['AuthProblem']>>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type SiweDataResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SiweData'] = ResolversParentTypes['SiweData']> = {
+  token?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  user?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type SiweResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SiweResponse'] = ResolversParentTypes['SiweResponse']> = {
+  data?: Resolver<Maybe<ResolversTypes['SiweData']>, ParentType, ContextType>;
+  problems?: Resolver<Maybe<Array<ResolversTypes['AuthProblem']>>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type Web3UserResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Web3User'] = ResolversParentTypes['Web3User']> = {
   addresses?: Resolver<Array<ResolversTypes['Address']>, ParentType, ContextType>;
   allowedActions?: Resolver<Array<ResolversTypes['Permission']>, ParentType, ContextType>;
+  handle?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   token?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -1301,9 +1345,12 @@ export type Resolvers<ContextType = Context> = {
   PresalesResult?: PresalesResultResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;
   Role?: RoleResolvers<ContextType>;
-  SignatureResponse?: SignatureResponseResolvers<ContextType>;
-  SignupAnonymouslyResponse?: SignupAnonymouslyResponseResolvers<ContextType>;
-  SignupBitcoinResponse?: SignupBitcoinResponseResolvers<ContextType>;
+  SignInBitcoinResponse?: SignInBitcoinResponseResolvers<ContextType>;
+  SignUpAnonymouslyResponse?: SignUpAnonymouslyResponseResolvers<ContextType>;
+  SiwbData?: SiwbDataResolvers<ContextType>;
+  SiwbResponse?: SiwbResponseResolvers<ContextType>;
+  SiweData?: SiweDataResolvers<ContextType>;
+  SiweResponse?: SiweResponseResolvers<ContextType>;
   Web3User?: Web3UserResolvers<ContextType>;
 };
 

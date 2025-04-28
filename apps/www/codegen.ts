@@ -23,6 +23,26 @@ const config: CodegenConfig = {
         "typescript-graphql-request",
       ],
     },
+    "src/app/": {
+      preset: "near-operation-file",
+      documents: [
+        "src/app/**/*.tsx",
+        "src/app/**/*.ts",
+        "!src/app/**/*.generated.ts",
+      ],
+      presetConfig: {
+        baseTypesPath: "../graphql/types.ts",
+      },
+      config: {
+        useTypeImports: true,
+        emitLegacyCommonJSImports: false,
+      },
+      plugins: [
+        "typescript",
+        "typescript-operations",
+        "typescript-graphql-request",
+      ],
+    },
     "src/features/": {
       preset: "near-operation-file",
       documents: "src/features/**/*.graphql",

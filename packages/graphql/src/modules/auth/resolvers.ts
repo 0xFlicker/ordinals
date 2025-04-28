@@ -4,13 +4,11 @@ import {
   decryptJweToken,
   IUserAddress,
   UserAddressType,
-  UserDAO,
-  verifyJwtForNewUserCreation,
   verifyJwtToken,
 } from "@0xflick/ordinals-rbac";
 import { v4 as uuidv4 } from "uuid";
 import { Verifier } from "bip322-js";
-import { Web3LoginUserModel, Web3UserModel } from "../user/models.js";
+import { Web3UserModel } from "../user/models.js";
 import { authorizedUser } from "./controller.js";
 import { AuthModule } from "./generated-types/module-types.js";
 import { addressToBitcoinNetwork } from "../user/resolvers.js";
@@ -35,13 +33,18 @@ export const resolvers: AuthModule.Resolvers = {
       };
     },
     self: async (_, { namespace }, context) => {
-      const { getToken } = context;
+      const { getToken, userDao } = context;
       const user = await authorizedUser({
         namespace,
         ...context,
       });
       const token = getToken(namespace);
-      return new Web3UserModel(user.userId, token);
+      return new Web3UserModel({
+        userId: user.userId,
+        token,
+        handle: user.handle,
+        userDao,
+      });
     },
     checkUserExistsForAddress: async (_, { address }, { userDao }) => {
       const user = await userDao.getUserByAddress({ address });
@@ -57,7 +60,7 @@ export const resolvers: AuthModule.Resolvers = {
     },
   },
   Mutation: {
-    signupBitcoin: async (
+    signInBitcoin: async (
       _,
       { address, jwe },
       {
@@ -158,7 +161,14 @@ export const resolvers: AuthModule.Resolvers = {
         });
         setToken(token);
         return {
-          user: new Web3UserModel(userId, token),
+          data: {
+            token,
+            user: new Web3UserModel({
+              userId,
+              token,
+              userDao,
+            }),
+          },
         };
       } catch (error) {
         logger.error(error, `Error getting user with addresses: ${address}`);
@@ -168,7 +178,7 @@ export const resolvers: AuthModule.Resolvers = {
         };
       }
     },
-    signupAnonymously: async (
+    signUpAnonymously: async (
       _,
       { request },
       {
@@ -209,7 +219,11 @@ export const resolvers: AuthModule.Resolvers = {
       });
       setToken(newToken);
       return {
-        user: new Web3UserModel(userId, newToken),
+        user: new Web3UserModel({
+          userId,
+          token: newToken,
+          userDao,
+        }),
       };
     },
     siwe: async (
@@ -318,6 +332,7 @@ export const resolvers: AuthModule.Resolvers = {
         userNonceDao,
         setToken,
         userRolesDao,
+        userDao,
       },
     ) => {
       const { protectedHeader, plaintext } = await decryptJweToken(jwe);
@@ -327,7 +342,7 @@ export const resolvers: AuthModule.Resolvers = {
 
       if (!userNonceRequest) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid nonce" }],
         };
       }
@@ -341,25 +356,25 @@ export const resolvers: AuthModule.Resolvers = {
 
       if (nonceAddress !== address) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid address" }],
         };
       }
       if (domain !== authMessageDomain) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid domain" }],
         };
       }
       if (uri !== authMessageJwtClaimIssuer) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid uri" }],
         };
       }
       if (expiresAt < new Date().toISOString()) {
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Expired nonce" }],
         };
       }
@@ -385,24 +400,59 @@ export const resolvers: AuthModule.Resolvers = {
             problems: [{ message: "Invalid signature" }],
           };
         }
+
+        let userId: string;
+        try {
+          const { userId: userIdFromDb } = await userDao.getUserWithAddresses(
+            address,
+          );
+          userId = userIdFromDb;
+        } catch (error) {
+          const token = await createJwtTokenForNewUser({
+            address: { address, type },
+            nonce,
+            issuer: authMessageJwtClaimIssuer,
+          });
+          setToken(token, "siwb");
+          return {
+            data: {
+              token,
+            },
+          };
+        }
+
         const roleIds: string[] = [];
-        for await (const roleId of userRolesDao.getRoleIds(address)) {
+        for await (const roleId of userRolesDao.getRoleIds(userId)) {
+          console.log("roleId", roleId);
           roleIds.push(roleId);
         }
 
-        const token = await createJwtTokenForNewUser({
-          address: { address, type },
-          nonce,
+        logger.info(`User ID: ${userId}`);
+        const { handle } = await userDao.getUserById({ userId });
+        const token = await createJwtTokenForLogin({
+          user: {
+            userId,
+            handle,
+            roleIds,
+          },
           issuer: authMessageJwtClaimIssuer,
         });
-        setToken(token, "siwe");
+        setToken(token);
         return {
-          token,
+          data: {
+            token,
+            user: new Web3UserModel({
+              userId,
+              handle,
+              token,
+              userDao,
+            }),
+          },
         };
       } catch (error) {
         logger.error(error);
         return {
-          token: null,
+          data: null,
           problems: [{ message: "Invalid signature" }],
         };
       }

@@ -5,21 +5,42 @@ import {
   BitcoinNetwork,
   BitcoinNetworkType,
 } from "sats-connect";
+import { Provider as Web3Provider } from "@/features/web3/hooks";
 import { MultiChainProvider } from "@/context/multiChain";
 import { DefaultProvider } from "@/context/default";
+import { WalletStandardProvider } from "@/features/wallet-standard/Context";
+import { MagicEdenProvider } from "@/features/magic-eden/Context";
 
-export const SignupProvider: FC<PropsWithChildren> = ({ children }) => {
+export const SignupProvider: FC<
+  PropsWithChildren<{
+    initialBitcoinNetwork: BitcoinNetwork["type"];
+    initialBitcoinPurpose: AddressPurpose[];
+    ethereumAutoConnect?: boolean;
+  }>
+> = ({ children, initialBitcoinNetwork, initialBitcoinPurpose }) => {
   return (
     <DefaultProvider>
-      <SignupRoute
-        initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-        initialBitcoinPurpose={[
-          AddressPurpose.Ordinals,
-          AddressPurpose.Payment,
-        ]}
+      <MultiChainProvider
+        bitcoinNetwork={initialBitcoinNetwork}
+        bitcoinPurpose={initialBitcoinPurpose}
       >
-        {children}
-      </SignupRoute>
+        <MagicEdenProvider
+          network={initialBitcoinNetwork}
+          purpose={initialBitcoinPurpose}
+        >
+          <WalletStandardProvider>
+            <SignupRoute
+              initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
+              initialBitcoinPurpose={[
+                AddressPurpose.Ordinals,
+                AddressPurpose.Payment,
+              ]}
+            >
+              {children}
+            </SignupRoute>
+          </WalletStandardProvider>
+        </MagicEdenProvider>
+      </MultiChainProvider>
     </DefaultProvider>
   );
 };
@@ -30,17 +51,11 @@ const SignupRoute: FC<
     initialBitcoinPurpose: AddressPurpose[];
     ethereumAutoConnect?: boolean;
   }>
-> = ({
-  children,
-  ethereumAutoConnect,
-  initialBitcoinNetwork,
-  initialBitcoinPurpose,
-}) => {
+> = ({ children, initialBitcoinNetwork, initialBitcoinPurpose }) => {
   return (
     <MultiChainProvider
       bitcoinNetwork={initialBitcoinNetwork}
       bitcoinPurpose={initialBitcoinPurpose}
-      ethereumAutoConnect={ethereumAutoConnect}
     >
       {children}
     </MultiChainProvider>

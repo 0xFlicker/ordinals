@@ -1,11 +1,57 @@
 mutation Web3SiweSignIn($address: ID!, $jwe: String!) {
   siwe(address: $address, jwe: $jwe) {
-    token
+    data {
+      token
+      user {
+        id
+        addresses {
+          address
+          type
+        }
+        roles {
+          id
+          name
+        }
+        allowedActions {
+          action
+          resource
+          identifier
+        }
+        token
+        handle
+      }
+    }
+    problems {
+      message
+    }
   }
 }
 
 mutation Web3SiwbSignIn($address: ID!, $jwe: String!) {
   siwb(address: $address, jwe: $jwe) {
-    token
+    data {
+      token
+      user {
+        id
+        addresses {
+          address
+          type
+        }
+        roles {
+          id
+          name
+        }
+        allowedActions {
+          action
+          resource
+          identifier
+        }
+        token
+        handle
+      }
+    }
+    problems {
+      message
+    }
   }
 }

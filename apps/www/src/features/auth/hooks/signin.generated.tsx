@@ -9,7 +9,7 @@ export type Web3SiweSignInMutationVariables = Types.Exact<{
 }>;
 
 
-export type Web3SiweSignInMutation = { __typename?: 'Mutation', siwe: { __typename?: 'SignatureResponse', token?: string | null } };
+export type Web3SiweSignInMutation = { __typename?: 'Mutation', siwe: { __typename?: 'SiweResponse', data?: { __typename?: 'SiweData', token: string, user?: { __typename?: 'Web3User', id: string, token?: string | null, handle: string, addresses: Array<{ __typename?: 'Address', address: string, type: Types.AddressType }>, roles: Array<{ __typename?: 'Role', id: string, name: string }>, allowedActions: Array<{ __typename?: 'Permission', action: Types.PermissionAction, resource: Types.PermissionResource, identifier?: string | null }> } | null } | null, problems?: Array<{ __typename?: 'AuthProblem', message: string }> | null } };
 
 export type Web3SiwbSignInMutationVariables = Types.Exact<{
   address: Types.Scalars['ID']['input'];
@@ -17,13 +17,36 @@ export type Web3SiwbSignInMutationVariables = Types.Exact<{
 }>;
 
 
-export type Web3SiwbSignInMutation = { __typename?: 'Mutation', siwb: { __typename?: 'SignatureResponse', token?: string | null } };
+export type Web3SiwbSignInMutation = { __typename?: 'Mutation', siwb: { __typename?: 'SiwbResponse', data?: { __typename?: 'SiwbData', token: string, user?: { __typename?: 'Web3User', id: string, token?: string | null, handle: string, addresses: Array<{ __typename?: 'Address', address: string, type: Types.AddressType }>, roles: Array<{ __typename?: 'Role', id: string, name: string }>, allowedActions: Array<{ __typename?: 'Permission', action: Types.PermissionAction, resource: Types.PermissionResource, identifier?: string | null }> } | null } | null, problems?: Array<{ __typename?: 'AuthProblem', message: string }> | null } };
 
 
 export const Web3SiweSignInDocument = gql`
     mutation Web3SiweSignIn($address: ID!, $jwe: String!) {
   siwe(address: $address, jwe: $jwe) {
-    token
+    data {
+      token
+      user {
+        id
+        addresses {
+          address
+          type
+        }
+        roles {
+          id
+          name
+        }
+        allowedActions {
+          action
+          resource
+          identifier
+        }
+        token
+        handle
+      }
+    }
+    problems {
+      message
+    }
   }
 }
     `;
@@ -57,7 +80,30 @@ export type Web3SiweSignInMutationOptions = Apollo.BaseMutationOptions<Web3SiweS
 export const Web3SiwbSignInDocument = gql`
     mutation Web3SiwbSignIn($address: ID!, $jwe: String!) {
   siwb(address: $address, jwe: $jwe) {
-    token
+    data {
+      token
+      user {
+        id
+        addresses {
+          address
+          type
+        }
+        roles {
+          id
+          name
+        }
+        allowedActions {
+          action
+          resource
+          identifier
+        }
+        token
+        handle
+      }
+    }
+    problems {
+      message
+    }
   }
 }
     `;

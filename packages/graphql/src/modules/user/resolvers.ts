@@ -68,8 +68,12 @@ export const resolvers: UserModule.Resolvers = {
     },
   },
   Query: {
-    userByAddress: async (_, { address }, { getToken }) => {
-      return new Web3UserModel(address, getToken());
+    user: async (_, { id }, { getToken, userDao }) => {
+      return new Web3UserModel({
+        userId: id,
+        token: getToken(),
+        userDao: userDao,
+      });
     },
   },
   Mutation: {

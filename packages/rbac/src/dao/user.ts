@@ -156,7 +156,10 @@ export class UserDAO {
       }),
     );
     const { Items } = response;
-    const userId = Items?.[0]?.UserId;
+    if (!Items || Items.length === 0) {
+      throw new Error("User not found");
+    }
+    const userId = Items[0].UserId;
     const addresses =
       Items?.map((item) => ({
         type: item.AddressType as UserAddressType,

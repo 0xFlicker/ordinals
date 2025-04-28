@@ -1,12 +1,43 @@
-import { UserRolesDAO, UserWithRolesModel } from "@0xflick/ordinals-rbac";
+import {
+  UserDAO,
+  UserRolesDAO,
+  UserWithRolesModel,
+} from "@0xflick/ordinals-rbac";
 
 export class Web3UserModel {
   public readonly id: string;
   public readonly token?: string;
+  private _handle: Promise<string> | null;
+  public readonly userDao: UserDAO;
 
-  constructor(userId: string, token?: string) {
+  constructor({
+    userId,
+    token,
+    handle,
+    userDao,
+  }: {
+    userId: string;
+    token?: string;
+    handle?: string;
+    userDao: UserDAO;
+  }) {
     this.id = userId;
     this.token = token;
+    this._handle = handle ? Promise.resolve(handle) : null;
+    this.userDao = userDao;
+  }
+
+  public get handle() {
+    if (this._handle) {
+      return this._handle;
+    }
+    this._handle = this.primeHandle();
+    return this._handle;
+  }
+
+  private async primeHandle() {
+    const { handle } = await this.userDao.getUserById({ userId: this.id });
+    return handle ?? "UNKNOWN";
   }
 
   private _promiseUserRoles: Promise<UserWithRolesModel> | null = null;
@@ -28,17 +59,5 @@ export class Web3UserModel {
 
   public async withRoles({ userRolesDao }: { userRolesDao: UserRolesDAO }) {
     return await this.prime({ userRolesDao });
-  }
-}
-
-export class Web3LoginUserModel {
-  public readonly id: string;
-  public readonly token: string;
-  public readonly user: Web3UserModel;
-
-  constructor({ userId, token }: { userId: string; token: string }) {
-    this.id = userId;
-    this.token = token;
-    this.user = new Web3UserModel(userId, token);
   }
 }

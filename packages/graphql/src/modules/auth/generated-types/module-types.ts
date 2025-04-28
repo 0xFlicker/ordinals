@@ -5,11 +5,14 @@ export namespace AuthModule {
   interface DefinedFields {
     AppInfo: 'name' | 'pubKey';
     AuthProblem: 'message';
-    SignupAnonymouslyResponse: 'user' | 'problems';
-    SignatureResponse: 'token' | 'problems';
-    SignupBitcoinResponse: 'user' | 'problems';
+    SignUpAnonymouslyResponse: 'user' | 'problems';
+    SiwbData: 'token' | 'user';
+    SiwbResponse: 'data' | 'problems';
+    SiweData: 'token' | 'user';
+    SiweResponse: 'data' | 'problems';
+    SignInBitcoinResponse: 'user' | 'problems';
     Query: 'appInfo' | 'self' | 'checkUserExistsForAddress' | 'checkUserExistsForHandle';
-    Mutation: 'signupAnonymously' | 'siwe' | 'siwb' | 'signupBitcoin' | 'signOutEthereum' | 'signOutBitcoin';
+    Mutation: 'signUpAnonymously' | 'siwe' | 'siwb' | 'signInBitcoin' | 'signOutEthereum' | 'signOutBitcoin';
   };
   
   interface DefinedEnumValues {
@@ -17,34 +20,43 @@ export namespace AuthModule {
   };
   
   interface DefinedInputFields {
-    SignupAnonymouslyRequest: 'token' | 'handle';
+    SignUpAnonymouslyRequest: 'token' | 'handle';
   };
   
   export type AppInfo = Pick<Types.AppInfo, DefinedFields['AppInfo']>;
   export type AuthProblem = Pick<Types.AuthProblem, DefinedFields['AuthProblem']>;
-  export type SignupAnonymouslyRequest = Pick<Types.SignupAnonymouslyRequest, DefinedInputFields['SignupAnonymouslyRequest']>;
-  export type SignupAnonymouslyResponse = Pick<Types.SignupAnonymouslyResponse, DefinedFields['SignupAnonymouslyResponse']>;
+  export type SignUpAnonymouslyRequest = Pick<Types.SignUpAnonymouslyRequest, DefinedInputFields['SignUpAnonymouslyRequest']>;
+  export type SignUpAnonymouslyResponse = Pick<Types.SignUpAnonymouslyResponse, DefinedFields['SignUpAnonymouslyResponse']>;
   export type Web3User = Types.Web3User;
   export type Web3Namespace = DefinedEnumValues['Web3Namespace'];
-  export type SignatureResponse = Pick<Types.SignatureResponse, DefinedFields['SignatureResponse']>;
-  export type SignupBitcoinResponse = Pick<Types.SignupBitcoinResponse, DefinedFields['SignupBitcoinResponse']>;
+  export type SiwbData = Pick<Types.SiwbData, DefinedFields['SiwbData']>;
+  export type SiwbResponse = Pick<Types.SiwbResponse, DefinedFields['SiwbResponse']>;
+  export type SiweData = Pick<Types.SiweData, DefinedFields['SiweData']>;
+  export type SiweResponse = Pick<Types.SiweResponse, DefinedFields['SiweResponse']>;
+  export type SignInBitcoinResponse = Pick<Types.SignInBitcoinResponse, DefinedFields['SignInBitcoinResponse']>;
   export type Query = Pick<Types.Query, DefinedFields['Query']>;
   export type Mutation = Pick<Types.Mutation, DefinedFields['Mutation']>;
   
   export type AppInfoResolvers = Pick<Types.AppInfoResolvers, DefinedFields['AppInfo'] | '__isTypeOf'>;
   export type AuthProblemResolvers = Pick<Types.AuthProblemResolvers, DefinedFields['AuthProblem'] | '__isTypeOf'>;
-  export type SignupAnonymouslyResponseResolvers = Pick<Types.SignupAnonymouslyResponseResolvers, DefinedFields['SignupAnonymouslyResponse'] | '__isTypeOf'>;
-  export type SignatureResponseResolvers = Pick<Types.SignatureResponseResolvers, DefinedFields['SignatureResponse'] | '__isTypeOf'>;
-  export type SignupBitcoinResponseResolvers = Pick<Types.SignupBitcoinResponseResolvers, DefinedFields['SignupBitcoinResponse'] | '__isTypeOf'>;
+  export type SignUpAnonymouslyResponseResolvers = Pick<Types.SignUpAnonymouslyResponseResolvers, DefinedFields['SignUpAnonymouslyResponse'] | '__isTypeOf'>;
+  export type SiwbDataResolvers = Pick<Types.SiwbDataResolvers, DefinedFields['SiwbData'] | '__isTypeOf'>;
+  export type SiwbResponseResolvers = Pick<Types.SiwbResponseResolvers, DefinedFields['SiwbResponse'] | '__isTypeOf'>;
+  export type SiweDataResolvers = Pick<Types.SiweDataResolvers, DefinedFields['SiweData'] | '__isTypeOf'>;
+  export type SiweResponseResolvers = Pick<Types.SiweResponseResolvers, DefinedFields['SiweResponse'] | '__isTypeOf'>;
+  export type SignInBitcoinResponseResolvers = Pick<Types.SignInBitcoinResponseResolvers, DefinedFields['SignInBitcoinResponse'] | '__isTypeOf'>;
   export type QueryResolvers = Pick<Types.QueryResolvers, DefinedFields['Query']>;
   export type MutationResolvers = Pick<Types.MutationResolvers, DefinedFields['Mutation']>;
   
   export interface Resolvers {
     AppInfo?: AppInfoResolvers;
     AuthProblem?: AuthProblemResolvers;
-    SignupAnonymouslyResponse?: SignupAnonymouslyResponseResolvers;
-    SignatureResponse?: SignatureResponseResolvers;
-    SignupBitcoinResponse?: SignupBitcoinResponseResolvers;
+    SignUpAnonymouslyResponse?: SignUpAnonymouslyResponseResolvers;
+    SiwbData?: SiwbDataResolvers;
+    SiwbResponse?: SiwbResponseResolvers;
+    SiweData?: SiweDataResolvers;
+    SiweResponse?: SiweResponseResolvers;
+    SignInBitcoinResponse?: SignInBitcoinResponseResolvers;
     Query?: QueryResolvers;
     Mutation?: MutationResolvers;
   };
@@ -62,17 +74,32 @@ export namespace AuthModule {
       '*'?: gm.Middleware[];
       message?: gm.Middleware[];
     };
-    SignupAnonymouslyResponse?: {
+    SignUpAnonymouslyResponse?: {
       '*'?: gm.Middleware[];
       user?: gm.Middleware[];
       problems?: gm.Middleware[];
     };
-    SignatureResponse?: {
+    SiwbData?: {
       '*'?: gm.Middleware[];
       token?: gm.Middleware[];
+      user?: gm.Middleware[];
+    };
+    SiwbResponse?: {
+      '*'?: gm.Middleware[];
+      data?: gm.Middleware[];
       problems?: gm.Middleware[];
     };
-    SignupBitcoinResponse?: {
+    SiweData?: {
+      '*'?: gm.Middleware[];
+      token?: gm.Middleware[];
+      user?: gm.Middleware[];
+    };
+    SiweResponse?: {
+      '*'?: gm.Middleware[];
+      data?: gm.Middleware[];
+      problems?: gm.Middleware[];
+    };
+    SignInBitcoinResponse?: {
       '*'?: gm.Middleware[];
       user?: gm.Middleware[];
       problems?: gm.Middleware[];
@@ -86,10 +113,10 @@ export namespace AuthModule {
     };
     Mutation?: {
       '*'?: gm.Middleware[];
-      signupAnonymously?: gm.Middleware[];
+      signUpAnonymously?: gm.Middleware[];
       siwe?: gm.Middleware[];
       siwb?: gm.Middleware[];
-      signupBitcoin?: gm.Middleware[];
+      signInBitcoin?: gm.Middleware[];
       signOutEthereum?: gm.Middleware[];
       signOutBitcoin?: gm.Middleware[];
     };

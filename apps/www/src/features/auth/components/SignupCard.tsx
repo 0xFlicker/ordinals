@@ -14,11 +14,15 @@ import CheckIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/ErrorRounded";
 import { useXverse } from "@/features/xverse";
 import { useXverseConnect } from "@/features/xverse/hooks/useXverseConnect";
-import { useSignupAnonymouslyMutation } from "../hooks/signUp.generated";
+import { useSignUpAnonymouslyMutation } from "../hooks/signUp.generated";
 import { useRouter } from "next/navigation";
 import { useCheckNameLazyQuery } from "../hooks/checkName.generated";
 import { useGetAppInfoQuery } from "../hooks/app.generated";
-
+import {
+  IUserWithRoles,
+  UserWithRolesModel,
+} from "@0xflick/ordinals-rbac-models";
+import { useBitflickWallet } from "@/features/wallet-standard/hooks/useBitflickWallet";
 // Define the possible states for the signup flow
 type SignupState = "CONNECT" | "SIGN" | "PICK_HANDLE";
 
@@ -85,12 +89,25 @@ const PickHandleContent: FC<{
   );
 };
 
-export const SignupCard: FC = () => {
+export const SignupCard: FC<{
+  onSignup?: (user: IUserWithRoles) => void;
+}> = ({ onSignup }) => {
   const router = useRouter();
-  const { handleBitcoinConnect, isConnected, isConnecting, ordinalsAddress } =
-    useXverseConnect();
+  // const { handleBitcoinConnect, isConnected, isConnecting, ordinalsAddress } =
+  //   useXverseConnect();
+  const {
+    connectBtc,
+    loginBtc,
+    isConnected,
+    isConnecting,
+    isLoggedIn,
+    isLoggingIn,
+    setNeedsBitcoinSelection,
+    setNeedsEvmSelection,
+    btcAccounts,
+  } = useBitflickWallet();
 
-  const [signupAnonymously] = useSignupAnonymouslyMutation();
+  const [signUpAnonymously] = useSignUpAnonymouslyMutation();
   const [checkName, { data: checkNameData, loading: isLoadingCheckName }] =
     useCheckNameLazyQuery();
 
@@ -147,19 +164,50 @@ export const SignupCard: FC = () => {
 
   // Handle the connect button click
   const handleConnect = useCallback(async () => {
-    if (["CONNECT", "SIGN"].includes(signupState)) {
-      const newToken = await handleBitcoinConnect();
-      if (newToken) {
-        setToken(newToken);
-        setSignupState("PICK_HANDLE");
-      }
+    switch (signupState) {
+      case "CONNECT":
+        if (isConnected) {
+          await connectBtc();
+        } else {
+          setNeedsBitcoinSelection(true);
+        }
+        break;
+      case "SIGN":
+        if (btcAccounts.length > 0) {
+          const response = await loginBtc(btcAccounts[0].address);
+          if (!response) {
+            setNeedsBitcoinSelection(true);
+          } else if ("user" in response && response.user) {
+            onSignup?.(response.user);
+            return response;
+          } else if ("token" in response && response.token) {
+            setToken(response.token);
+            setSignupState("PICK_HANDLE");
+            return response;
+          } else {
+            setNeedsBitcoinSelection(true);
+          }
+        } else {
+          setNeedsBitcoinSelection(true);
+        }
+        break;
     }
-  }, [handleBitcoinConnect, signupState]);
+    // if (["CONNECT", "SIGN"].includes(signupState)) {
+    //   const { token: newToken, user } = (await handleBitcoinConnect()) ?? {};
+    //   if (user) {
+    //     // If a user is returned, the address has already been used
+    //     onSignup?.(user);
+    //   } else if (newToken) {
+    //     setToken(newToken);
+    //     setSignupState("PICK_HANDLE");
+    //   }
+    // }
+  }, [connectBtc, signupState, onSignup]);
 
   // Handle the signup with handle
   const handleSignup = useCallback(async () => {
     if (token && isValid === true && isHandleVerified) {
-      const { data } = await signupAnonymously({
+      const { data } = await signUpAnonymously({
         variables: {
           request: {
             token,
@@ -167,11 +215,17 @@ export const SignupCard: FC = () => {
           },
         },
       });
-      if (data?.signupAnonymously.user) {
-        router.push(`/`);
+      if (data?.signUpAnonymously.user) {
+        onSignup?.(
+          new UserWithRolesModel({
+            userId: data.signUpAnonymously.user.id,
+            handle,
+            roleIds: data.signUpAnonymously.user.roles.map((role) => role.id),
+          })
+        );
       }
     }
-  }, [token, handle, isValid, isHandleVerified, signupAnonymously, router]);
+  }, [token, handle, isValid, isHandleVerified, signUpAnonymously, onSignup]);
 
   // Handle updating the handle
   const updateHandle = useCallback((newHandle: string) => {

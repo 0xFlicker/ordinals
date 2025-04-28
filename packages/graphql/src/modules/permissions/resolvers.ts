@@ -93,7 +93,7 @@ export const resolvers: PermissionsModule.Resolvers = {
       return role;
     },
     bindToUser: async ({ id }, { userId }, context) => {
-      const { userRolesDao, rolesDao } = context;
+      const { userRolesDao, rolesDao, userDao } = context;
       await verifyAuthorizedUser({
         authorizer: canPerformUpdateUserAndRoleAction,
         ...context,
@@ -103,7 +103,7 @@ export const resolvers: PermissionsModule.Resolvers = {
         userId,
         rolesDao,
       });
-      return new Web3UserModel(userId);
+      return new Web3UserModel({ userId, userDao });
     },
     removePermissions: async (role, { permissions }, context) => {
       const { rolePermissionsDao } = context;
@@ -118,7 +118,7 @@ export const resolvers: PermissionsModule.Resolvers = {
       return role;
     },
     unbindFromUser: async ({ id }, { userId }, context) => {
-      const { userRolesDao, rolesDao } = context;
+      const { userRolesDao, rolesDao, userDao } = context;
       await verifyAuthorizedUser({
         authorizer: canPerformUpdateUserAndRoleAction,
         ...context,
@@ -128,7 +128,7 @@ export const resolvers: PermissionsModule.Resolvers = {
         userId,
         rolesDao,
       });
-      return new Web3UserModel(userId);
+      return new Web3UserModel({ userId, userDao });
     },
     delete: async ({ id }, _, context) => {
       const { rolesDao, userRolesDao, rolePermissionsDao } = context;

@@ -7,12 +7,12 @@ type AuthProblem {
   message: String!
 }
 
-input SignupAnonymouslyRequest {
+input SignUpAnonymouslyRequest {
   token: String!
   handle: String!
 }
 
-type SignupAnonymouslyResponse {
+type SignUpAnonymouslyResponse {
   user: Web3User
   problems: [AuthProblem!]
 }
@@ -22,12 +22,27 @@ enum Web3Namespace {
   SIWB
 }
 
-type SignatureResponse {
-  token: String
+type SiwbData {
+  token: String!
+  user: Web3User
+}
+
+type SiwbResponse {
+  data: SiwbData
   problems: [AuthProblem!]
 }
 
-type SignupBitcoinResponse {
+type SiweData {
+  token: String!
+  user: Web3User
+}
+
+type SiweResponse {
+  data: SiweData
+  problems: [AuthProblem!]
+}
+
+type SignInBitcoinResponse {
   user: Web3User
   problems: [AuthProblem!]
 }
@@ -40,13 +55,13 @@ type Query {
 }
 
 type Mutation {
-  signupAnonymously(
-    request: SignupAnonymouslyRequest!
-  ): SignupAnonymouslyResponse!
-  siwe(address: ID!, jwe: String!): SignatureResponse!
-  siwb(address: ID!, jwe: String!): SignatureResponse!
+  signUpAnonymously(
+    request: SignUpAnonymouslyRequest!
+  ): SignUpAnonymouslyResponse!
+  siwe(address: ID!, jwe: String!): SiweResponse!
+  siwb(address: ID!, jwe: String!): SiwbResponse!
 
-  signupBitcoin(address: ID!, jwe: String!): SignupBitcoinResponse!
+  signInBitcoin(address: ID!, jwe: String!): SignInBitcoinResponse!
 
   signOutEthereum: Boolean!
   signOutBitcoin: Boolean!

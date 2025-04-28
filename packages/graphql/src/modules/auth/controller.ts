@@ -85,7 +85,7 @@ export async function authorizedUser({
     throw new AuthError("Not authenticated", "NOT_AUTHENTICATED");
   }
 
-  const user = await verifyJwtForLogin(token, TokenModel.JWT_CLAIM_ISSUER);
+  const user = await verifyJwtForLogin(token);
   if (!user) {
     throw new AuthError("Invalid token", "NOT_AUTHENTICATED");
   }
@@ -93,13 +93,6 @@ export async function authorizedUser({
   const roleIds: string[] = [];
   for await (const roleId of userRolesDao.getRoleIds(user.userId)) {
     roleIds.push(roleId);
-  }
-
-  // Verify that no roles are claimed that don't exist
-  for (const roleId of user.roleIds) {
-    if (!roleIds.includes(roleId)) {
-      throw new AuthError("Invalid token", "NOT_AUTHENTICATED");
-    }
   }
 
   return new UserWithRolesModel({

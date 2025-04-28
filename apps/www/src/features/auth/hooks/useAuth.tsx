@@ -219,91 +219,91 @@ function useAuthContext({ autoLogin = false }: { autoLogin?: boolean }) {
     fetchSiweToken,
   ]);
 
-  useEffect(() => {
-    if (
-      nonceIsSuccess &&
-      nonceData &&
-      tokenIsSuccess &&
-      siweTokenData &&
-      address &&
-      issuer
-    ) {
-      const token = siweTokenData.siwe?.token;
-      const pubKey = nonceData?.nonceEthereum?.pubKey;
-      if (!token || !pubKey) {
-        // TODO: toast
-        console.warn("No token returned from server");
-        setState("ANONYMOUS");
-        setRoleIds([]);
-        setStateToken(null);
-        return;
-      }
-      const key = importKey(pubKey);
-      async function verifyToken() {
-        if (!token) {
-          setState("ANONYMOUS");
-          setRoleIds([]);
-          setStateToken(null);
-          return;
-        }
-        try {
-          switch (siweReason) {
-            case "LOGIN": {
-              setRoleIds(authUser.roleIds);
-              setStateToken(token);
-              setState("AUTHENTICATED");
-              refetchSelf();
-              break;
-            }
-            case "SIGNUP": {
-              await verifyJwtForNewUserCreation(token);
-              setStateToken(token);
-              setState("AUTHENTICATED");
-              refetchSelf();
-              break;
-            }
-            case "ADD_ADDRESS": {
-              if (address) {
-                await verifyJwtForAddressAddition(token, address);
-                setStateToken(token);
-                setState("AUTHENTICATED");
-                refetchSelf();
-              } else {
-                console.warn(`Unable to parse token for ${address}`);
-                // TODO: toast
-                setState("ANONYMOUS");
-                setRoleIds([]);
-                setStateToken(null);
-              }
-              break;
-            }
-            default:
-              console.warn(`Unable to parse token for ${address}`);
-              // TODO: toast
-              setState("ANONYMOUS");
-              setRoleIds([]);
-              setStateToken(null);
-          }
-        } catch (err) {
-          console.error(err);
-          // TODO: toast
-          setState("ANONYMOUS");
-          setRoleIds([]);
-          setStateToken(null);
-        }
-      }
-      verifyToken();
-    }
-  }, [
-    address,
-    issuer,
-    nonceData,
-    nonceIsSuccess,
-    tokenIsSuccess,
-    refetchSelf,
-    siweTokenData,
-    siweReason,
-  ]);
+  // useEffect(() => {
+  //   if (
+  //     nonceIsSuccess &&
+  //     nonceData &&
+  //     tokenIsSuccess &&
+  //     siweTokenData &&
+  //     address &&
+  //     issuer
+  //   ) {
+  //     const token = siweTokenData.siwe?.data?.token;
+  //     const pubKey = nonceData?.nonceEthereum?.pubKey;
+  //     const authUser = siweTokenData.siwe?.data?.user;
+  //     if (!token || !pubKey) {
+  //       // TODO: toast
+  //       console.warn("No token returned from server");
+  //       setState("ANONYMOUS");
+  //       setRoleIds([]);
+  //       setStateToken(null);
+  //       return;
+  //     }
+  //     async function verifyToken() {
+  //       if (!token) {
+  //         setState("ANONYMOUS");
+  //         setRoleIds([]);
+  //         setStateToken(null);
+  //         return;
+  //       }
+  //       try {
+  //         switch (siweReason) {
+  //           case "LOGIN": {
+  //             setRoleIds(authUser.roleIds);
+  //             setStateToken(token);
+  //             setState("AUTHENTICATED");
+  //             refetchSelf();
+  //             break;
+  //           }
+  //           case "SIGNUP": {
+  //             await verifyJwtForNewUserCreation(token);
+  //             setStateToken(token);
+  //             setState("AUTHENTICATED");
+  //             refetchSelf();
+  //             break;
+  //           }
+  //           case "ADD_ADDRESS": {
+  //             if (address) {
+  //               await verifyJwtForAddressAddition(token, address);
+  //               setStateToken(token);
+  //               setState("AUTHENTICATED");
+  //               refetchSelf();
+  //             } else {
+  //               console.warn(`Unable to parse token for ${address}`);
+  //               // TODO: toast
+  //               setState("ANONYMOUS");
+  //               setRoleIds([]);
+  //               setStateToken(null);
+  //             }
+  //             break;
+  //           }
+  //           default:
+  //             console.warn(`Unable to parse token for ${address}`);
+  //             // TODO: toast
+  //             setState("ANONYMOUS");
+  //             setRoleIds([]);
+  //             setStateToken(null);
+  //         }
+  //       } catch (err) {
+  //         console.error(err);
+  //         // TODO: toast
+  //         setState("ANONYMOUS");
+  //         setRoleIds([]);
+  //         setStateToken(null);
+  //       }
+  //     }
+  //     verifyToken();
+  //   }
+  // }, [
+  //   address,
+  //   issuer,
+  //   nonceData,
+  //   nonceIsSuccess,
+  //   tokenIsSuccess,
+  //   refetchSelf,
+  //   siweTokenData,
+  //   siweReason,
+  // ]);
   const setToken = useCallback(
     async (token: string) => {
       // decode token

@@ -5,9 +5,9 @@ export namespace UserModule {
   interface DefinedFields {
     Address: 'type' | 'address';
     Nonce: 'nonce' | 'messageToSign' | 'domain' | 'expiration' | 'issuedAt' | 'uri' | 'version' | 'chainId' | 'pubKey' | 'address';
-    Web3User: 'id' | 'addresses' | 'roles' | 'allowedActions' | 'token';
+    Web3User: 'id' | 'addresses' | 'roles' | 'allowedActions' | 'token' | 'handle';
     Mutation: 'nonceEthereum' | 'nonceBitcoin' | 'nonceFrame';
-    Query: 'userByAddress';
+    Query: 'user';
   };
   
   interface DefinedEnumValues {
@@ -66,6 +66,7 @@ export namespace UserModule {
       roles?: gm.Middleware[];
       allowedActions?: gm.Middleware[];
       token?: gm.Middleware[];
+      handle?: gm.Middleware[];
     };
     Mutation?: {
       '*'?: gm.Middleware[];
@@ -75,7 +76,7 @@ export namespace UserModule {
     };
     Query?: {
       '*'?: gm.Middleware[];
-      userByAddress?: gm.Middleware[];
+      user?: gm.Middleware[];
     };
   };
 }

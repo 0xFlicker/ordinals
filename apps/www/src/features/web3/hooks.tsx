@@ -4,22 +4,23 @@ import {
   PropsWithChildren,
   useContext,
   useEffect,
-  useLayoutEffect,
   useState,
 } from "react";
+
 import {
   useAccount,
+  useChainId,
+  useChains,
   useConnect,
-  Chain,
-  useNetwork,
   useDisconnect,
-  useSwitchNetwork,
+  useSwitchChain,
 } from "wagmi";
 import "@wagmi/core";
 import "@wagmi/connectors";
 import { defaultChain } from "@/utils/config";
 import { appConnectors } from "./wagmi";
 import { useDeferFirstRender } from "@/hooks/useDeferredRender";
+import { Chain } from "viem";
 
 export type TChain = Chain & {
   chainImageUrl: string;
@@ -73,12 +74,13 @@ export const useLocalLastSeemNetwork = ({
 export function useWeb3Context() {
   const [triedDefaultChain, setTriedDefaultChain] = useState(false);
   const { connector: activeConnector, isConnected, address } = useAccount();
-  const { connect, isLoading, data: provider } = useConnect();
+  const { connect, data: provider } = useConnect();
   const { disconnect } = useDisconnect();
   // We don't want the address to be available on first load so that client render matches server render
   const isFirstLoad = useDeferFirstRender();
-  const { chain } = useNetwork();
-  const { switchNetwork } = useSwitchNetwork();
+  const chainId = useChainId();
+  const chains = useChains();
+  const { switchChain } = useSwitchChain();
   useEffect(() => {
     if (isConnected && activeConnector?.name) {
       localStorage.setItem(
@@ -92,23 +94,26 @@ export function useWeb3Context() {
   useEffect(() => {
     if (
       !triedDefaultChain &&
-      chain?.id !== defaultChain.get().id &&
-      switchNetwork
+      chainId !== defaultChain.get().id &&
+      switchChain
     ) {
-      switchNetwork(defaultChain.get().id);
+      switchChain({
+        chainId: defaultChain.get().id,
+      });
       setTriedDefaultChain(true);
     }
-  }, [isFirstLoad, chain, switchNetwork, triedDefaultChain]);
+  }, [isFirstLoad, chainId, triedDefaultChain, switchChain]);
 
   const result = {
-    currentChain: isFirstLoad ? undefined : chain,
+    currentChain: isFirstLoad
+      ? undefined
+      : chains.find((c) => c.id === chainId),
     provider,
     selectedAddress: isFirstLoad ? undefined : address,
     connect,
     reset: disconnect,
     activeConnector,
     isConnected,
-    isLoading,
   };
 
   return result;
@@ -131,3 +136,44 @@ export function useWeb3() {
   }
   return context;
 }
+
+const WALLET_FLAGS = [
+  "isApexWallet",
+  "isAvalanche",
+  "isBackpack",
+  "isBifrost",
+  "isBitKeep",
+  "isBitski",
+  "isBlockWallet",
+  "isBraveWallet",
+  "isCoinbaseWallet",
+  "isDawn",
+  "isEnkrypt",
+  "isExodus",
+  "isFrame",
+  "isFrontier",
+  "isGamestop",
+  "isHyperPay",
+  "isImToken",
+  "isKuCoinWallet",
+  "isMathWallet",
+  "isOkxWallet",
+  "isOKExWallet",
+  "isOneInchAndroidWallet",
+  "isOneInchIOSWallet",
+  "isOpera",
+  "isPhantom",
+  "isPortal",
+  "isRabby",
+  "isRainbow",
+  "isStatus",
+  "isTally",
+  "isTokenPocket",
+  "isTokenary",
+  "isTrust",
+  "isTrustWallet",
+  "isUniswapWallet",
+  "isXDEFI",
+  "isZerion",
+] as const;
+// type WalletFlag = (typeof WALLET_FLAGS)[number];

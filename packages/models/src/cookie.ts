@@ -1,9 +1,12 @@
 import { serialize, parse } from "cookie";
 
-const bitcoinCookieName =
-  process.env.BITCOIN_SESSION_COOKIE || "next-auth.siwb-session";
-const ethereumCookieName =
-  process.env.ETHEREUM_SESSION_COOKIE || "next-auth.siwe-session";
+export const bitcoinCookieName =
+  process.env.BITCOIN_SESSION_COOKIE || "bitflick.siwb-session";
+export const ethereumCookieName =
+  process.env.ETHEREUM_SESSION_COOKIE || "bitflick.siwe-session";
+
+export const sessionCookieName =
+  process.env.SESSION_COOKIE || "bitflick.session";
 
 export const sessionExpiration =
   Number(process.env.SIWE_EXPIRATION_TIME_SECONDS) || 60 * 60 * 24 * 7;

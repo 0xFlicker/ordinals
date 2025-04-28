@@ -1,3 +1,4 @@
+"use client";
 import NextLink from "next/link";
 import { Link as MUILink, LinkProps } from "@mui/material";
 import { FC, PropsWithChildren, forwardRef } from "react";

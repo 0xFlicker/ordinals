@@ -1,29 +1,36 @@
 import { serialize, parse } from "cookie";
 
 const bitcoinCookieName =
-  process.env.BITCOIN_SESSION_COOKIE || "next-auth.siwb-session";
+  process.env.BITCOIN_SESSION_COOKIE || "bitflick.siwb-session";
 const ethereumCookieName =
-  process.env.ETHEREUM_SESSION_COOKIE || "next-auth.siwe-session";
-const sessionCookieName = process.env.SESSION_COOKIE || "session";
+  process.env.ETHEREUM_SESSION_COOKIE || "bitflick.siwe-session";
+const sessionCookieName = process.env.SESSION_COOKIE || "bitflick.session";
 
 export const ethereumSessionExpirationSeconds =
   Number(process.env.SIWE_EXPIRATION_TIME_SECONDS) || 60 * 60 * 24 * 7;
 export const bitcoinSessionExpirationSeconds =
   Number(process.env.SIWB_EXPIRATION_TIME_SECONDS) || 60 * 60 * 24 * 365;
+export const sessionCookieExpirationSeconds =
+  Number(process.env.SESSION_COOKIE_EXPIRATION_TIME_SECONDS) ||
+  ethereumSessionExpirationSeconds;
 
 export function sessionFromNamespace(namespace?: string) {
   // because siwe was first....
   if (namespace === "siwb") {
     return bitcoinCookieName;
+  } else if (namespace === "siwe") {
+    return ethereumCookieName;
   }
-  return ethereumCookieName;
+  return sessionCookieName;
 }
 
 export function sessionExpirationFromNamespace(namespace?: string) {
   if (namespace === "siwb") {
     return bitcoinSessionExpirationSeconds;
+  } else if (namespace === "siwe") {
+    return ethereumSessionExpirationSeconds;
   }
-  return ethereumSessionExpirationSeconds;
+  return sessionCookieExpirationSeconds;
 }
 
 export function serializeSessionCookie({

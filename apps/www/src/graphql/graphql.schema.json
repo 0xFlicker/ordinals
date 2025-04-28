@@ -3274,72 +3274,7 @@
             "deprecationReason": null
           },
           {
-            "name": "signOutBitcoin",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "signOutEthereum",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "signupAnonymously",
-            "description": null,
-            "args": [
-              {
-                "name": "request",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "SignupAnonymouslyRequest",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "SignupAnonymouslyResponse",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "signupBitcoin",
+            "name": "signInBitcoin",
             "description": null,
             "args": [
               {
@@ -3380,7 +3315,72 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "SignupBitcoinResponse",
+                "name": "SignInBitcoinResponse",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "signOutBitcoin",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "signOutEthereum",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "signUpAnonymously",
+            "description": null,
+            "args": [
+              {
+                "name": "request",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "SignUpAnonymouslyRequest",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "SignUpAnonymouslyResponse",
                 "ofType": null
               }
             },
@@ -3429,7 +3429,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "SignatureResponse",
+                "name": "SiwbResponse",
                 "ofType": null
               }
             },
@@ -3478,7 +3478,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "SignatureResponse",
+                "name": "SiweResponse",
                 "ofType": null
               }
             },
@@ -4951,11 +4951,11 @@
             "deprecationReason": null
           },
           {
-            "name": "userByAddress",
+            "name": "user",
             "description": null,
             "args": [
               {
-                "name": "address",
+                "name": "id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -5238,7 +5238,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "SignatureResponse",
+        "name": "SignInBitcoinResponse",
         "description": null,
         "fields": [
           {
@@ -5262,12 +5262,12 @@
             "deprecationReason": null
           },
           {
-            "name": "token",
+            "name": "user",
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
+              "kind": "OBJECT",
+              "name": "Web3User",
               "ofType": null
             },
             "isDeprecated": false,
@@ -5281,7 +5281,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "SignupAnonymouslyRequest",
+        "name": "SignUpAnonymouslyRequest",
         "description": null,
         "fields": null,
         "inputFields": [
@@ -5324,7 +5324,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "SignupAnonymouslyResponse",
+        "name": "SignUpAnonymouslyResponse",
         "description": null,
         "fields": [
           {
@@ -5367,9 +5367,60 @@
       },
       {
         "kind": "OBJECT",
-        "name": "SignupBitcoinResponse",
+        "name": "SiwbData",
         "description": null,
         "fields": [
+          {
+            "name": "token",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "user",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "Web3User",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "SiwbResponse",
+        "description": null,
+        "fields": [
+          {
+            "name": "data",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "SiwbData",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "problems",
             "description": null,
@@ -5389,6 +5440,33 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "SiweData",
+        "description": null,
+        "fields": [
+          {
+            "name": "token",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           },
           {
             "name": "user",
@@ -5398,6 +5476,49 @@
               "kind": "OBJECT",
               "name": "Web3User",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "SiweResponse",
+        "description": null,
+        "fields": [
+          {
+            "name": "data",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "SiweData",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "problems",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "AuthProblem",
+                  "ofType": null
+                }
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -5489,6 +5610,22 @@
                     "ofType": null
                   }
                 }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "handle",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
               }
             },
             "isDeprecated": false,
