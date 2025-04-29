@@ -1,67 +1,60 @@
 import { Inter } from "next/font/google";
 import { utils } from "ethers";
+import { Metadata } from "next";
 
 const inter = Inter({ subsets: ["latin"] });
-
-export const metadata = {
-  title: "Bitflick",
-  description: "Bitflick inscription launchpad",
-};
 
 const NEXT_PUBLIC_FRAME_URL = "https://frame.bitflick.xyz";
 const NEXT_PUBLIC_WWW_URL = "https://www.bitflick.xyz";
 
+export async function generateMetadata({
+  params: { collectionId },
+}: {
+  params: { collectionId: string };
+}): Promise<Metadata> {
+  const seed = utils.hexlify(utils.randomBytes(32));
+
+  return {
+    title: "Bitflick",
+    description: "Bitflick inscription launchpad",
+    openGraph: {
+      siteName: "bitflick",
+      title: "Axolotl Valley",
+      description: "mint an axolotl on bitcoin",
+      images: [{ url: "https://www.bitflick.xyz/images/axolotl.png" }],
+    },
+    twitter: {
+      title: "Axolotl Valley",
+      description: "mint an axolotl on bitcoin",
+      card: "summary_large_image",
+      creator: "@0xflick",
+      images: ["https://www.bitflick.xyz/images/axolotl.png"],
+    },
+    verification: {
+      other: {
+        lr: "LR1011",
+      },
+    },
+    other: {
+      "fc:frame": "vNext",
+      "fc:frame:image": `${NEXT_PUBLIC_FRAME_URL}/frame-og/axolotl/${seed}`,
+      "fc:frame:button:1": "CLOSED",
+      // Uncomment these if needed
+      // "fc:frame:input:text": "Enter a BTC taproot address",
+      // "fc:frame:button:1": "mint 1",
+      // "fc:frame:button:2": "mint 3",
+      // "fc:frame:button:3": "mint 5",
+      // "fc:frame:button:4": "mint 10",
+      // "fc:frame:post_url": `${NEXT_PUBLIC_WWW_URL}/api/frame/${collectionId}/axolotl/address`,
+    },
+  };
+}
+
 export default function RootLayout({
   children,
-  params: { collectionId },
 }: {
   params: { collectionId: string };
   children: React.ReactNode;
 }) {
-  const seed = utils.hexlify(utils.randomBytes(32));
-  return (
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <meta property="og:site_name" content="bitflick" />
-        <meta property="og:title" content="Axolotl Valley" />
-        <meta property="og:description" content="mint an axolotl on bitcoin" />
-        <meta
-          property="og:image"
-          content="https://www.bitflick.xyz/images/axolotl.png"
-        />
-        <meta property="twitter:title" content="Axolotl Valley" />
-        <meta
-          property="twitter:description"
-          content="mint an axolotl on bitcoin"
-        />
-        <meta content="verification" name="LR1011" />
-        <meta
-          property="twitter:image"
-          content="https://www.bitflick.xyz/images/axolotl.png"
-        />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:creator" content="@0xflick" />
-        <meta property="fc:frame" content="vNext" />
-        <meta
-          property="fc:frame:image"
-          content={`${NEXT_PUBLIC_FRAME_URL}/frame-og/axolotl/${seed}`}
-        />
-        {/* <meta
-          property="fc:frame:input:text"
-          content="Enter a BTC taproot address"
-        /> */}
-        <meta property="fc:frame:button:1" content="CLOSED" />
-        {/* <meta property="fc:frame:button:1" content="mint 1" />
-        <meta property="fc:frame:button:2" content="mint 3" />
-        <meta property="fc:frame:button:3" content="mint 5" />
-        <meta property="fc:frame:button:4" content="mint 10" />
-        <meta
-          property="fc:frame:post_url"
-          content={`${NEXT_PUBLIC_WWW_URL}/api/frame/${collectionId}/axolotl/address`}
-        /> */}
-      </head>
-      <body className={inter.className}>{children}</body>
-    </html>
-  );
+  return children;
 }

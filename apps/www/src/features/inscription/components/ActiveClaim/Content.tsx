@@ -1,3 +1,4 @@
+"use client";
 import { FC, useCallback, useState } from "react";
 import { Address } from "@cmdcode/tapscript";
 import { FeeLevel } from "@/graphql/types";

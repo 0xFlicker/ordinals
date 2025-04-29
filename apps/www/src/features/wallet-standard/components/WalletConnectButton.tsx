@@ -1,3 +1,4 @@
+"use client";
 import React, { FC, useEffect } from "react";
 import { useBitflickWallet } from "../Context";
 import Button from "@mui/material/Button";
@@ -5,7 +6,6 @@ import { BitcoinIcon } from "@/components/BitcoinIcon";
 import { EthereumIcon } from "@/components/EthereumIcon";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
-import { WalletProviderType } from "../ducks";
 
 export type WalletConnectIntent = "connect" | "login";
 
@@ -13,7 +13,13 @@ export const WalletConnectButton: FC<{
   pickBtc?: boolean;
   pickEvm?: boolean;
   intent?: WalletConnectIntent;
-}> = ({ pickBtc = true, pickEvm = true, intent = "connect" }) => {
+  user?: { handle: string };
+}> = ({
+  pickBtc = true,
+  pickEvm = true,
+  intent = "connect",
+  user: propUser,
+}) => {
   const {
     isConnected,
     isLoggedIn,
@@ -24,8 +30,12 @@ export const WalletConnectButton: FC<{
     activeBtcProvider,
     activeEvmProvider,
     setIntent,
-    handle,
+    user: contextUser,
   } = useBitflickWallet();
+
+  // Prioritize user from props over context user
+  const user = propUser || contextUser;
+  const handle = user?.handle;
 
   useEffect(() => {
     if (typeof intent === "string") {
@@ -76,6 +86,11 @@ export const WalletConnectButton: FC<{
   };
 
   const handleConnect = () => {
+    // If user is provided in props, don't do anything on click
+    if (propUser) {
+      return;
+    }
+
     if (intent === "connect") {
       if (isConnected) {
         // Already connected, do nothing
@@ -89,7 +104,6 @@ export const WalletConnectButton: FC<{
           setNeedsEvmSelection(true);
         }
       } else {
-        console.log("WalletConnectButton setNeedsConnect(true)");
         setNeedsConnect(true);
       }
     } else if (intent === "login") {
@@ -110,7 +124,6 @@ export const WalletConnectButton: FC<{
           setNeedsEvmSelection(true);
         }
       } else {
-        console.log("WalletConnectButton setNeedsConnect(true)");
         setNeedsConnect(true);
       }
     }
@@ -121,8 +134,8 @@ export const WalletConnectButton: FC<{
       variant="contained"
       onClick={handleConnect}
       startIcon={renderIcons()}
-      disabled={isLoggedIn}
-      color={isLoggedIn ? "success" : "primary"}
+      disabled={propUser ? true : isLoggedIn}
+      color={propUser || isLoggedIn ? "success" : "primary"}
     >
       {getButtonText()}
     </Button>

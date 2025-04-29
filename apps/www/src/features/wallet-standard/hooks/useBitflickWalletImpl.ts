@@ -15,6 +15,8 @@ import {
 } from "../ducks";
 import { BtcAccount } from "../types";
 import {
+  IUserWithAddresses,
+  IUserWithRoles,
   UserAddressType,
   UserWithRolesAndAddressesModel,
   createJweRequest,
@@ -26,10 +28,33 @@ import {
   useBitflickEvmNonceMutation,
   useBitflickSiwbSignInMutation,
   useBitflickSiweSignInMutation,
+  useBitflickSelfQuery,
+  BitflickSelfQuery,
 } from "./useBitflickWalletImpl.generated";
 import gql from "graphql-tag";
+import { mapSelfToUser } from "@/utils/transforms";
 
 gql`
+  query BitflickSelf {
+    self {
+      id
+      addresses {
+        address
+        type
+      }
+      roles {
+        id
+        name
+      }
+      allowedActions {
+        action
+        resource
+        identifier
+      }
+      token
+      handle
+    }
+  }
   mutation BitflickBtcNonce($address: ID!) {
     nonceBitcoin(address: $address) {
       nonce
@@ -167,7 +192,11 @@ export const useBitflickWalletImpl = ({
   const [fetchEvmNonce] = useBitflickEvmNonceMutation();
   const [fetchSiwb] = useBitflickSiwbSignInMutation();
   const [fetchSiwe] = useBitflickSiweSignInMutation();
-  const [handle, setHandle] = useState<string | null>(null);
+  const {
+    data: selfData,
+    loading: selfLoading,
+    error: selfError,
+  } = useBitflickSelfQuery();
   const [operationTimeoutId, setOperationTimeoutId] =
     useState<NodeJS.Timeout | null>(null);
   const [pendingConnectOperation, setPendingConnectOperation] =
@@ -650,26 +679,11 @@ export const useBitflickWalletImpl = ({
             }
 
             dispatch(actions.setIsLoggedIn(true));
-            if ("id" in siwbData.siwb.data?.user) {
-              setHandle(siwbData.siwb.data?.user?.handle);
+            const user = mapSelfToUser(siwbData.siwb.data?.user);
+            if (user) {
               return {
                 token: siwbData.siwb.data?.token,
-                user: new UserWithRolesAndAddressesModel({
-                  userId: siwbData.siwb.data?.user?.id,
-                  handle: siwbData.siwb.data?.user?.handle,
-                  addresses: siwbData.siwb.data?.user?.addresses.map(
-                    (address) => ({
-                      address: address.address,
-                      type:
-                        address.type === "BTC"
-                          ? UserAddressType.BTC
-                          : UserAddressType.EVM,
-                    })
-                  ),
-                  roleIds: siwbData.siwb.data?.user?.roles.map(
-                    (role) => role.id
-                  ),
-                }),
+                user,
               };
             }
             return {
@@ -753,22 +767,14 @@ export const useBitflickWalletImpl = ({
             user: null,
           };
         }
-        setHandle(siweData.siwe.data?.user.handle);
         dispatch(actions.setIsLoggedIn(true));
+        const user = mapSelfToUser(siweData.siwe.data?.user);
+        if (!user) {
+          throw new Error("No user data received");
+        }
         return {
           token: siweData.siwe.data?.token,
-          user: new UserWithRolesAndAddressesModel({
-            userId: siweData.siwe.data?.user.id,
-            handle: siweData.siwe.data?.user.handle,
-            addresses: siweData.siwe.data?.user.addresses.map((address) => ({
-              address: address.address,
-              type:
-                address.type === "BTC"
-                  ? UserAddressType.BTC
-                  : UserAddressType.EVM,
-            })),
-            roleIds: siweData.siwe.data?.user.roles.map((role) => role.id),
-          }),
+          user,
         };
       } finally {
         dispatch(actions.setIsLoggingIn(false));
@@ -1042,6 +1048,17 @@ export const useBitflickWalletImpl = ({
     setPendingConnectOperation,
   ]);
 
+  useEffect(() => {
+    if (!selfData?.self) {
+      return;
+    }
+    const user = mapSelfToUser(selfData.self);
+    if (user) {
+      dispatch(actions.setUser(user));
+      dispatch(actions.setIsLoggedIn(true));
+    }
+  }, [selfData, dispatch]);
+
   return {
     connectAsync,
     connectBtcAsync,
@@ -1064,8 +1081,6 @@ export const useBitflickWalletImpl = ({
     paymentAddress: state.btcAccounts?.find(
       (account) => account.purpose === AddressPurpose.Payment
     )?.address,
-
-    handle,
     ...state,
     ...state.flags,
   };

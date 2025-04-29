@@ -1,6 +1,10 @@
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 import { BtcAccount } from "./types";
 import { AddressPurpose } from "sats-connect";
+import {
+  IUserWithAddresses,
+  IUserWithRoles,
+} from "@0xflick/ordinals-rbac-models";
 
 export enum WalletProviderType {
   MAGIC_EDEN = "magicEden",
@@ -69,6 +73,7 @@ export interface WalletStandardState {
   intendedBtcPurposes: AddressPurpose[];
   intent?: WalletStandardIntent;
   flags: Record<WalletFlags, boolean>;
+  user?: IUserWithAddresses & IUserWithRoles;
 }
 
 export const initialState: WalletStandardState = {
@@ -159,6 +164,12 @@ export const walletStandardSlice = createSlice({
       action: PayloadAction<WalletStandardIntent | undefined>
     ) => {
       state.intent = action.payload;
+    },
+    setUser: (
+      state,
+      action: PayloadAction<IUserWithAddresses & IUserWithRoles>
+    ) => {
+      state.user = action.payload;
     },
   },
 });

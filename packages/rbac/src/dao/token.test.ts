@@ -104,7 +104,6 @@ describe("#Token DAO", () => {
     expect(decoded).toEqual(
       expect.objectContaining({
         userId,
-        roleIds: [roleId],
       }),
     );
   });

@@ -1,42 +1,31 @@
 "use client";
-import { FC } from "react";
-import { DefaultProvider } from "@/context/default";
 import Grid2 from "@mui/material/Grid";
 import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
 import { ActiveMint } from "@/features/inscription";
-import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
 import { AutoConnect } from "@/features/web3";
+import { getUserHandle, getUserIdFromSession } from "@/app/actions";
 
-export const MintRoute: FC<{
-  collectionId: string;
-  destinationAddress: string;
-  initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose[];
-}> = ({
+export const MintRoute = async ({
   collectionId,
   destinationAddress,
-  initialBitcoinNetwork,
-  initialBitcoinPurpose,
+}: {
+  collectionId: string;
+  destinationAddress: string;
 }) => {
+  const userId = await getUserIdFromSession();
+  const handle = userId ? await getUserHandle(userId) : null;
   return (
-    <DefaultProvider>
-      <SwitchableNetwork
-        title="bitflick"
-        initialBitcoinNetwork={initialBitcoinNetwork}
-        initialBitcoinPurpose={initialBitcoinPurpose}
-        ethereumAutoConnect={false}
-      >
-        <AutoConnect>
-          <Grid2 container spacing={2} columns={12}>
-            <Grid2 size={12}>
-              <ActiveMint
-                collectionId={collectionId}
-                destinationAddress={destinationAddress}
-              />
-            </Grid2>
+    <SwitchableNetwork title="bitflick" user={handle ? { handle } : undefined}>
+      <AutoConnect>
+        <Grid2 container spacing={2} columns={12}>
+          <Grid2 size={12}>
+            <ActiveMint
+              collectionId={collectionId}
+              destinationAddress={destinationAddress}
+            />
           </Grid2>
-        </AutoConnect>
-      </SwitchableNetwork>
-    </DefaultProvider>
+        </Grid2>
+      </AutoConnect>
+    </SwitchableNetwork>
   );
 };

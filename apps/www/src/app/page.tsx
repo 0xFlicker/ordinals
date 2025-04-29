@@ -2,15 +2,9 @@ import { baseUrl } from "@/utils/config";
 import { cookies } from "next/headers";
 import { Metadata } from "next";
 import Client from "./client";
-import { MockConnectClient } from "./MockConnectClient";
-import {
-  importSPKIKey,
-  verifyJwtForLogin,
-} from "@0xflick/ordinals-rbac-models";
-import { getSdk } from "./page.generated";
-import { createGraphqlClient } from "@/apiGraphql/client";
 import { gql } from "graphql-tag";
-import { appInfo } from "./actions";
+import { getUserIdFromSession, getUserHandle } from "./actions";
+import { WalletConnectButton } from "@/features/wallet-standard/components/WalletConnectButton";
 
 export const metadata: Metadata = {
   title: "Bitflick",
@@ -55,25 +49,26 @@ gql`
 `;
 
 export default async function Page() {
-  const cookieStore = cookies();
-  const cookieName = "bitflick.session";
-  const session = cookieStore.get(cookieName);
-  const token = session?.value;
-  if (!token) {
-    return <Client />;
-  }
   try {
-    const { pubKey } = await appInfo();
-    const { userId } = await verifyJwtForLogin(
-      token,
-      await importSPKIKey(pubKey)
-    );
-    const sdk = getSdk(createGraphqlClient());
-    const { user } = await sdk.handle({ id: userId });
-    if (!user) {
+    const userId = await getUserIdFromSession();
+    if (!userId) {
       return <Client />;
     }
-    return <Client appRight={<MockConnectClient user={user} />} />;
+    const handle = await getUserHandle(userId);
+    if (!handle) {
+      return <Client appRight={<WalletConnectButton />} />;
+    }
+    return (
+      <Client
+        appRight={
+          <WalletConnectButton
+            user={{
+              handle,
+            }}
+          />
+        }
+      />
+    );
   } catch (error) {
     console.error(error);
     return <Client />;

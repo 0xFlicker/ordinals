@@ -1,3 +1,4 @@
+"use client";
 import Container from "@mui/material/Container";
 import { AppBar } from "@/components/AppBar";
 import Button, { ButtonProps } from "@mui/material/Button";
@@ -14,16 +15,15 @@ import Box from "@mui/material/Box";
 import Menu from "@mui/material/Menu";
 import MenuList from "@mui/material/MenuList";
 import { MenuItemConnect as WagmiConnect, useWeb3 } from "@/features/web3";
-import { AddressPurpose, BitcoinNetwork } from "sats-connect";
-import { MultiChainProvider } from "@/context/multiChain";
 import { ConnectMenuItem as XverseConnectMenuItem } from "@/features/xverse";
+import { WalletConnectButton } from "@/features/wallet-standard/components/WalletConnectButton";
 
 interface IConnectedDropDownProps {
   anchorEl: Element | null;
   handleClose: () => void;
 }
 
-export const ConnectedDropDownModal: FC<IConnectedDropDownProps> = ({
+const ConnectedDropDownModal: FC<IConnectedDropDownProps> = ({
   anchorEl,
   handleClose,
 }) => {
@@ -93,24 +93,12 @@ export const Connect: FC<{
 export const SwitchableNetwork: FC<
   PropsWithChildren<{
     title: string;
-    initialBitcoinNetwork: BitcoinNetwork["type"];
-    initialBitcoinPurpose: AddressPurpose[];
-    ethereumAutoConnect?: boolean;
+    user?: { handle: string };
   }>
-> = ({
-  children,
-  title,
-  ethereumAutoConnect,
-  initialBitcoinNetwork,
-  initialBitcoinPurpose,
-}) => {
+> = ({ children, title, user }) => {
   return (
-    <MultiChainProvider
-      bitcoinNetwork={initialBitcoinNetwork}
-      bitcoinPurpose={initialBitcoinPurpose}
-      ethereumAutoConnect={ethereumAutoConnect}
-    >
-      <AppBar left={title} right={<Connect />} />
+    <>
+      <AppBar left={title} right={<WalletConnectButton user={user} />} />
       <Container
         sx={{
           pt: 8,
@@ -118,6 +106,6 @@ export const SwitchableNetwork: FC<
       >
         {children}
       </Container>
-    </MultiChainProvider>
+    </>
   );
 };

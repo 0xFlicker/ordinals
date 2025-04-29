@@ -4,34 +4,31 @@ import { DefaultProvider } from "@/context/default";
 import Grid2 from "@mui/material/Grid";
 import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
 import { Flow } from "@/features/inscription";
-import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
+import { BitcoinNetworkType } from "sats-connect";
 import { AutoConnect } from "@/features/web3";
+import { getUserHandle } from "@/app/actions";
+import { getUserIdFromSession } from "@/app/actions";
 
-export const AgreementRoute: FC<{
+export const AgreementRoute = async ({
+  collectionId,
+  initialBitcoinNetwork,
+}: {
   collectionId: string;
   initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose[];
-}> = ({ collectionId, initialBitcoinNetwork, initialBitcoinPurpose }) => {
+}) => {
+  const userId = await getUserIdFromSession();
+  const handle = userId ? await getUserHandle(userId) : null;
   return (
-    <DefaultProvider>
-      <SwitchableNetwork
-        title="bitflick"
-        initialBitcoinNetwork={initialBitcoinNetwork}
-        initialBitcoinPurpose={initialBitcoinPurpose}
-        ethereumAutoConnect={false}
-      >
-        <AutoConnect>
-          <Grid2 container spacing={2} sx={{ mt: 4 }} columns={12}>
-            <Grid2 size={12}>
-              <Flow
-                collectionId={collectionId}
-                initialBitcoinNetwork={initialBitcoinNetwork}
-                step="agreement"
-              />
-            </Grid2>
-          </Grid2>
-        </AutoConnect>
-      </SwitchableNetwork>
-    </DefaultProvider>
+    <SwitchableNetwork title="bitflick" user={handle ? { handle } : undefined}>
+      <Grid2 container spacing={2} sx={{ mt: 4 }} columns={12}>
+        <Grid2 size={12}>
+          <Flow
+            collectionId={collectionId}
+            initialBitcoinNetwork={initialBitcoinNetwork}
+            step="agreement"
+          />
+        </Grid2>
+      </Grid2>
+    </SwitchableNetwork>
   );
 };

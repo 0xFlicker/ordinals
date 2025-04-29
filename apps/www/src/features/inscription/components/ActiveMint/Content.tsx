@@ -1,3 +1,4 @@
+"use client";
 import { FC, useState } from "react";
 import Avatar from "@mui/material/Avatar";
 import List from "@mui/material/List";

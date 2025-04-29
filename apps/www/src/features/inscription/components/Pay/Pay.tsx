@@ -1,3 +1,4 @@
+"use client";
 import { FC, useCallback, useEffect, useState } from "react";
 import { useXverse } from "@/features/xverse";
 import Snackbar from "@mui/material/Snackbar";

@@ -3,6 +3,11 @@ import type * as Types from '../../../graphql/types';
 import { gql } from '@apollo/client';
 import * as Apollo from '@apollo/client';
 const defaultOptions = {} as const;
+export type BitflickSelfQueryVariables = Types.Exact<{ [key: string]: never; }>;
+
+
+export type BitflickSelfQuery = { __typename?: 'Query', self?: { __typename?: 'Web3User', id: string, token?: string | null, handle: string, addresses: Array<{ __typename?: 'Address', address: string, type: Types.AddressType }>, roles: Array<{ __typename?: 'Role', id: string, name: string }>, allowedActions: Array<{ __typename?: 'Permission', action: Types.PermissionAction, resource: Types.PermissionResource, identifier?: string | null }> } | null };
+
 export type BitflickBtcNonceMutationVariables = Types.Exact<{
   address: Types.Scalars['ID']['input'];
 }>;
@@ -35,6 +40,55 @@ export type BitflickSiwbSignInMutationVariables = Types.Exact<{
 export type BitflickSiwbSignInMutation = { __typename?: 'Mutation', siwb: { __typename?: 'SiwbResponse', data?: { __typename?: 'SiwbData', token: string, user?: { __typename?: 'Web3User', id: string, handle: string, addresses: Array<{ __typename?: 'Address', address: string, type: Types.AddressType }>, roles: Array<{ __typename?: 'Role', id: string, name: string }>, allowedActions: Array<{ __typename?: 'Permission', action: Types.PermissionAction, resource: Types.PermissionResource, identifier?: string | null }> } | null } | null, problems?: Array<{ __typename?: 'AuthProblem', message: string }> | null } };
 
 
+export const BitflickSelfDocument = gql`
+    query BitflickSelf {
+  self {
+    id
+    addresses {
+      address
+      type
+    }
+    roles {
+      id
+      name
+    }
+    allowedActions {
+      action
+      resource
+      identifier
+    }
+    token
+    handle
+  }
+}
+    `;
+
+/**
+ * __useBitflickSelfQuery__
+ *
+ * To run a query within a React component, call `useBitflickSelfQuery` and pass it any options that fit your needs.
+ * When your component renders, `useBitflickSelfQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useBitflickSelfQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useBitflickSelfQuery(baseOptions?: Apollo.QueryHookOptions<BitflickSelfQuery, BitflickSelfQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<BitflickSelfQuery, BitflickSelfQueryVariables>(BitflickSelfDocument, options);
+      }
+export function useBitflickSelfLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<BitflickSelfQuery, BitflickSelfQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<BitflickSelfQuery, BitflickSelfQueryVariables>(BitflickSelfDocument, options);
+        }
+export type BitflickSelfQueryHookResult = ReturnType<typeof useBitflickSelfQuery>;
+export type BitflickSelfLazyQueryHookResult = ReturnType<typeof useBitflickSelfLazyQuery>;
+export type BitflickSelfQueryResult = Apollo.QueryResult<BitflickSelfQuery, BitflickSelfQueryVariables>;
 export const BitflickBtcNonceDocument = gql`
     mutation BitflickBtcNonce($address: ID!) {
   nonceBitcoin(address: $address) {
