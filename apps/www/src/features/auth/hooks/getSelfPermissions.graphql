@@ -1,5 +1,5 @@
-query getSelfPermissions($namespace: Web3Namespace!) {
-  self(namespace: $namespace) {
+query getSelfPermissions {
+  self {
     allowedActions {
       action
       resource

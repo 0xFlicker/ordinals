@@ -31,13 +31,10 @@ export const resolvers: AuthModule.Resolvers = {
         pubKey: process.env.AUTH_MESSAGE_PUBLIC_KEY!,
       };
     },
-    self: async (_, { namespace }, context) => {
+    self: async (_, {}, context) => {
       const { getToken, userDao } = context;
-      const user = await authorizedUser({
-        namespace,
-        ...context,
-      });
-      const token = getToken(namespace);
+      const user = await authorizedUser(context);
+      const token = getToken();
       return new Web3UserModel({
         userId: user.userId,
         token,
@@ -201,7 +198,7 @@ export const resolvers: AuthModule.Resolvers = {
         userId,
         handle,
       });
-      await userDao.bindAddressToUser(
+      const roleId = await userDao.bindAddressToUser(
         userRolesDao,
         rolesDao,
         rolePermissionsDao,
@@ -210,9 +207,11 @@ export const resolvers: AuthModule.Resolvers = {
         addressType,
       );
 
-      const newToken = await createJwtTokenForNewUser({
-        address: { address: addressInfo, type: addressType },
-        nonce: nonce as string,
+      const newToken = await createJwtTokenForLogin({
+        user: {
+          userId,
+          roleIds: [roleId],
+        },
         issuer: authMessageJwtClaimIssuer,
       });
       setToken(newToken);
@@ -220,6 +219,7 @@ export const resolvers: AuthModule.Resolvers = {
         user: new Web3UserModel({
           userId,
           token: newToken,
+          handle,
           userDao,
         }),
       };
@@ -396,7 +396,7 @@ export const resolvers: AuthModule.Resolvers = {
         );
         if (!verified) {
           return {
-            token: null,
+            data: null,
             problems: [{ message: "Invalid signature" }],
           };
         }
@@ -413,7 +413,6 @@ export const resolvers: AuthModule.Resolvers = {
             nonce,
             issuer: authMessageJwtClaimIssuer,
           });
-          setToken(token, "siwb");
           return {
             data: {
               token,

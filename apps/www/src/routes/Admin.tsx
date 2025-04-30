@@ -1,38 +1,27 @@
-"use client";
-import { FC } from "react";
-import { DefaultProvider } from "@/context/default";
 import Grid from "@mui/material/Grid";
 import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
 import { AdminPanel } from "@/features/admin";
-import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
-import { AutoConnect } from "@/features/web3";
+import { getUserIdFromSession, getUserHandle } from "@/app/actions";
 
-export const AdminRoute: FC<{
-  initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose[];
-}> = ({ initialBitcoinNetwork, initialBitcoinPurpose }) => {
+export const AdminRoute = async () => {
+  const userId = await getUserIdFromSession();
+  const handle = userId ? await getUserHandle(userId) : undefined;
   return (
-    <DefaultProvider>
-      <SwitchableNetwork
-        title="home"
-        initialBitcoinNetwork={initialBitcoinNetwork}
-        initialBitcoinPurpose={initialBitcoinPurpose}
-        ethereumAutoConnect={false}
-      >
-        <AutoConnect>
-          <Grid container spacing={2} columns={12}>
-            <Grid
-              size={{
-                xs: 12,
-                sm: 6,
-                md: 4,
-              }}
-            >
-              <AdminPanel />
-            </Grid>
-          </Grid>
-        </AutoConnect>
-      </SwitchableNetwork>
-    </DefaultProvider>
+    <SwitchableNetwork
+      title="home"
+      user={{ handle: handle ?? undefined, userId: userId ?? undefined }}
+    >
+      <Grid container spacing={2} columns={12}>
+        <Grid
+          size={{
+            xs: 12,
+            sm: 6,
+            md: 4,
+          }}
+        >
+          <AdminPanel />
+        </Grid>
+      </Grid>
+    </SwitchableNetwork>
   );
 };

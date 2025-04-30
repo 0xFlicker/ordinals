@@ -13,7 +13,7 @@ function sa(allowedAction: TAllowedAction) {
 export const isOneOfActionOnResource = (
   oneOfActions: EActions[],
   onResource: EResource,
-  identifier?: string
+  identifier?: string,
 ) => {
   return createMatcher<TAllowedAction>({
     matcher(action) {
@@ -74,7 +74,7 @@ export const allowAdminOnResource = (resource: EResource) =>
 
 export const forIdentifier = (
   identifier: string,
-  matcher: Matcher<TAllowedAction>
+  matcher: Matcher<TAllowedAction>,
 ) =>
   and(
     matcher,
@@ -85,14 +85,14 @@ export const forIdentifier = (
       describe(a, m) {
         return `${sa(a)} ${m(a) ? "is" : "is not"} for ${identifier}`;
       },
-    })
+    }),
   );
 
 export const forSelf = (
   requestedResource: string,
   userAddress: string,
   action: EActions,
-  resource: EResource
+  resource: EResource,
 ) =>
   forIdentifier(
     "self",
@@ -107,8 +107,8 @@ export const forSelf = (
           `requested resource ${requestedResource} ${
             m(v) ? "===" : "!=="
           } is not for user ${userAddress}`,
-      })
-    )
+      }),
+    ),
   );
 
 export const defaultAdminStrategyAll = (
@@ -125,7 +125,7 @@ export const defaultAdminStrategy = (
 
 export const defaultAdminHandlingForResource = (
   allowedActions: EActions[],
-  resource: EResource
+  resource: EResource,
 ) =>
   createMatcher<TAllowedAction>({
     matcher: defaultAdminStrategy(
@@ -134,8 +134,8 @@ export const defaultAdminHandlingForResource = (
         isActionOnResource({
           action: a,
           resource,
-        })
-      )
+        }),
+      ),
     ),
     describe(a, m) {
       return m.describe(a);

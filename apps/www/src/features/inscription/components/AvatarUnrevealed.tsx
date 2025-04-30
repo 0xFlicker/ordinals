@@ -1,3 +1,4 @@
+"use client";
 import { renderCanvas, operations } from "@0xflick/ordinals-axolotl-valley-web";
 import { FC, useEffect, useRef } from "react";
 

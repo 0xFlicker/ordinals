@@ -1,8 +1,8 @@
 import Queue from "p-queue";
 import { MempoolClient } from "../bitcoin/mempool.js";
-
+import { createLogger } from "../index.js";
 const processingQueue = new Queue({ concurrency: 24 });
-
+const logger = createLogger({ name: "mempool" });
 export class NoVoutFound extends Error {
   constructor({ address }: { address: string }) {
     super(`No vout found for address ${address}`);
@@ -40,25 +40,34 @@ async function fetchFunding({
   mempoolBitcoinClient: MempoolClient["bitcoin"];
   findValue?: number;
 }) {
-  const txs = await mempoolBitcoinClient.addresses.getAddressTxs({ address });
-  for (const tx of txs) {
-    for (let i = 0; i < tx.vout.length; i++) {
-      const output = tx.vout[i];
-      if (output.scriptpubkey_address === address) {
-        if (
-          (findValue !== undefined && output.value === findValue) ||
-          findValue === undefined
-        ) {
-          return {
-            txid: tx.txid,
-            vout: i,
-            amount: output.value,
-          };
+  try {
+    const txs = await mempoolBitcoinClient.addresses.getAddressTxs({ address });
+    for (const tx of txs) {
+      for (let i = 0; i < tx.vout.length; i++) {
+        const output = tx.vout[i];
+        if (output.scriptpubkey_address === address) {
+          if (
+            (findValue !== undefined && output.value === findValue) ||
+            findValue === undefined
+          ) {
+            return {
+              txid: tx.txid,
+              vout: i,
+              amount: output.value,
+            };
+          }
         }
       }
     }
+    logger.debug({ address }, `Funding not found for address`);
+    throw new NoVoutFound({ address });
+  } catch (error) {
+    if (error instanceof NoVoutFound) {
+      throw error;
+    }
+    logger.error(error, `Error fetching funding for address ${address}`);
+    throw error;
   }
-  throw new NoVoutFound({ address });
 }
 
 export const enqueueCheckTxo = ({

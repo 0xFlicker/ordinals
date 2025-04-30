@@ -9,10 +9,13 @@
     "decrypt-secrets": "node ./scripts/decrypt-secrets.mjs",
     "deploy:local:bootstrap": "yarn deploy:local:docker && bash ./scripts/bootstrap-local.sh",
     "deploy:local": "bash ./scripts/deploy-local.sh",
+    "deploy:local:agreement": "LOCAL_DEPLOY_YES=1 bash ./scripts/deploy-local.sh",
     "deploy": "DEPLOYMENT=aws AWS_REGION=us-east-1 cdk deploy",
     "monitor-sqs": "node --loader ts-node/esm ./src/local-monitor-sqs.ts",
     "deploy:local:docker": "cd ../docker && docker compose -f docker-compose.yml up -d",
     "deploy:local:docker:down": "cd ../docker && docker compose -f docker-compose.yml down -v",
+    "deploy:local:docker:relaunch": "yarn deploy:local:docker:down && yarn deploy:local:bootstrap && yarn deploy:local:agreement",
+    "deploy:local:docker:up": "LOCAL_DOCKER_NO_FUND=1 yarn deploy:local:bootstrap && yarn deploy:local:agreement",
     "bitcoin:local:generate": "bitcoin-cli -regtest -rpcuser=test -rpcpassword=test generatetoaddress 1 $(bitcoin-cli -regtest -rpcuser=test -rpcpassword=test getnewaddress)"
   },
   "dependencies": {

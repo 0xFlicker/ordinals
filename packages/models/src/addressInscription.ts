@@ -41,6 +41,7 @@ export interface IAddressInscriptionModel<T = Record<string, any>> {
   tipAmountDestination?: string;
   parentInscriptionId?: string;
   sizeEstimate: number;
+  genesisScriptHash: string;
   batchId?: string;
   meta: T;
   type: "address-inscription";
@@ -69,6 +70,7 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
   public timesChecked: number;
   public fundingAmountBtc: string;
   public fundingAmountSat: number;
+  public genesisScriptHash: string;
   public tipAmountSat?: number;
   public tipAmountDestination?: string;
   public sizeEstimate: number;
@@ -97,6 +99,7 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
     this.fundedAt = item.fundedAt;
     this.fundingAmountBtc = item.fundingAmountBtc;
     this.fundingAmountSat = item.fundingAmountSat;
+    this.genesisScriptHash = item.genesisScriptHash;
     this.tipAmountSat = item.tipAmountSat;
     this.tipAmountDestination = item.tipAmountDestination;
     this.meta = item.meta;

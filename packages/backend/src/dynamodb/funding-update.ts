@@ -2,16 +2,14 @@ import {
   BitcoinNetworkNames,
   InscriptionContent,
   bitcoinToSats,
+  encodeElectrumScriptHash,
   generatePrivKey,
   networkNamesToTapScriptName,
 } from "@0xflick/inscriptions";
 import {
   ID_Collection,
-  TCollectionModel,
   TCollectionParentInscription,
   TInscriptionDoc,
-  hashAddress,
-  toAddressInscriptionId,
 } from "@0xflick/ordinals-models";
 import { Address, Tap } from "@cmdcode/tapscript";
 import {
@@ -62,6 +60,7 @@ export async function updateCollectionFunding({
   parentInscriptionVout,
   parentInscriptionTxid,
   tipAmountSat,
+  creatorUserId,
 }: {
   parentParentInscriptionId?: string;
   parentInscriptionAddress: string;
@@ -83,6 +82,7 @@ export async function updateCollectionFunding({
   fundingDocDao: FundingDocDao;
   fundingDao: FundingDao<{}, TCollectionParentInscription>;
   tipAmountSat: number;
+  creatorUserId?: string;
 }) {
   // Generate a new private key. This will be used to custody the parent
   const privateKey = generatePrivKey();
@@ -186,6 +186,7 @@ export async function updateCollectionFunding({
       address: fundingAddress,
       network,
       id,
+      creatorUserId,
       destinationAddress: parentInscriptionAddress,
       fundingStatus: "funding",
       timesChecked: 0,
@@ -193,9 +194,12 @@ export async function updateCollectionFunding({
       fundingAmountSat: Number(bitcoinToSats(fundingAmountBtc)),
       tipAmountSat,
       meta: {},
-      sizeEstimate: totalFee,
+      // Used during transaction batching. Actual fee can differ
+      sizeEstimate: totalFee + overhead,
       type: "address-inscription",
       createdAt: new Date(),
+      // The little-endian hash of the scriptPubKey of the funding address, used for electrum subscription
+      genesisScriptHash: encodeElectrumScriptHash(fundingAddress),
     }),
     ...writableInscriptions.map((f) =>
       fundingDocDao.saveInscriptionContent({

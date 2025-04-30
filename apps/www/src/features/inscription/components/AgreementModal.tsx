@@ -1,28 +1,36 @@
-import { FC } from "react";
+import { FC, PropsWithChildren } from "react";
 import Card from "@mui/material/Card";
 import CardHeader from "@mui/material/CardHeader";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
-import CardMedia from "@mui/material/CardMedia";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import CheckIcon from "@mui/icons-material/CheckBoxOutlined";
 import CrossIcon from "@mui/icons-material/CancelOutlined";
-import NextImage from "next/image";
 
-const RUG = "/images/rug.jpg";
-
-export const AgreementModal: FC<{
-  onClose: () => void;
-  onAgree: () => void;
-}> = ({ onAgree, onClose }) => {
+export const AgreementModal: FC<
+  PropsWithChildren<{
+    onClose: () => void;
+    onAgree: () => void;
+  }>
+> = ({ onAgree, onClose, children }) => {
   return (
-    <Card>
-      <CardHeader title="agreement" />
-      <CardMedia component={NextImage} height="372" image={RUG} alt="" />
+    <Card
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: {
+          xs: "80vh",
+          xxl: "70vh",
+        },
+        flexGrow: 1,
+      }}
+    >
+      <CardHeader title="Agreement" />
+      {children}
       <CardContent>
         <Typography variant="body2" color="text.secondary">
-          before minting you agree this is a rug.
+          Before minting you agree this is a rug.
         </Typography>
       </CardContent>
       <CardActions>

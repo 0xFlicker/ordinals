@@ -8,7 +8,6 @@ import CardActionArea from "@mui/material/CardActionArea";
 import Typography from "@mui/material/Typography";
 
 import { AvatarUnrevealed } from "../AvatarUnrevealed";
-import { useStatus } from "./useStatus";
 
 export const Start: FC<{
   onInscribe: () => void;

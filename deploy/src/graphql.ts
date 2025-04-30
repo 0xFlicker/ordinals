@@ -126,6 +126,7 @@ export class Graphql extends Construct {
             parentInscriptionSecKeyEnvelope.key.keyId,
           FUNDING_SEC_KEY_ENVELOPE_KEY_ID: fundingSecKeyEnvelope.key.keyId,
           ...withSecretEnv(`${domainName}/.env.graphql`),
+          ...withSecretEnv(`${domainName}/.env.electrum`),
         },
       },
     );

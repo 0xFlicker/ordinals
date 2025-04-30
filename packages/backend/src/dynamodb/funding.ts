@@ -50,6 +50,7 @@ export type TFundingDb<T extends Record<string, any>> = {
   fundingStatus: string;
   fundingAmountBtc: string;
   fundingAmountSat: number;
+  genesisScriptHash: string;
   destinationAddress: string;
   tipAmountSat?: number;
   tipAmountDestination?: string;
@@ -81,6 +82,7 @@ type TFundingByStatus = {
   createdAt: Date;
   nextCheckAt: Date;
   fundingAmountSat: number;
+  genesisScriptHash: string;
   network: BitcoinNetworkNames;
 };
 
@@ -431,13 +433,7 @@ export class FundingDao<
     fundingStatus: TFundingStatus;
     nextCheckAt: Date;
   }) {
-    const results: {
-      address: string;
-      id: string;
-      nextCheckAt: Date;
-      fundingAmountSat: number;
-      network: BitcoinNetworkNames;
-    }[] = [];
+    const results: TFundingByStatus[] = [];
     for await (const item of this.listAllFundingsByStatusNextCheckAt({
       fundingStatus,
       nextCheckAt,
@@ -502,6 +498,7 @@ export class FundingDao<
             ? new Date(item.nextCheckAt)
             : new Date(0),
           fundingAmountSat: item.fundingAmountSat,
+          genesisScriptHash: item.genesisScriptHash,
           network: toBitcoinNetworkName(item.network),
         })) ?? [],
       cursor: encodeCursor({
@@ -597,6 +594,7 @@ export class FundingDao<
           sizeEstimate: item.sizeEstimate,
           fundingTxid: item.fundingTxid,
           fundingVout: item.fundingVout,
+          genesisScriptHash: item.genesisScriptHash,
         })) ?? [],
       cursor: encodeCursor({
         page,
@@ -732,50 +730,6 @@ export class FundingDao<
         Key: {
           pk: id,
           sk: "funding",
-        },
-      }),
-    );
-  }
-
-  // public async pendingCountByCollection(id: ID_Collection) {
-  //   const db = await this.client.send(
-  //     new GetCommand({
-  //       TableName: FundingDao.TABLE_NAME,
-  //       Key: {
-  //         pk: id,
-  //         sk: "collection",
-  //       },
-  //     }),
-  //   );
-  //   if (!db.Item) {
-  //     throw new Error("Collection not found");
-  //   }
-  //   let pendingCount = (db.Item as TFundingCollectionDb<CollectionMeta>)
-  //     .pendingCount;
-  //   if (typeof pendingCount === "undefined") {
-  //     // backfill
-  //     const fundings = await this.listAllFundingsByStatus({
-  //       id,
-  //       fundingStatus: ""
-  //     });
-  //   }
-  // }
-
-  public async updatePendingCount(
-    id: ID_Collection,
-    pendingCount: number,
-  ): Promise<void> {
-    await this.client.send(
-      new UpdateCommand({
-        TableName: FundingDao.TABLE_NAME,
-        Key: {
-          pk: id,
-          sk: "collection",
-        },
-        ConditionExpression: "attribute_exists(pk)",
-        UpdateExpression: "ADD pendingCount :pendingCount",
-        ExpressionAttributeValues: {
-          ":pendingCount": pendingCount,
         },
       }),
     );
@@ -1153,6 +1107,7 @@ export class FundingDao<
     farcasterFid,
     secKey,
     sizeEstimate,
+    genesisScriptHash,
   }: IPresaleModel): TPresaleDb {
     return {
       pk: id,
@@ -1163,6 +1118,7 @@ export class FundingDao<
       destinationAddress,
       fundingAmountBtc,
       fundingAmountSat,
+      genesisScriptHash,
       fundingStatus,
       network,
       secKey,
@@ -1196,6 +1152,7 @@ export class FundingDao<
     nextCheckAt,
     createdAt,
     timesChecked,
+    genesisScriptHash,
     fundingAmountBtc,
     fundingAmountSat,
     tipAmountDestination,
@@ -1214,6 +1171,7 @@ export class FundingDao<
       timesChecked,
       fundingAmountBtc,
       fundingAmountSat,
+      genesisScriptHash,
       destinationAddress,
       sizeEstimate,
       createdAt: createdAt.getTime(),
@@ -1316,6 +1274,7 @@ export class FundingDao<
     lastChecked,
     nextCheckAt,
     createdAt,
+    genesisScriptHash,
     fundedAt,
     fundingAmountBtc,
     fundingAmountSat,
@@ -1341,6 +1300,7 @@ export class FundingDao<
       destinationAddress,
       secKey,
       sizeEstimate,
+      genesisScriptHash,
       createdAt: new Date(createdAt),
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: new Date(lastChecked),
@@ -1369,6 +1329,7 @@ export class FundingDao<
     fundingVout,
     refundedTxid,
     timesChecked,
+    genesisScriptHash,
     lastChecked,
     nextCheckAt,
     createdAt,
@@ -1392,6 +1353,7 @@ export class FundingDao<
       fundingAmountSat,
       destinationAddress,
       sizeEstimate,
+      genesisScriptHash,
       type: "address-inscription",
       createdAt: new Date(createdAt),
       ...(typeof lastChecked !== "undefined" && {

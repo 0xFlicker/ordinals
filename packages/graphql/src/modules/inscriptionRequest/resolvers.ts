@@ -4,6 +4,7 @@ import { InscriptionFundingModel } from "../inscriptionFunding/models.js";
 import {
   InscriptionContent,
   bitcoinToSats,
+  encodeElectrumScriptHash,
   isValidTaprootAddress,
 } from "@0xflick/inscriptions";
 import { InscriptionRequestError } from "./errors.js";
@@ -29,7 +30,7 @@ import {
   defaultAdminStrategyAll,
   isActionOnResource,
 } from "@0xflick/ordinals-rbac-models";
-
+import { Address } from "@cmdcode/tapscript";
 const logger = createLogger({
   name: "inscription-request-resolvers",
 });
@@ -154,6 +155,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
       });
 
       const permission = await rolesDao.get(`I#${userId}`);
+
       await Promise.all([
         permission
           ? rolePermissionsDao.bind({
@@ -201,8 +203,15 @@ const resolvers: InscriptionRequestModule.Resolvers = {
           meta: {},
           type: "address-inscription",
           createdAt: new Date(),
-          sizeEstimate: inscriptionTransaction.totalFee,
+          // Used during transaction batching. Actual fee can differ
+          sizeEstimate:
+            inscriptionTransaction.totalFee + inscriptionTransaction.overhead,
+          // The creator of the inscription, if it exists
           creatorUserId: userId,
+          // The little-endian hash of the scriptPubKey of the funding address, used for electrum subscription
+          genesisScriptHash: encodeElectrumScriptHash(
+            inscriptionTransaction.fundingAddress,
+          ),
         }),
         ...inscriptionTransaction.writableInscriptions.map((f, index) =>
           fundingDocDao.saveInscriptionContent({

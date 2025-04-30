@@ -674,12 +674,11 @@ export const useBitflickWalletImpl = ({
             if (!siwbData) {
               throw new Error("No SIWB data received");
             }
-            if (!siwbData.siwb.data?.user) {
-              throw new Error("No user data received");
-            }
 
             dispatch(actions.setIsLoggedIn(true));
-            const user = mapSelfToUser(siwbData.siwb.data?.user);
+            const user = siwbData.siwb.data?.user
+              ? mapSelfToUser(siwbData.siwb.data?.user)
+              : null;
             if (user) {
               return {
                 token: siwbData.siwb.data?.token,
@@ -1081,6 +1080,7 @@ export const useBitflickWalletImpl = ({
     paymentAddress: state.btcAccounts?.find(
       (account) => account.purpose === AddressPurpose.Payment
     )?.address,
+    evmAddress: state.evmAccounts[0]?.address,
     ...state,
     ...state.flags,
   };

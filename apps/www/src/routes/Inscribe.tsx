@@ -31,6 +31,7 @@ import FormLabel from "@mui/material/FormLabel";
 import InputAdornment from "@mui/material/InputAdornment";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useBitflickWallet } from "@/features/wallet-standard/Context";
+import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
 
 export const Inscribe: FC<{
   initialBitcoinNetwork: BitcoinNetworkType;
@@ -70,11 +71,15 @@ export const Inscribe: FC<{
   } = useBitflickWallet();
 
   const handleWalletClick = useCallback(async () => {
+    if (isConnected && discoveredAddress) {
+      setOrdinalsAddress(discoveredAddress);
+      return;
+    }
     const result = await connectBtcAsync();
     if (result && result.addresses.length > 0) {
-      console.log("result", result);
+      setOrdinalsAddress(result.addresses[0].address);
     }
-  }, [connectBtcAsync]);
+  }, [connectBtcAsync, discoveredAddress, isConnected, setOrdinalsAddress]);
 
   const { handleCreate, paymentRequest } = useInscribe({
     network: BitcoinNetwork.Regtest,
@@ -93,10 +98,11 @@ export const Inscribe: FC<{
     async (files: File[]) => {
       try {
         if (!isConnected) {
+          console.log("not connected");
           setPendingFiles(files);
           const result = await connectBtcAsync();
           if (result && result.addresses.length > 0) {
-            console.log("result", result);
+            console.log("connected and got addresses");
             await loginBtcAsync(result.addresses[0].address);
           }
         }
@@ -152,221 +158,224 @@ export const Inscribe: FC<{
   };
 
   return (
-    <>
-      {paymentRequest ? (
-        <Grid2 container spacing={2} sx={{ mt: 10 }} columns={12}>
-          <Grid2 size={12}>
-            <Pay
-              fundingId={paymentRequest.id}
-              network={paymentRequest.network}
-            />
+    <SwitchableNetwork title="Inscribe">
+      <>
+        {paymentRequest ? (
+          <Grid2 container spacing={2} sx={{ mt: 10 }} columns={12}>
+            <Grid2 size={12}>
+              <Pay
+                fundingId={paymentRequest.id}
+                network={paymentRequest.network}
+              />
+            </Grid2>
           </Grid2>
-        </Grid2>
-      ) : (
-        <Card sx={{ mt: 4, p: 4 }}>
-          <CardContent>
-            <Grid2 container spacing={2} columns={12}>
-              <Grid2
-                sx={{
-                  mt: 4,
-                }}
-                size={12}
-              >
-                <Typography variant="h6" gutterBottom>
-                  Inscribe
-                </Typography>
-                <Select
-                  value={network}
-                  onChange={(e) => setNetwork(e.target.value)}
-                  fullWidth
-                  sx={{ mb: 2 }}
-                  onOpen={() => setNetworkSelectOpen(true)}
-                  onClose={() => setNetworkSelectOpen(false)}
-                  MenuProps={selectMenuProps}
+        ) : (
+          <Card sx={{ mt: 4, p: 4 }}>
+            <CardContent>
+              <Grid2 container spacing={2} columns={12}>
+                <Grid2
+                  sx={{
+                    mt: 4,
+                  }}
+                  size={12}
                 >
-                  <MenuItem value="mainnet">Mainnet</MenuItem>
-                  <MenuItem value="testnet">Testnet</MenuItem>
-                  <MenuItem value="regtest">Regtest</MenuItem>
-                </Select>
-                {(networkSelectOpen || feeLevelSelectOpen) && (
-                  <Box
-                    sx={{
-                      position: "fixed",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      zIndex: 1200,
-                      backdropFilter: "blur(2px)",
-                      pointerEvents: "none",
-                    }}
-                  />
-                )}
-                <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={handleWalletClick}
-                    disabled={
-                      isConnected && ordinalsAddress === discoveredAddress
-                    }
-                  >
-                    {isConnected ? "Wallet" : "Connect"}
-                  </Button>
-                  <TextField
-                    label="Ordinals Address"
-                    value={ordinalsAddress}
-                    onChange={(e) => setOrdinalsAddress(e.target.value)}
+                  <Typography variant="h6" gutterBottom>
+                    Inscribe
+                  </Typography>
+                  <Select
+                    value={network}
+                    onChange={(e) => setNetwork(e.target.value)}
                     fullWidth
-                  />
-                </Box>
-
-                {/* Fee Selection Section */}
-                <Box sx={{ mb: 2 }}>
-                  <FormControl component="fieldset">
-                    <FormLabel component="legend">Fee Selection</FormLabel>
-                    <RadioGroup
-                      row
-                      value={feeMode}
-                      onChange={(e) =>
-                        setFeeMode(e.target.value as "preset" | "custom")
+                    sx={{ mb: 2 }}
+                    onOpen={() => setNetworkSelectOpen(true)}
+                    onClose={() => setNetworkSelectOpen(false)}
+                    MenuProps={selectMenuProps}
+                  >
+                    <MenuItem value="mainnet">Mainnet</MenuItem>
+                    <MenuItem value="testnet">Testnet</MenuItem>
+                    <MenuItem value="regtest">Regtest</MenuItem>
+                  </Select>
+                  {(networkSelectOpen || feeLevelSelectOpen) && (
+                    <Box
+                      sx={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 1200,
+                        backdropFilter: "blur(2px)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
+                  <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={handleWalletClick}
+                      disabled={
+                        isConnected && ordinalsAddress === discoveredAddress
                       }
                     >
-                      <FormControlLabel
-                        value="preset"
-                        control={<Radio />}
-                        label="Preset Fee Levels"
-                      />
-                      <FormControlLabel
-                        value="custom"
-                        control={<Radio />}
-                        label="Custom Fee Rate"
-                      />
-                    </RadioGroup>
-                  </FormControl>
+                      {isConnected ? "Wallet" : "Connect"}
+                    </Button>
+                    <TextField
+                      label="Ordinals Address"
+                      value={ordinalsAddress}
+                      onChange={(e) => setOrdinalsAddress(e.target.value)}
+                      fullWidth
+                    />
+                  </Box>
 
-                  {feeMode === "preset" ? (
-                    <Box sx={{ mt: 2 }}>
-                      <FormControl fullWidth>
-                        <FormLabel>Fee Level</FormLabel>
-                        <Select
-                          value={feeLevel}
-                          onChange={(e) =>
-                            setFeeLevel(e.target.value as FeeLevel)
-                          }
-                          disabled={feeEstimateLoading}
-                          MenuProps={selectMenuProps}
-                          onOpen={() => setFeeLevelSelectOpen(true)}
-                          onClose={() => setFeeLevelSelectOpen(false)}
-                        >
-                          <MenuItem value={FeeLevel.Glacial}>
-                            Glacial (
-                            {feeEstimateLoading
-                              ? "..."
-                              : feeEstimate?.currentBitcoinFees.minimum ||
-                                "N/A"}{" "}
-                            sats/vB)
-                          </MenuItem>
-                          <MenuItem value={FeeLevel.Low}>
-                            Low (
-                            {feeEstimateLoading
-                              ? "..."
-                              : feeEstimate?.currentBitcoinFees.hour ||
-                                "N/A"}{" "}
-                            sats/vB)
-                          </MenuItem>
-                          <MenuItem value={FeeLevel.Medium}>
-                            Medium (
-                            {feeEstimateLoading
-                              ? "..."
-                              : feeEstimate?.currentBitcoinFees.halfHour ||
-                                "N/A"}{" "}
-                            sats/vB)
-                          </MenuItem>
-                          <MenuItem value={FeeLevel.High}>
-                            High (
-                            {feeEstimateLoading
-                              ? "..."
-                              : feeEstimate?.currentBitcoinFees.fastest ||
-                                "N/A"}{" "}
-                            sats/vB)
-                          </MenuItem>
-                        </Select>
-                        {feeEstimateLoading && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "center",
-                              mt: 1,
-                            }}
-                          >
-                            <CircularProgress size={20} />
-                          </Box>
-                        )}
-                      </FormControl>
-                    </Box>
-                  ) : (
-                    <Box sx={{ mt: 2 }}>
-                      <TextField
-                        label="Custom Fee Rate"
-                        type="number"
-                        value={customFeeRate}
-                        onChange={handleCustomFeeChange}
-                        fullWidth
-                        inputProps={{ min: 1, step: 1 }}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              sats/vB
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    </Box>
-                  )}
-                </Box>
-              </Grid2>
-              <Grid2 size={12}>
-                <Dropzone onDrop={handleDrop} multiple>
-                  {({ getRootProps, getInputProps }) => (
-                    <Box
-                      {...getRootProps()}
-                      sx={{
-                        width: "100%",
-                        aspectRatio: "1/1",
-                        border: "2px dashed #ccc",
-                        borderRadius: 2,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        "&:hover": {
-                          borderColor: "primary.main",
-                          backgroundColor: "rgba(0, 0, 0, 0.04)",
-                        },
-                      }}
-                    >
-                      <input {...getInputProps()} />
-                      <Typography
-                        variant="body1"
-                        textAlign="center"
-                        sx={{ mb: 1 }}
+                  {/* Fee Selection Section */}
+                  <Box sx={{ mb: 2 }}>
+                    <FormControl component="fieldset">
+                      <FormLabel component="legend">Fee Selection</FormLabel>
+                      <RadioGroup
+                        row
+                        value={feeMode}
+                        onChange={(e) =>
+                          setFeeMode(e.target.value as "preset" | "custom")
+                        }
                       >
-                        Drag and drop some files here, or click to select files
-                      </Typography>
-                      {inscribeError && (
-                        <Typography color="error" textAlign="center">
-                          {inscribeError.message}
+                        <FormControlLabel
+                          value="preset"
+                          control={<Radio />}
+                          label="Preset Fee Levels"
+                        />
+                        <FormControlLabel
+                          value="custom"
+                          control={<Radio />}
+                          label="Custom Fee Rate"
+                        />
+                      </RadioGroup>
+                    </FormControl>
+
+                    {feeMode === "preset" ? (
+                      <Box sx={{ mt: 2 }}>
+                        <FormControl fullWidth>
+                          <FormLabel>Fee Level</FormLabel>
+                          <Select
+                            value={feeLevel}
+                            onChange={(e) =>
+                              setFeeLevel(e.target.value as FeeLevel)
+                            }
+                            disabled={feeEstimateLoading}
+                            MenuProps={selectMenuProps}
+                            onOpen={() => setFeeLevelSelectOpen(true)}
+                            onClose={() => setFeeLevelSelectOpen(false)}
+                          >
+                            <MenuItem value={FeeLevel.Glacial}>
+                              Glacial (
+                              {feeEstimateLoading
+                                ? "..."
+                                : feeEstimate?.currentBitcoinFees.minimum ||
+                                  "N/A"}{" "}
+                              sats/vB)
+                            </MenuItem>
+                            <MenuItem value={FeeLevel.Low}>
+                              Low (
+                              {feeEstimateLoading
+                                ? "..."
+                                : feeEstimate?.currentBitcoinFees.hour ||
+                                  "N/A"}{" "}
+                              sats/vB)
+                            </MenuItem>
+                            <MenuItem value={FeeLevel.Medium}>
+                              Medium (
+                              {feeEstimateLoading
+                                ? "..."
+                                : feeEstimate?.currentBitcoinFees.halfHour ||
+                                  "N/A"}{" "}
+                              sats/vB)
+                            </MenuItem>
+                            <MenuItem value={FeeLevel.High}>
+                              High (
+                              {feeEstimateLoading
+                                ? "..."
+                                : feeEstimate?.currentBitcoinFees.fastest ||
+                                  "N/A"}{" "}
+                              sats/vB)
+                            </MenuItem>
+                          </Select>
+                          {feeEstimateLoading && (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                mt: 1,
+                              }}
+                            >
+                              <CircularProgress size={20} />
+                            </Box>
+                          )}
+                        </FormControl>
+                      </Box>
+                    ) : (
+                      <Box sx={{ mt: 2 }}>
+                        <TextField
+                          label="Custom Fee Rate"
+                          type="number"
+                          value={customFeeRate}
+                          onChange={handleCustomFeeChange}
+                          fullWidth
+                          inputProps={{ min: 1, step: 1 }}
+                          InputProps={{
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                sats/vB
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                </Grid2>
+                <Grid2 size={12}>
+                  <Dropzone onDrop={handleDrop} multiple>
+                    {({ getRootProps, getInputProps }) => (
+                      <Box
+                        {...getRootProps()}
+                        sx={{
+                          width: "100%",
+                          aspectRatio: "1/1",
+                          border: "2px dashed #ccc",
+                          borderRadius: 2,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          "&:hover": {
+                            borderColor: "primary.main",
+                            backgroundColor: "rgba(0, 0, 0, 0.04)",
+                          },
+                        }}
+                      >
+                        <input {...getInputProps()} />
+                        <Typography
+                          variant="body1"
+                          textAlign="center"
+                          sx={{ mb: 1 }}
+                        >
+                          Drag and drop some files here, or click to select
+                          files
                         </Typography>
-                      )}
-                    </Box>
-                  )}
-                </Dropzone>
+                        {inscribeError && (
+                          <Typography color="error" textAlign="center">
+                            {inscribeError.message}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Dropzone>
+                </Grid2>
               </Grid2>
-            </Grid2>
-          </CardContent>
-        </Card>
-      )}
-    </>
+            </CardContent>
+          </Card>
+        )}
+      </>
+    </SwitchableNetwork>
   );
 };

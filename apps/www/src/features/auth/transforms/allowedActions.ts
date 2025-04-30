@@ -57,5 +57,6 @@ export function graphQlAllowedActionToPermission(
   return {
     action: graphqlActionToEAction(permission.action),
     resource: graphqlResourceToEResource(permission.resource),
+    identifier: permission.identifier ?? undefined,
   };
 }

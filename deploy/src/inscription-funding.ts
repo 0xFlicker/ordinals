@@ -120,6 +120,7 @@ export class InscriptionFunding extends Construct {
           INSUFFICIENT_FUNDS_QUEUE_URL: this.insufficientFundsQueue.queueUrl,
           GENESIS_QUEUE_URL: this.genesisQueue.queueUrl,
           ...parseEnv(`${props.domainName}/.env.graphql`),
+          ...parseEnv(`${props.domainName}/.env.electrum`),
         },
       },
     );
@@ -202,6 +203,7 @@ export class InscriptionFunding extends Construct {
             user: props.usersTable?.tableName ?? "null",
           }),
           ...parseEnv(`${props.domainName}/.env.graphql`),
+          ...parseEnv(`${props.domainName}/.env.electrum`),
           BATCH_SUCCESS_QUEUE_URL: this.batchSuccessQueue.queueUrl,
           BATCH_FAILURE_QUEUE_URL: this.batchFailureQueue.queueUrl,
           BATCH_REMAINING_FUNDINGS_QUEUE_URL:

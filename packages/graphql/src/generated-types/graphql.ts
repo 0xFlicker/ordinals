@@ -345,6 +345,12 @@ export type KeyValueInput = {
   value: Scalars['String']['input'];
 };
 
+export type LinkVerifiedAddressRequest = {
+  address: Scalars['String']['input'];
+  siwbJwe?: InputMaybe<Scalars['String']['input']>;
+  siweJwe?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type Mutation = {
   __typename?: 'Mutation';
   axolotlFundingOpenEditionRequest: AxolotlOpenEditionResponse;
@@ -366,6 +372,7 @@ export type Mutation = {
   siwb: SiwbResponse;
   siwe: SiweResponse;
   uploadInscription: InscriptionUploadResponse;
+  user: Web3User;
 };
 
 
@@ -457,6 +464,11 @@ export type MutationSiweArgs = {
 
 export type MutationUploadInscriptionArgs = {
   input: InscriptionUploadRequest;
+};
+
+
+export type MutationUserArgs = {
+  id: Scalars['ID']['input'];
 };
 
 export type Nonce = {
@@ -641,11 +653,6 @@ export type QueryRoleArgs = {
 };
 
 
-export type QuerySelfArgs = {
-  namespace: Web3Namespace;
-};
-
-
 export type QuerySignMultipartUploadArgs = {
   partNumber: Scalars['Int']['input'];
   uploadId: Scalars['String']['input'];
@@ -740,8 +747,14 @@ export type Web3User = {
   allowedActions: Array<Permission>;
   handle: Scalars['String']['output'];
   id: Scalars['ID']['output'];
+  linkVerifiedAddress: Web3User;
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;
+};
+
+
+export type Web3UserLinkVerifiedAddressArgs = {
+  request: LinkVerifiedAddressRequest;
 };
 
 
@@ -862,6 +875,7 @@ export type ResolversTypes = {
   Int: ResolverTypeWrapper<Scalars['Int']['output']>;
   KeyValue: ResolverTypeWrapper<KeyValue>;
   KeyValueInput: KeyValueInput;
+  LinkVerifiedAddressRequest: LinkVerifiedAddressRequest;
   Mutation: ResolverTypeWrapper<{}>;
   Nonce: ResolverTypeWrapper<Nonce>;
   Permission: ResolverTypeWrapper<Permission>;
@@ -933,6 +947,7 @@ export type ResolversParentTypes = {
   Int: Scalars['Int']['output'];
   KeyValue: KeyValue;
   KeyValueInput: KeyValueInput;
+  LinkVerifiedAddressRequest: LinkVerifiedAddressRequest;
   Mutation: {};
   Nonce: Nonce;
   Permission: Permission;
@@ -1178,6 +1193,7 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
   siwb?: Resolver<ResolversTypes['SiwbResponse'], ParentType, ContextType, RequireFields<MutationSiwbArgs, 'address' | 'jwe'>>;
   siwe?: Resolver<ResolversTypes['SiweResponse'], ParentType, ContextType, RequireFields<MutationSiweArgs, 'address' | 'jwe'>>;
   uploadInscription?: Resolver<ResolversTypes['InscriptionUploadResponse'], ParentType, ContextType, RequireFields<MutationUploadInscriptionArgs, 'input'>>;
+  user?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<MutationUserArgs, 'id'>>;
 };
 
 export type NonceResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Nonce'] = ResolversParentTypes['Nonce']> = {
@@ -1246,7 +1262,7 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   presales?: Resolver<ResolversTypes['PresalesResult'], ParentType, ContextType, RequireFields<QueryPresalesArgs, 'query'>>;
   role?: Resolver<Maybe<ResolversTypes['Role']>, ParentType, ContextType, RequireFields<QueryRoleArgs, 'id'>>;
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
-  self?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType, RequireFields<QuerySelfArgs, 'namespace'>>;
+  self?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
   signMultipartUpload?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<QuerySignMultipartUploadArgs, 'partNumber' | 'uploadId'>>;
   user?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<QueryUserArgs, 'id'>>;
 };
@@ -1305,6 +1321,7 @@ export type Web3UserResolvers<ContextType = Context, ParentType extends Resolver
   allowedActions?: Resolver<Array<ResolversTypes['Permission']>, ParentType, ContextType>;
   handle?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  linkVerifiedAddress?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<Web3UserLinkVerifiedAddressArgs, 'request'>>;
   roles?: Resolver<Array<ResolversTypes['Role']>, ParentType, ContextType>;
   token?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

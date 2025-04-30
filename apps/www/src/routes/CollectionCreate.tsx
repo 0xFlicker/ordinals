@@ -1,14 +1,10 @@
 "use client";
 import { FC, useCallback, useState } from "react";
-import { DefaultProvider } from "@/context/default";
 import Grid from "@mui/material/Grid";
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import TextField from "@mui/material/TextField";
-import { Pay } from "@/features/inscription";
-import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
-import { AutoConnect } from "@/features/web3";
 import Dropzone from "react-dropzone";
 import { useCreateCollectionWithUpload } from "@/features/collections/hooks/useCreateCollectionWithUpload";
 import { useSignMultipartUpload } from "@/features/inscribe/hooks/useSignMultipartUpload";
@@ -16,10 +12,7 @@ import { useCreateCollectionParentInscription } from "@/features/collections/hoo
 import { BitcoinNetwork } from "@/graphql/types";
 import { useRouter } from "next/navigation";
 
-export const CollectionCreate: FC<{
-  initialBitcoinNetwork: BitcoinNetworkType;
-  initialBitcoinPurpose: AddressPurpose[];
-}> = ({ initialBitcoinNetwork, initialBitcoinPurpose }) => {
+export const CollectionCreate = () => {
   const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");

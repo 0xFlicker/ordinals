@@ -14,37 +14,24 @@ import {
   generateFundableGenesisTransaction,
   generateRevealTransaction,
   BitcoinNetworkNames,
-  addressReceivedMoneyInThisTx,
-  broadcastTx,
   generatePrivKey,
   networkNamesToTapScriptName,
   bitcoinToSats,
   generateRefundTransaction,
-  serializedScriptToScriptData,
-  textToHex,
   groupFundings,
+  encodeElectrumScriptHash,
 } from "@0xflick/inscriptions";
-import {
-  get_seckey,
-  get_pubkey,
-  tweak_pubkey,
-  tweak_seckey,
-} from "@cmdcode/crypto-tools/keys";
+import { get_seckey, get_pubkey } from "@cmdcode/crypto-tools/keys";
 import { Address, Tap, Tx, Script, Signer } from "@cmdcode/tapscript";
-import { randomBytes } from "crypto";
-import { promisify } from "util";
-import { exec as execCallback } from "child_process";
 import {
   sendBitcoin,
   generateBlock,
   createWallet,
   getNewAddress,
-  loadWallet,
   sendRawTransaction,
 } from "./bitcoin";
-import { checkTxo, fetchFunding } from "./mempool";
+import { checkTxo } from "./mempool";
 import { retryWithBackOff } from "@0xflick/ordinals-backend/src/utils/retry";
-import { UnableToFindFeasibleFeeRateError } from "../../inscriptions/src/errors";
 
 async function waitForFunding(
   address: string,
@@ -126,6 +113,7 @@ describe("genesis", () => {
       timesChecked: 0,
       sizeEstimate: 1000,
       type: "address-inscription",
+      genesisScriptHash: "1234567890",
       meta: {},
     });
     const funding = await fundingDao.getFunding("1" as ID_AddressInscription);
@@ -513,9 +501,14 @@ describe("genesis", () => {
       fundingStatus: "funding",
       network: NETWORK,
       timesChecked: 0,
+      // Used during transaction batching. Actual fee can differ
       sizeEstimate: genesisResponse.totalFee + genesisResponse.overhead,
       type: "address-inscription",
       meta: {},
+      // The little-endian hash of the scriptPubKey of the funding address, used for electrum subscription
+      genesisScriptHash: encodeElectrumScriptHash(
+        genesisResponse.fundingAddress,
+      ),
     });
 
     // Step 6: Save the inscription transaction to S3
@@ -707,9 +700,14 @@ describe("genesis", () => {
       fundingStatus: "funding",
       network: NETWORK,
       timesChecked: 0,
+      // Used during transaction batching. Actual fee can differ
       sizeEstimate: genesisResponse.totalFee + genesisResponse.overhead,
       type: "address-inscription",
       meta: {},
+      // The little-endian hash of the scriptPubKey of the funding address, used for electrum subscription
+      genesisScriptHash: encodeElectrumScriptHash(
+        genesisResponse.fundingAddress,
+      ),
     });
 
     // Step 6: Save the inscription transaction to S3

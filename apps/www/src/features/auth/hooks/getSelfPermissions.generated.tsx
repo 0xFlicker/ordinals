@@ -3,17 +3,15 @@ import type * as Types from '../../../graphql/types';
 import { gql } from '@apollo/client';
 import * as Apollo from '@apollo/client';
 const defaultOptions = {} as const;
-export type GetSelfPermissionsQueryVariables = Types.Exact<{
-  namespace: Types.Web3Namespace;
-}>;
+export type GetSelfPermissionsQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
 
 export type GetSelfPermissionsQuery = { __typename?: 'Query', self?: { __typename?: 'Web3User', allowedActions: Array<{ __typename?: 'Permission', action: Types.PermissionAction, resource: Types.PermissionResource }> } | null };
 
 
 export const GetSelfPermissionsDocument = gql`
-    query getSelfPermissions($namespace: Web3Namespace!) {
-  self(namespace: $namespace) {
+    query getSelfPermissions {
+  self {
     allowedActions {
       action
       resource
@@ -34,11 +32,10 @@ export const GetSelfPermissionsDocument = gql`
  * @example
  * const { data, loading, error } = useGetSelfPermissionsQuery({
  *   variables: {
- *      namespace: // value for 'namespace'
  *   },
  * });
  */
-export function useGetSelfPermissionsQuery(baseOptions: Apollo.QueryHookOptions<GetSelfPermissionsQuery, GetSelfPermissionsQueryVariables>) {
+export function useGetSelfPermissionsQuery(baseOptions?: Apollo.QueryHookOptions<GetSelfPermissionsQuery, GetSelfPermissionsQueryVariables>) {
         const options = {...defaultOptions, ...baseOptions}
         return Apollo.useQuery<GetSelfPermissionsQuery, GetSelfPermissionsQueryVariables>(GetSelfPermissionsDocument, options);
       }

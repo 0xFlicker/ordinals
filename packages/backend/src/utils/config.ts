@@ -125,3 +125,21 @@ export const batchRemainingFundingsQueueUrl = lazySingleton(() => {
   }
   return process.env.BATCH_REMAINING_FUNDINGS_QUEUE_URL;
 });
+
+export const electrumTls = lazySingleton(() => {
+  return process.env.ELECTRUM_TLS === "true";
+});
+
+export const electrumHostname = lazySingleton(() => {
+  if (!process.env.ELECTRUM_HOSTNAME) {
+    throw new Error("ELECTRUM_HOSTNAME is not set");
+  }
+  return process.env.ELECTRUM_HOSTNAME;
+});
+
+export const electrumPort = lazySingleton(() => {
+  if (!process.env.ELECTRUM_PORT) {
+    throw new Error("ELECTRUM_PORT is not set");
+  }
+  return parseInt(process.env.ELECTRUM_PORT);
+});

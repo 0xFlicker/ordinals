@@ -1,6 +1,5 @@
 # docker/bitcoind/Dockerfile
-FROM bitcoin/bitcoin:28.1
-
+FROM bitcoin/bitcoin:29
 # copy your regtest bitcoin.conf into place
 COPY config/bitcoin.conf /home/bitcoin/.bitcoin/bitcoin.conf
 

@@ -1,3 +1,4 @@
+"use client";
 import { FC, useCallback } from "react";
 import { Content } from "./Content";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";

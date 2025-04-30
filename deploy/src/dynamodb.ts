@@ -263,6 +263,7 @@ export class DynamoDB extends Construct {
         "fundingAmountSat",
         "network",
         "createdAt",
+        "genesisScriptHash",
       ],
     });
 

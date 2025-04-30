@@ -4,6 +4,9 @@
   "main": "index.js",
   "license": "MIT",
   "type": "module",
+  "scripts": {
+    "nodets": "node --loader ts-node/esm"
+  },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.119",
     "@types/bunyan": "^1.8.8",

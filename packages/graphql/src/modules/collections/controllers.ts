@@ -187,7 +187,9 @@ export async function updateCollectionParentInscription({
   kmsClient,
   uploadsDao,
   tipAmountSat,
+  creatorUserId,
 }: {
+  creatorUserId?: string;
   parentParentInscriptionId?: string;
   parentInscriptionUploadId: string;
   parentInscriptionSecKeyEnvelopeKeyId: string;
@@ -232,6 +234,7 @@ export async function updateCollectionParentInscription({
     fundingAmountBtc,
     document,
   } = await updateCollectionFunding({
+    creatorUserId,
     parentParentInscriptionId,
     collectionId: toCollectionId(collectionId),
     fundingSecKeyEnvelopeKeyId,

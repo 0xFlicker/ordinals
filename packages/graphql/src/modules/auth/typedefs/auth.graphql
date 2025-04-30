@@ -49,7 +49,7 @@ type SignInBitcoinResponse {
 
 type Query {
   appInfo: AppInfo!
-  self(namespace: Web3Namespace!): Web3User
+  self: Web3User
   checkUserExistsForAddress(address: ID!): Boolean!
   checkUserExistsForHandle(handle: String!): Boolean!
 }

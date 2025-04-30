@@ -162,9 +162,9 @@ declare module "@mempool/electrum-client" {
     // blockchainScripthash_listunspentBatch(scripthash) {
     //   return this.requestBatch('blockchain.scripthash.listunspent', scripthash);
     // }
-    // blockchainScripthash_getHistory(scripthash) {
-    //   return this.request('blockchain.scripthash.get_history', [scripthash]);
-    // }
+    blockchainScripthash_getHistory(scripthash) {
+      return this.request('blockchain.scripthash.get_history', [scripthash]);
+    }
     // blockchainScripthash_getHistoryBatch(scripthash) {
     //   return this.requestBatch('blockchain.scripthash.get_history', scripthash);
     // }

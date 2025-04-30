@@ -50,7 +50,7 @@ export async function revealFunding({
   });
 
   const utxo = await enqueueCheckTxo({
-    address: funding.address,
+    scriptHash: funding.genesisScriptHash,
     mempoolBitcoinClient: mempoolClient,
     findValue: Number(bitcoinToSats(fundingDoc.fundingAmountBtc)),
   });

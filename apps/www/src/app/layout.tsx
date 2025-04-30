@@ -2,6 +2,8 @@ import { Inter, Roboto } from "next/font/google";
 import type { Metadata } from "next";
 import { baseUrl } from "@/utils/config";
 import Context from "./context";
+import { ReactNode } from "react";
+import "./global.css";
 const inter = Inter({ subsets: ["latin"] });
 
 const roboto = Roboto({
@@ -19,10 +21,11 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: NonNullable<ReactNode>;
 }) {
   return (
     <html lang="en" className={roboto.variable}>
+      <head></head>
       <body className={inter.className}>
         <Context>{children}</Context>
       </body>

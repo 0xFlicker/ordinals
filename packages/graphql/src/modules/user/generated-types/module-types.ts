@@ -5,8 +5,8 @@ export namespace UserModule {
   interface DefinedFields {
     Address: 'type' | 'address';
     Nonce: 'nonce' | 'messageToSign' | 'domain' | 'expiration' | 'issuedAt' | 'uri' | 'version' | 'chainId' | 'pubKey' | 'address';
-    Web3User: 'id' | 'addresses' | 'roles' | 'allowedActions' | 'token' | 'handle';
-    Mutation: 'nonceEthereum' | 'nonceBitcoin' | 'nonceFrame';
+    Web3User: 'id' | 'addresses' | 'roles' | 'allowedActions' | 'token' | 'handle' | 'linkVerifiedAddress';
+    Mutation: 'nonceEthereum' | 'nonceBitcoin' | 'nonceFrame' | 'user';
     Query: 'user';
   };
   
@@ -14,9 +14,14 @@ export namespace UserModule {
     AddressType: 'EVM' | 'BTC';
   };
   
+  interface DefinedInputFields {
+    LinkVerifiedAddressRequest: 'address' | 'siweJwe' | 'siwbJwe';
+  };
+  
   export type AddressType = DefinedEnumValues['AddressType'];
   export type Address = Pick<Types.Address, DefinedFields['Address']>;
   export type Nonce = Pick<Types.Nonce, DefinedFields['Nonce']>;
+  export type LinkVerifiedAddressRequest = Pick<Types.LinkVerifiedAddressRequest, DefinedInputFields['LinkVerifiedAddressRequest']>;
   export type Web3User = Pick<Types.Web3User, DefinedFields['Web3User']>;
   export type Role = Types.Role;
   export type Permission = Types.Permission;
@@ -67,12 +72,14 @@ export namespace UserModule {
       allowedActions?: gm.Middleware[];
       token?: gm.Middleware[];
       handle?: gm.Middleware[];
+      linkVerifiedAddress?: gm.Middleware[];
     };
     Mutation?: {
       '*'?: gm.Middleware[];
       nonceEthereum?: gm.Middleware[];
       nonceBitcoin?: gm.Middleware[];
       nonceFrame?: gm.Middleware[];
+      user?: gm.Middleware[];
     };
     Query?: {
       '*'?: gm.Middleware[];

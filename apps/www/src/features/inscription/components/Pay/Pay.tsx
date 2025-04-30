@@ -58,7 +58,7 @@ export const Pay: FC<{
     variables: {
       id: fundingId,
     },
-    pollInterval: 1000,
+    pollInterval: 5000,
   });
 
   useEffect(() => {

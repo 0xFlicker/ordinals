@@ -20,6 +20,7 @@ AWS_SECRET_ACCESS_KEY=000000000000 \
 cdklocal bootstrap 
 
 # Create a wallet
-
-bitcoin-cli -regtest -rpcuser=test -rpcpassword=test createwallet "default"
-bitcoin-cli -regtest -rpcuser=test -rpcpassword=test generatetoaddress 101 $(bitcoin-cli -regtest --rpcuser=test --rpcpassword=test getnewaddress)
+if [ -z "$LOCAL_DEPLOY_YES" ]; then
+  bitcoin-cli -regtest -rpcuser=test -rpcpassword=test createwallet "default" | jq -r ".result" | echo
+  bitcoin-cli -regtest -rpcuser=test -rpcpassword=test generatetoaddress 101 $(bitcoin-cli -regtest --rpcuser=test --rpcpassword=test getnewaddress) > /dev/null 2>&1 && echo "Generated 101 blocks"
+fi

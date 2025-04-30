@@ -21,6 +21,13 @@ type Nonce {
   address: Address!
 }
 
+input LinkVerifiedAddressRequest {
+  address: String!
+  # One, and only one, of the following must be provided
+  siweJwe: String
+  siwbJwe: String
+}
+
 type Web3User {
   id: ID!
   addresses: [Address!]!
@@ -28,12 +35,15 @@ type Web3User {
   allowedActions: [Permission!]!
   token: String
   handle: String!
+
+  linkVerifiedAddress(request: LinkVerifiedAddressRequest!): Web3User!
 }
 
 type Mutation {
   nonceEthereum(address: ID!, chainId: Int!): Nonce!
   nonceBitcoin(address: ID!): Nonce!
   nonceFrame(trustedBytes: String!): Nonce!
+  user(id: ID!): Web3User!
 }
 
 type Query {

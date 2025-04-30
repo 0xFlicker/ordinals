@@ -3,10 +3,12 @@ import { FC } from "react";
 
 import { AgreementModal } from "../AgreementModal";
 import { ActiveClaim } from "../ActiveClaim";
-import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
+import { BitcoinNetworkType } from "sats-connect";
 import { useRouter } from "next/navigation";
-import Typography from "@mui/material/Typography";
 import { Start } from "../Start/Start";
+import CardMedia from "@mui/material/CardMedia";
+import NextImage from "next/image";
+const RUG = "/images/rug.jpg";
 
 export const Content: FC<{
   collectionId: string;
@@ -16,7 +18,6 @@ export const Content: FC<{
   const router = useRouter();
 
   if (step === "start") {
-    // return <Typography>CLOSED</Typography>;
     return (
       <Start
         collectionId={collectionId}
@@ -55,7 +56,16 @@ export const Content: FC<{
             }/claim/${collectionId}`
           );
         }}
-      />
+      >
+        <CardMedia
+          component={NextImage}
+          image={RUG}
+          sx={{
+            flexGrow: 1,
+          }}
+          alt="this is a rug"
+        />
+      </AgreementModal>
     );
   }
 

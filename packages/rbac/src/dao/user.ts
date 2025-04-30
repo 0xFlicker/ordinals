@@ -281,5 +281,6 @@ export class UserDAO {
         identifier: address,
       }),
     ]);
+    return roleId;
   }
 }

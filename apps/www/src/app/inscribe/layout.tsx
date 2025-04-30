@@ -10,5 +10,5 @@ export default function RootLayout({
 }: {
   children: NonNullable<ReactNode>;
 }) {
-  return { children };
+  return children;
 }

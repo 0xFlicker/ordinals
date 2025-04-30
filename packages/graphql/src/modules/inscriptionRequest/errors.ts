@@ -1,12 +1,17 @@
 import { ApolloError } from "apollo-server-errors";
 
-export type TReason = "INVALID_DESTINATION_ADDRESS" | "INVALID_FILE";
+export type TReason =
+  | "INVALID_DESTINATION_ADDRESS"
+  | "INVALID_FILE"
+  | "INVALID_REQUEST";
 function reasonToMessage(reason: TReason): string {
   switch (reason) {
     case "INVALID_DESTINATION_ADDRESS":
       return "Invalid destination address";
     case "INVALID_FILE":
       return "Invalid file";
+    case "INVALID_REQUEST":
+      return "Invalid request";
     default:
       return "Unknown error";
   }

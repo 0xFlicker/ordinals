@@ -5,8 +5,7 @@ import { WalletStandardProvider } from "@/features/wallet-standard/Context";
 import { MagicEdenProvider } from "@/features/magic-eden/Context";
 import { Provider as XverseProvider } from "../features/xverse/Context";
 import { AddressPurpose, BitcoinNetwork } from "sats-connect";
-import { Provider as Web3Provider } from "@/features/web3";
-import { Provider as AuthProvider } from "@/features/auth";
+import { AuthProvider } from "@/features/auth";
 import { WagmiProvider } from "wagmi";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { wagmiConfig } from "@/features/web3/wagmi";
@@ -52,16 +51,14 @@ export default function Context({
           network={initialBitcoinNetwork}
           purpose={initialBitcoinPurpose}
         >
-          <Web3Provider>
-            <AuthProvider autoLogin={autoLogin}>
-              <InnerContext
-                initialBitcoinNetwork={initialBitcoinNetwork}
-                initialBitcoinPurpose={initialBitcoinPurpose}
-              >
-                {children}
-              </InnerContext>
-            </AuthProvider>
-          </Web3Provider>
+          <AuthProvider autoLogin={autoLogin}>
+            <InnerContext
+              initialBitcoinNetwork={initialBitcoinNetwork}
+              initialBitcoinPurpose={initialBitcoinPurpose}
+            >
+              {children}
+            </InnerContext>
+          </AuthProvider>
         </XverseProvider>
       </QueryClientProvider>
     </WagmiProvider>

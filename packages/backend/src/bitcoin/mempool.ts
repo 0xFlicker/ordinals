@@ -3,14 +3,24 @@ import { BitcoinNetworkNames } from "@0xflick/inscriptions";
 import Queue from "p-queue";
 import { MempoolConfig } from "@mempool/mempool.js/lib/interfaces/index.js";
 import {
+  electrumHostname,
+  electrumPort,
+  electrumTls,
   mainnetMempoolAuth,
   mainnetMempoolUrl,
   regtestMempoolUrl,
   testnetMempoolAuth,
   testnetMempoolUrl,
 } from "../index.js";
-
+import { createLogger } from "../index.js";
+import { lazySingleton } from "@0xflick/ordinals-models";
+import {
+  createElectrumClient,
+  electrumGetAddressTransactions,
+} from "../electrs/transactions.js";
+const logger = createLogger({ name: "mempool" });
 export type MempoolClient = ReturnType<typeof createMempoolClient>;
+
 export function createMempoolClient({
   network,
   hostname,
@@ -82,75 +92,91 @@ export function createMempoolBitcoinClient({
 const processingQueue = new Queue({ concurrency: 24 });
 
 export class NoVoutFound extends Error {
-  constructor({ address }: { address: string }) {
-    super(`No vout found for address ${address}`);
+  constructor({
+    address,
+    scriptHash,
+  }: {
+    address?: string;
+    scriptHash?: string;
+  }) {
+    super(
+      address && scriptHash
+        ? `No vout found for address ${address} and scriptHash ${scriptHash}`
+        : address
+        ? `No vout found for address ${address}`
+        : scriptHash
+        ? `No vout found for scriptHash ${scriptHash}`
+        : "No vout found",
+    );
   }
 }
 
 const checkTxo = async ({
-  address,
-  mempoolBitcoinClient,
+  scriptHash,
   findValue,
 }: {
-  address: string;
-  mempoolBitcoinClient: MempoolClient["bitcoin"];
+  scriptHash: string;
   findValue?: number;
 }) => {
-  const { txid, vout, amount } = await fetchFunding({
-    address,
-    mempoolBitcoinClient,
+  const { txid, vout, amount } = await pullElectrumTransactionsForAddress({
+    scriptHash,
     findValue,
   });
   return {
-    address,
     txid,
     vout,
     amount,
   };
 };
 
-async function fetchFunding({
+export const electrumClientFactory = lazySingleton(() => {
+  return createElectrumClient({
+    tls: electrumTls.get(),
+    hostname: electrumHostname.get(),
+    port: electrumPort.get(),
+  });
+});
+
+export async function pullElectrumTransactionsForAddress({
   address,
-  mempoolBitcoinClient,
+  scriptHash,
   findValue,
 }: {
-  address: string;
-  mempoolBitcoinClient: MempoolClient["bitcoin"];
+  address?: string;
+  scriptHash: string;
   findValue?: number;
 }) {
-  const txs = await mempoolBitcoinClient.addresses.getAddressTxs({ address });
+  const txs = await electrumGetAddressTransactions({
+    scriptHash,
+    client: await electrumClientFactory.get(),
+  });
   for (const tx of txs) {
     for (let i = 0; i < tx.vout.length; i++) {
       const output = tx.vout[i];
-      if (output.scriptpubkey_address === address) {
-        if (
-          (findValue !== undefined && output.value === findValue) ||
-          findValue === undefined
-        ) {
-          return {
-            txid: tx.txid,
-            vout: i,
-            amount: output.value,
-          };
-        }
+      if (
+        output.scriptpubkey_address === address &&
+        (findValue === undefined || output.value === findValue)
+      ) {
+        return {
+          txid: tx.txid,
+          vout: i,
+          amount: output.value,
+        };
       }
     }
   }
-  throw new NoVoutFound({ address });
+  throw new NoVoutFound({ address, scriptHash });
 }
 
 export const enqueueCheckTxo = ({
-  address,
-  mempoolBitcoinClient,
+  scriptHash,
   findValue,
 }: {
-  address: string;
-  mempoolBitcoinClient: MempoolClient["bitcoin"];
+  scriptHash: string;
+  mempoolBitcoinClient?: MempoolClient["bitcoin"];
   findValue?: number;
 }) => {
-  return processingQueue.add(() =>
-    checkTxo({ address, mempoolBitcoinClient, findValue }),
-  );
+  return processingQueue.add(() => checkTxo({ scriptHash, findValue }));
 };
 
 export const submitTx = async ({

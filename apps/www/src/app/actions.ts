@@ -1,4 +1,4 @@
-"use serverr";
+"use server";
 import { gql } from "graphql-tag";
 import { createGraphqlClient } from "@/apiGraphql/client";
 import { getSdk } from "./actions.generated";

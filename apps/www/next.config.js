@@ -1,4 +1,3 @@
-
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "www";
 const graphqlEndpoint =
@@ -16,7 +15,8 @@ const sepoliaEnsUniversalResolverAddress =
   process.env.NEXT_PUBLIC_SEPOLIA_ENS_UNIVERSAL_RESOLVER_ADDRESS ??
   "0x156381BB699B8637000a919ac35B46E4C9DB7545";
 
-const webConnectProjectId = process.env.NEXT_PUBLIC_WEB_CONNECT_PROJECT_ID ?? "";
+const webConnectProjectId =
+  process.env.NEXT_PUBLIC_WEB_CONNECT_PROJECT_ID ?? "";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

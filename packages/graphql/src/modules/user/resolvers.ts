@@ -11,6 +11,15 @@ import { modelPermissionToGraphql } from "../permissions/transforms.js";
 import { Web3UserModel } from "./models.js";
 import { IUserAddress, UserAddressType } from "@0xflick/ordinals-rbac-models";
 import { AddressType } from "../../generated-types/graphql.js";
+import { verifyAuthorizedUser } from "../auth/controller.js";
+import { UserError } from "./errors.js";
+import {
+  createJwtTokenForLogin,
+  createJwtTokenForNewUser,
+  decryptJweToken,
+} from "@0xflick/ordinals-rbac";
+import { verifyMessage } from "ethers";
+import { Verifier } from "bip322-js";
 
 const logger = createLogger({
   name: "graphql/user-resolvers",
@@ -70,6 +79,254 @@ export const resolvers: UserModule.Resolvers = {
       );
       return permissions.map(modelPermissionToGraphql);
     },
+    linkVerifiedAddress: async (user, { request }, context, info) => {
+      const {
+        requireMutation,
+        userDao,
+        userNonceDao,
+        userRolesDao,
+        rolesDao,
+        rolePermissionsDao,
+        authMessageDomain,
+        authMessageJwtClaimIssuer,
+        setToken,
+      } = context;
+      requireMutation(info);
+      const { roleIds, userId } = await verifyAuthorizedUser(context);
+      const { address, siweJwe, siwbJwe } = request;
+      if (!siweJwe && !siwbJwe) {
+        throw new UserError(
+          "INVALID_REQUEST",
+          "One of siweJwe or siwbJwe must be provided",
+        );
+      }
+      if (siweJwe && siwbJwe) {
+        throw new UserError(
+          "INVALID_REQUEST",
+          "Only one of siweJwe or siwbJwe can be provided",
+        );
+      }
+      if (siweJwe) {
+        const { protectedHeader, plaintext } = await decryptJweToken(siweJwe);
+        const signature = Buffer.from(plaintext).toString("utf8");
+        const nonce = protectedHeader.kid!;
+
+        const userNonceRequest = await userNonceDao.getNonce(address, nonce);
+        if (!userNonceRequest) {
+          throw new UserError("INVALID_NONCE", "Invalid nonce");
+        }
+        const {
+          domain,
+          expiresAt,
+          issuedAt,
+          uri,
+          version,
+          chainId,
+          address: { address: nonceAddress, type },
+        } = userNonceRequest;
+        if (nonceAddress !== address) {
+          throw new UserError(
+            "INVALID_ADDRESS",
+            `Nonce address ${nonceAddress} does not match requested address ${address}`,
+          );
+        }
+        if (type !== UserAddressType.EVM) {
+          throw new UserError(
+            "INVALID_ADDRESS",
+            `Nonce address ${nonceAddress} is not an EVM address`,
+          );
+        }
+        if (domain !== authMessageDomain) {
+          throw new UserError(
+            "INVALID_DOMAIN",
+            `Nonce domain ${domain} does not match requested domain ${authMessageDomain}`,
+          );
+        }
+        if (uri !== authMessageJwtClaimIssuer) {
+          throw new UserError(
+            "INVALID_URI",
+            `Nonce uri ${uri} does not match requested uri ${authMessageJwtClaimIssuer}`,
+          );
+        }
+        if (version !== "1") {
+          throw new UserError(
+            "INVALID_VERSION",
+            `Nonce version ${version} does not match requested version 1`,
+          );
+        }
+        if (expiresAt < new Date().toISOString()) {
+          throw new UserError(
+            "INVALID_EXPIRATION",
+            `Nonce expiresAt ${expiresAt} is in the past`,
+          );
+        }
+
+        try {
+          const messageToSign = authMessageEthereum({
+            address,
+            chainId: chainId!,
+            domain,
+            expirationTime: expiresAt,
+            issuedAt,
+            uri,
+            version: version!,
+            nonce,
+          });
+          const recoveredAddress = verifyMessage(messageToSign, signature);
+          if (recoveredAddress !== address) {
+            throw new UserError(
+              "INVALID_SIGNATURE",
+              `Signature ${signature} is invalid for address ${address}`,
+            );
+          }
+        } catch (error) {
+          if (error instanceof UserError) {
+            throw error;
+          }
+          throw new UserError("INVALID_SIGNATURE", "Invalid signature");
+        }
+
+        // bind the address to the user, creates a new role
+        const roleId = await userDao.bindAddressToUser(
+          userRolesDao,
+          rolesDao,
+          rolePermissionsDao,
+          userId,
+          address,
+          UserAddressType.BTC,
+        );
+
+        // generate a new user token
+        const token = await createJwtTokenForLogin({
+          user: {
+            userId,
+            roleIds: [...roleIds, roleId],
+          },
+          issuer: authMessageJwtClaimIssuer,
+        });
+
+        // cookie nom nom
+        setToken(token);
+
+        return new Web3UserModel({
+          userId,
+          userDao,
+          token,
+        });
+      } else if (siwbJwe) {
+        // SIWB
+        const { protectedHeader, plaintext } = await decryptJweToken(siwbJwe);
+        const signature = Buffer.from(plaintext).toString("utf8");
+        const nonce = protectedHeader.kid!;
+
+        const userNonceRequest = await userNonceDao.getNonce(address, nonce);
+
+        if (!userNonceRequest) {
+          throw new UserError("INVALID_NONCE", "Invalid nonce");
+        }
+
+        const {
+          domain,
+          expiresAt,
+          issuedAt,
+          uri,
+          version,
+          address: { address: nonceAddress, type },
+        } = userNonceRequest;
+
+        if (nonceAddress !== address) {
+          throw new UserError(
+            "INVALID_ADDRESS",
+            `Nonce address ${nonceAddress} does not match requested address ${address}`,
+          );
+        }
+        if (type !== UserAddressType.BTC) {
+          throw new UserError(
+            "INVALID_ADDRESS",
+            `Nonce address ${nonceAddress} is not a BTC address`,
+          );
+        }
+        if (domain !== authMessageDomain) {
+          throw new UserError(
+            "INVALID_DOMAIN",
+            `Nonce domain ${domain} does not match requested domain ${authMessageDomain}`,
+          );
+        }
+        if (uri !== authMessageJwtClaimIssuer) {
+          throw new UserError(
+            "INVALID_URI",
+            `Nonce uri ${uri} does not match requested uri ${authMessageJwtClaimIssuer}`,
+          );
+        }
+        if (version !== "1") {
+          throw new UserError(
+            "INVALID_VERSION",
+            `Nonce version ${version} does not match requested version 1`,
+          );
+        }
+        if (expiresAt < new Date().toISOString()) {
+          throw new UserError(
+            "INVALID_EXPIRATION",
+            `Nonce expiresAt ${expiresAt} is in the past`,
+          );
+        }
+
+        try {
+          const messageToSign = authMessageBitcoin({
+            address,
+            domain,
+            expirationTime: expiresAt,
+            issuedAt,
+            uri,
+            nonce,
+            network: addressToBitcoinNetwork(address),
+          });
+          const verified = Verifier.verifySignature(
+            address,
+            messageToSign,
+            signature,
+          );
+          if (!verified) {
+            throw new UserError("INVALID_SIGNATURE", "Invalid signature");
+          }
+
+          // bind the address to the user, creates a new role
+          const roleId = await userDao.bindAddressToUser(
+            userRolesDao,
+            rolesDao,
+            rolePermissionsDao,
+            userId,
+            address,
+            UserAddressType.BTC,
+          );
+
+          // generate a new user token with the new role
+          const token = await createJwtTokenForLogin({
+            user: {
+              userId,
+              roleIds: [...roleIds, roleId],
+            },
+            issuer: authMessageJwtClaimIssuer,
+          });
+
+          // cookie nom nom
+          setToken(token);
+
+          return new Web3UserModel({
+            userId,
+            userDao,
+            token,
+          });
+        } catch (error) {
+          if (error instanceof UserError) {
+            throw error;
+          }
+          throw new UserError("INVALID_SIGNATURE", "Invalid signature");
+        }
+      }
+      // We should never get here, but this makes typescript feel better
+      throw new UserError("INVALID_REQUEST", "Invalid request");
+    },
   },
   Query: {
     user: async (_, { id }, { getToken, userDao }) => {
@@ -81,6 +338,13 @@ export const resolvers: UserModule.Resolvers = {
     },
   },
   Mutation: {
+    user: async (_, { id }, { getToken, userDao }) => {
+      return new Web3UserModel({
+        userId: id,
+        token: getToken(),
+        userDao: userDao,
+      });
+    },
     nonceEthereum: async (
       _,
       { address, chainId },

@@ -33,5 +33,6 @@ export interface IPresaleModel {
   tipAmountSat?: number;
   tipAmountDestination?: string;
   farcasterFid?: number;
+  genesisScriptHash: string;
   sizeEstimate: number;
 }

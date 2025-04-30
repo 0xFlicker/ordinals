@@ -1,5 +1,4 @@
 import { baseUrl } from "@/utils/config";
-import { cookies } from "next/headers";
 import { Metadata } from "next";
 import Client from "./client";
 import { gql } from "graphql-tag";
@@ -56,7 +55,9 @@ export default async function Page() {
     }
     const handle = await getUserHandle(userId);
     if (!handle) {
-      return <Client appRight={<WalletConnectButton />} />;
+      return (
+        <Client appRight={<WalletConnectButton user={{ userId, handle }} />} />
+      );
     }
     return (
       <Client
@@ -64,6 +65,7 @@ export default async function Page() {
           <WalletConnectButton
             user={{
               handle,
+              userId,
             }}
           />
         }

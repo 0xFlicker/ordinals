@@ -9,7 +9,6 @@ export default function Page({
   return (
     <PayRoute
       initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-      initialBitcoinPurpose={[AddressPurpose.Payment]}
       fundingId={fundingId}
     />
   );

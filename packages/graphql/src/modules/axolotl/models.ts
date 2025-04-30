@@ -23,9 +23,12 @@ import {
   FeeLevel,
   InputMaybe,
 } from "../../generated-types/graphql.js";
-import { bitcoinToSats, satsToBitcoin } from "@0xflick/inscriptions";
+import {
+  bitcoinToSats,
+  encodeElectrumScriptHash,
+  satsToBitcoin,
+} from "@0xflick/inscriptions";
 import { AxolotlError } from "./errors.js";
-
 const { compile } = handlebars;
 
 const logger = createLogger({ name: "graphql/axolotl/models" });
@@ -364,6 +367,7 @@ export class AxolotlModel implements IAxolotlMeta {
         claimedCount: count,
         revealedAt,
       },
+      genesisScriptHash: encodeElectrumScriptHash(fundingAddress),
     });
 
     const doc: TInscriptionDoc = {

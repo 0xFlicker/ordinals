@@ -341,6 +341,12 @@ export type KeyValueInput = {
   value: Scalars['String']['input'];
 };
 
+export type LinkVerifiedAddressRequest = {
+  address: Scalars['String']['input'];
+  siwbJwe?: InputMaybe<Scalars['String']['input']>;
+  siweJwe?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type Mutation = {
   __typename?: 'Mutation';
   axolotlFundingOpenEditionRequest: AxolotlOpenEditionResponse;
@@ -362,6 +368,7 @@ export type Mutation = {
   siwb: SiwbResponse;
   siwe: SiweResponse;
   uploadInscription: InscriptionUploadResponse;
+  user: Web3User;
 };
 
 
@@ -453,6 +460,11 @@ export type MutationSiweArgs = {
 
 export type MutationUploadInscriptionArgs = {
   input: InscriptionUploadRequest;
+};
+
+
+export type MutationUserArgs = {
+  id: Scalars['ID']['input'];
 };
 
 export type Nonce = {
@@ -640,11 +652,6 @@ export type QueryRoleArgs = {
 };
 
 
-export type QuerySelfArgs = {
-  namespace: Web3Namespace;
-};
-
-
 export type QuerySignMultipartUploadArgs = {
   partNumber: Scalars['Int']['input'];
   uploadId: Scalars['String']['input'];
@@ -740,6 +747,12 @@ export type Web3User = {
   allowedActions: Array<Permission>;
   handle: Scalars['String']['output'];
   id: Scalars['ID']['output'];
+  linkVerifiedAddress: Web3User;
   roles: Array<Role>;
   token?: Maybe<Scalars['String']['output']>;
+};
+
+
+export type Web3UserLinkVerifiedAddressArgs = {
+  request: LinkVerifiedAddressRequest;
 };

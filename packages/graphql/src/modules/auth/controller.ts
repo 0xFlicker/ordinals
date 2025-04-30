@@ -8,6 +8,11 @@ import {
   verifyJwtForLogin,
   verifyJwtToken,
 } from "@0xflick/ordinals-rbac-models";
+import { createLogger } from "@0xflick/ordinals-backend";
+
+const logger = createLogger({
+  name: "graphql/auth/controller",
+});
 
 export async function verifyAuthorizedUser({
   getToken,
@@ -15,17 +20,21 @@ export async function verifyAuthorizedUser({
   namespace,
   rolePermissionsDao,
   authorizer,
+  userDao,
+  clearToken,
 }: {
-  getToken: Context["getToken"];
-  userRolesDao: Context["userRolesDao"];
-  rolePermissionsDao: Context["rolePermissionsDao"];
   namespace?: string;
   authorizer?: (item: TAllowedAction[], user: UserWithRolesModel) => boolean;
-}) {
+} & Pick<
+  Context,
+  "getToken" | "clearToken" | "userRolesDao" | "rolePermissionsDao" | "userDao"
+>) {
   const user = await authorizedUser({
     getToken,
     userRolesDao,
     namespace,
+    clearToken,
+    userDao,
   });
 
   return authorizer
@@ -73,12 +82,12 @@ export async function defaultAuthorizer({
 export async function authorizedUser({
   getToken,
   userRolesDao,
+  userDao,
   namespace,
+  clearToken,
 }: {
-  getToken: Context["getToken"];
-  userRolesDao: Context["userRolesDao"];
   namespace?: string;
-}) {
+} & Pick<Context, "getToken" | "clearToken" | "userRolesDao" | "userDao">) {
   const token = getToken(namespace);
   if (!token) {
     throw new AuthError("Not authenticated", "NOT_AUTHENTICATED");
@@ -87,6 +96,28 @@ export async function authorizedUser({
   const user = await verifyJwtForLogin(token);
   if (!user) {
     throw new AuthError("Invalid token", "NOT_AUTHENTICATED");
+  }
+
+  // check if user is in the database
+  try {
+    const userFromDb = await userDao.getUserById({ userId: user.userId });
+    if (!userFromDb) {
+      throw new AuthError("User not found", "NOT_AUTHENTICATED");
+    }
+  } catch (error) {
+    logger.warn(
+      {
+        userId: user.userId,
+        token,
+      },
+      "User not found in database",
+    );
+    // Who is this? erase the user
+    clearToken(namespace);
+    if (error instanceof AuthError) {
+      throw error;
+    }
+    throw new AuthError("User not found", "NOT_AUTHENTICATED");
   }
 
   const roleIds: string[] = [];

@@ -12,6 +12,7 @@ import {
   insufficientFundsQueueUrl,
   fundedQueueUrl,
   tableNames,
+  pullElectrumTransactionsForAddress,
 } from "@0xflick/ordinals-backend";
 import { type Handler } from "aws-lambda";
 import { BitcoinNetworkNames } from "@0xflick/inscriptions";
@@ -21,40 +22,48 @@ const logger = createLogger({ name: "funding-poller" });
 
 const sqsClient = createSqsClient();
 
-function shouldCheckNow(item: { nextCheckAt: Date }): boolean {
+function shouldCheckNow(item: { nextCheckAt: Date; id: string }): boolean {
   const now = Date.now();
   const nextCheckAt = item.nextCheckAt;
   if (!nextCheckAt) {
     return true;
   }
-  return now > nextCheckAt.getTime();
+  const isPast = now > nextCheckAt.getTime();
+  if (!isPast) {
+    logger.info(
+      {
+        nextCheckAt: nextCheckAt.toISOString(),
+      },
+      `Funding ${item.id} is not past due`,
+    );
+  }
+  return isPast;
 }
 
 function createCheckFundingStream({
   fundingId,
   address,
+  scriptHash,
   fundingAmountSat,
   network,
   fundingDao,
 }: {
   fundingId: string;
   address: string;
+  scriptHash: string;
   fundingAmountSat: number;
   network: BitcoinNetworkNames;
   fundingDao: FundingDao;
 }) {
-  const mempoolBitcoinClient = createMempoolBitcoinClient({
-    network,
-  });
   return from(
-    enqueueCheckTxo({
-      address,
-      mempoolBitcoinClient,
+    pullElectrumTransactionsForAddress({
+      scriptHash,
       findValue: fundingAmountSat,
     }),
   ).pipe(
     map((mempoolResponse) => {
-      if (!mempoolResponse) throw new NoVoutFound({ address });
+      if (!mempoolResponse)
+        throw new Error(`No mempool response for funding ${fundingId}`);
       return mempoolResponse;
     }),
     retry({
@@ -64,7 +73,7 @@ function createCheckFundingStream({
     }),
     mergeMap(async (funding) => {
       logger.info(
-        `Funding ${fundingId} for ${funding.address} found!  Paid ${funding.amount} for a request of: ${fundingAmountSat}`,
+        `Funding ${fundingId} for ${address} found!  Paid ${funding.amount} for a request of: ${fundingAmountSat}`,
       );
       if (funding.amount < fundingAmountSat) {
         logger.warn(`Funding ${fundingId} for ${address} is underfunded`);
@@ -104,99 +113,105 @@ function createCheckFundingStream({
 }
 
 export const handler: Handler = async () => {
-  const fundingDao = createDynamoDbFundingDao();
-  const allFundings = await fundingDao.getAllFundingsByStatusNextCheckAt({
-    fundingStatus: "funding",
-    nextCheckAt: new Date(),
-  });
+  try {
+    const fundingDao = createDynamoDbFundingDao();
+    const allFundings = await fundingDao.getAllFundingsByStatusNextCheckAt({
+      fundingStatus: "funding",
+      nextCheckAt: new Date(),
+    });
 
-  const fundingsToCheck = allFundings.filter(shouldCheckNow);
-  const fundingsToSkip = allFundings.filter((f) => !shouldCheckNow(f));
+    const fundingsToCheck = allFundings.filter(shouldCheckNow);
+    const fundingsToSkip = allFundings.filter((f) => !shouldCheckNow(f));
 
-  const nextCheckTime =
-    fundingsToSkip.length > 0
-      ? new Date(
-          Math.min(...fundingsToSkip.map((f) => f.nextCheckAt.getTime())),
-        ).toISOString()
-      : "N/A";
+    const nextCheckTime =
+      fundingsToSkip.length > 0
+        ? new Date(
+            Math.min(...fundingsToSkip.map((f) => f.nextCheckAt.getTime())),
+          ).toISOString()
+        : "N/A";
 
-  logger.info(
-    {
-      totalFundings: allFundings.length,
-      checkingNow: fundingsToCheck.length,
-      checkingLater: fundingsToSkip.length,
-      nextCheckAt: nextCheckTime,
-    },
-    "Funding check status",
-  );
-
-  const fundingStreams = from(fundingsToCheck).pipe(
-    mergeMap((funding) => {
-      return createCheckFundingStream({
-        fundingId: funding.id,
-        address: funding.address,
-        fundingAmountSat: funding.fundingAmountSat,
-        network: funding.network,
-        fundingDao,
-      }).pipe(
-        map((fundings) => ({
-          ...fundings,
-          ...funding,
-        })),
-      );
-    }, 12),
-    mergeMap(
-      async ({
-        address,
-        amount,
-        fundingAmountSat,
-        id,
-        network,
-        txid,
-        vout,
-      }) => {
-        try {
-          const event: FundedEvent = {
-            address,
-            fundedAmount: amount,
-            fundingAmountSat,
-            fundingId: id,
-            network,
-            txid,
-            vout,
-          };
-          const { MessageId } = await sqsClient.send(
-            new SendMessageCommand({
-              QueueUrl: fundedQueueUrl.get(),
-              MessageBody: JSON.stringify(event),
-            }),
-          );
-          logger.info(
-            { MessageId },
-            `Funding ${id} for ${address} sent to SQS with amount ${amount}`,
-          );
-          return {
-            address,
-            amount,
-            fundingAmountSat,
-            id,
-            network,
-            txid,
-            vout,
-          };
-        } catch (error) {
-          logger.error(error, `Error sending message to SQS`);
-          return {
-            fundingId: id,
-            error: error as Error,
-          };
-        }
+    logger.info(
+      {
+        totalFundings: allFundings.length,
+        checkingNow: fundingsToCheck.length,
+        checkingLater: fundingsToSkip.length,
+        nextCheckAt: nextCheckTime,
       },
-    ),
-  );
-  fundingStreams.subscribe({
-    complete() {
-      logger.info("Funding poller complete");
-    },
-  });
+      "Funding check status",
+    );
+
+    const fundingStreams = from(fundingsToCheck).pipe(
+      mergeMap((funding) => {
+        return createCheckFundingStream({
+          fundingId: funding.id,
+          address: funding.address,
+          fundingAmountSat: funding.fundingAmountSat,
+          network: funding.network,
+          scriptHash: funding.genesisScriptHash,
+          fundingDao,
+        }).pipe(
+          map((fundings) => ({
+            ...fundings,
+            ...funding,
+          })),
+        );
+      }, 12),
+      mergeMap(
+        async ({
+          address,
+          amount,
+          fundingAmountSat,
+          id,
+          network,
+          txid,
+          vout,
+        }) => {
+          try {
+            const event: FundedEvent = {
+              address,
+              fundedAmount: amount,
+              fundingAmountSat,
+              fundingId: id,
+              network,
+              txid,
+              vout,
+            };
+            const { MessageId } = await sqsClient.send(
+              new SendMessageCommand({
+                QueueUrl: fundedQueueUrl.get(),
+                MessageBody: JSON.stringify(event),
+              }),
+            );
+            logger.info(
+              { MessageId },
+              `Funding ${id} for ${address} sent to SQS with amount ${amount}`,
+            );
+            return {
+              address,
+              amount,
+              fundingAmountSat,
+              id,
+              network,
+              txid,
+              vout,
+            };
+          } catch (error) {
+            logger.error(error, `Error sending message to SQS`);
+            return {
+              fundingId: id,
+              error: error as Error,
+            };
+          }
+        },
+      ),
+    );
+    fundingStreams.subscribe({
+      complete() {
+        logger.info("Funding poller complete");
+      },
+    });
+  } catch (error) {
+    logger.error(error, "Error in funding poller");
+    throw error;
+  }
 };
