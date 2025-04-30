@@ -16,9 +16,11 @@
     "bitcoin-address-validation": "^2.2.1",
     "cbor": "^9.0.1",
     "cross-fetch": "^4.0.0",
+    "crypto-js": "^4.2.0",
     "qrcode": "^1.5.3"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.4.2",
     "@types/qrcode": "^1.5.0",

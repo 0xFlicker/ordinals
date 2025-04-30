@@ -2,8 +2,8 @@ import { Network, validate } from "bitcoin-address-validation";
 import { Address, Networks } from "@cmdcode/tapscript";
 import cbor from "cbor";
 import * as secp from "@noble/secp256k1";
+import crypto from "crypto-js";
 import { BitcoinNetworkNames, BitcoinScriptData } from "./types.js";
-
 export const { encode: cborEncode } = cbor;
 
 export function generatePrivKey() {
@@ -118,11 +118,12 @@ export function hexString(buffer: ArrayBuffer) {
 }
 
 export async function bufferToSha256(bufferOrString: string | ArrayBuffer) {
-  return crypto.subtle.digest(
-    "SHA-256",
+  return crypto.SHA256(
     typeof bufferOrString === "string"
-      ? Buffer.from(bufferOrString)
-      : arrayBufferToBuffer(bufferOrString),
+      ? crypto.enc.Hex.parse(bufferOrString)
+      : crypto.enc.Hex.parse(
+          arrayBufferToBuffer(bufferOrString).toString("hex"),
+        ),
   );
 }
 
@@ -198,4 +199,19 @@ export function numberToLittleEndian(number: number) {
   const buffer = Buffer.alloc(bytesNeeded);
   buffer.writeUIntLE(number, 0, bytesNeeded);
   return buffer;
+}
+
+export function encodeElectrumScriptHash(address: string): string {
+  // Build the scriptPubKey for the address
+  const script = Buffer.concat([
+    Buffer.from([0x51]), // OP_1
+    Buffer.from([0x20]), // Push 32 bytes
+    Address.p2tr.decode(address), // The tapkey
+  ]);
+  // Convert scriptPubKey to buffer
+  const addrScripthash = crypto.enc.Hex.stringify(
+    crypto.SHA256(crypto.enc.Hex.parse(script.toString("hex"))),
+  );
+  // Convert to little-endian (reverse byte order)
+  return addrScripthash.match(/.{2}/g)!.reverse().join("");
 }
