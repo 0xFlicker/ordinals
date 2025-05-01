@@ -257,10 +257,7 @@ function buildTxAtFeeRate(
   try {
     baseVSize = Tx.util.getTxSize(txSkeleton).vsize;
   } catch {
-    console.log(
-      "Invalid or can't estimate",
-      JSON.stringify(txSkeleton, null, 2),
-    );
+    console.log("Invalid or can't estimate", JSON.stringify(txSkeleton));
     return null;
   }
   const baseMinerFee = Math.ceil(feeRate * baseVSize);
@@ -291,10 +288,7 @@ function buildTxAtFeeRate(
     try {
       finalVSize = Tx.util.getTxSize(txSkeleton).vsize;
     } catch {
-      console.log(
-        "Invalid or can't estimate",
-        JSON.stringify(txSkeleton, null, 2),
-      );
+      console.log("Invalid or can't estimate", JSON.stringify(txSkeleton));
       return null;
     }
     const finalMinerFee = Math.ceil(feeRate * finalVSize);
@@ -433,7 +427,7 @@ function tryPlatformFeeDistribution(
   } catch {
     console.log(
       "Invalid or can't estimate, need to revert",
-      JSON.stringify(tempTxData, null, 2),
+      JSON.stringify(tempTxData),
     );
     tempTxData.vout.splice(-platformOutputs.length);
     return null;
