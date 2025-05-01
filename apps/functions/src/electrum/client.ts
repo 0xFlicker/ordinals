@@ -41,7 +41,7 @@ await client.initElectrum({
 // console.log("tx", inspect(tx, { depth: null }));
 console.log(client.versionInfo);
 const addressData = Address.p2tr.decode(
-  "bcrt1ps5gmywws7xhyxx5tjy3c56d84zkp9x6j30dft40fw3k3mz36yzfqmsg03x",
+  "bcrt1pdqrltcg7wmnjsq29stltc5qujeshw8n4hx6h30xeg4arqc407f5sc89qfj",
 );
 
 // const scriptPubKey = Address.p2tr.decode(
@@ -84,6 +84,30 @@ console.log(history);
 const balance = await client.blockchainScripthash_getBalance(scriptHash);
 console.log("balance", balance);
 
+// Sort by height (newest first)
+history.sort((a: any, b: any) => (b.height || 9999999) - (a.height || 9999999));
+
+// Find the starting index based on the last seen transaction ID
+let startingIndex = 0;
+
+// Limit to 10 transactions
+const endIndex = Math.min(startingIndex + 10, history.length);
+
+// Get the transaction details
+const transactions: any[] = [];
+for (let i = startingIndex; i < endIndex; i++) {
+  const txHex = await client.blockchainTransaction_get(
+    history[i].tx_hash,
+    false,
+  );
+  const tx = Tx.decode(Buffer.from(txHex, "hex"));
+
+  // const tx = parseTransaction(txHex, history[i].height);
+  // transactions.push(tx);
+}
+
+// console.log("transactions", transactions);
+
 export default client;
 
 function encodeScriptHash(scriptPubKey: string): string {
@@ -93,4 +117,100 @@ function encodeScriptHash(scriptPubKey: string): string {
 
   // Convert to little-endian (reverse byte order)
   return addrScripthash.match(/.{2}/g)!.reverse().join("");
+}
+
+function parseTransaction(txid: string, txHex: string, height?: number): any {
+  // Decode the transaction using @cmdcode/tapscript
+  const tx = Tx.decode(Buffer.from(txHex, "hex"));
+
+  // Calculate the transaction size and weight
+  const size = txHex.length / 2;
+
+  // Calculate the weight (base size * 4 + total size of all witnesses)
+  let weight = size * 4;
+  for (const input of tx.vin) {
+    if (input.witness && input.witness.length > 0) {
+      for (const witnessItem of input.witness) {
+        weight += toHexString(witnessItem).length / 2;
+      }
+    }
+  }
+
+  // Calculate the fee (sum of inputs - sum of outputs)
+  let fee = 0;
+  for (const input of tx.vin) {
+    if (input.prevout && typeof input.prevout.value === "number") {
+      fee += input.prevout.value;
+    }
+  }
+  for (const output of tx.vout) {
+    if (typeof output.value === "number") {
+      fee -= output.value;
+    }
+  }
+
+  // Convert inputs to our Vin format
+  const vin: any[] = tx.vin.map((input) => ({
+    txid: input.txid,
+    vout: input.vout,
+    is_coinbase:
+      input.txid ===
+      "0000000000000000000000000000000000000000000000000000000000000000",
+    scriptsig: toHexString(input.scriptSig),
+    sequence:
+      typeof input.sequence === "number"
+        ? input.sequence
+        : parseInt(String(input.sequence), 16),
+    witness: input.witness.map((w) => toHexString(w)),
+    prevout: input.prevout
+      ? {
+          scriptpubkey: toHexString(input.prevout.scriptPubKey),
+          value:
+            typeof input.prevout.value === "number"
+              ? input.prevout.value
+              : Number(input.prevout.value),
+        }
+      : null,
+  }));
+
+  // Convert outputs to our Vout format
+  const vout: any[] = tx.vout.map((output) => ({
+    scriptpubkey: toHexString(output.scriptPubKey),
+    value:
+      typeof output.value === "number" ? output.value : Number(output.value),
+  }));
+
+  return {
+    txid,
+    version: tx.version,
+    locktime:
+      typeof tx.locktime === "number"
+        ? tx.locktime
+        : parseInt(String(tx.locktime), 16),
+    size,
+    weight,
+    fee,
+    vin,
+    vout,
+    status: {
+      confirmed: height !== undefined,
+      block_height: height,
+    },
+    hex: txHex,
+  };
+}
+
+/**
+ * Helper function to safely convert a value to a hex string
+ */
+function toHexString(value: any): string {
+  if (typeof value === "string") {
+    return value;
+  } else if (value instanceof Uint8Array) {
+    return Buffer.from(value).toString("hex");
+  } else if (Array.isArray(value)) {
+    return Buffer.from(value).toString("hex");
+  } else {
+    return "";
+  }
 }

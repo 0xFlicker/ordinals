@@ -1,11 +1,21 @@
 import { Inscribe } from "@/routes/Inscribe";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
+import { getUserIdFromSession, getFullUser } from "../actions";
+import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
+import { MultiChainProvider } from "@/features/wallet-standard";
 
-export default function InscribePage() {
+export default async function InscribePage() {
+  const userId = await getUserIdFromSession();
+  const user = userId ? await getFullUser(userId) : undefined;
   return (
-    <Inscribe
+    <MultiChainProvider
       initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-      initialBitcoinPurpose={AddressPurpose.Ordinals}
-    />
+      initialBitcoinPurpose={[AddressPurpose.Payment]}
+      initialUser={user}
+    >
+      <SwitchableNetwork title="Inscribe" user={user ?? undefined}>
+        <Inscribe />
+      </SwitchableNetwork>
+    </MultiChainProvider>
   );
 }

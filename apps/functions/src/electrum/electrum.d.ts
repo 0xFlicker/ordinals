@@ -15,7 +15,7 @@ declare module "@mempool/electrum-client" {
       host: string,
       protocol: string,
       options: unknown,
-      callbacks: Callbacks
+      callbacks: Callbacks,
     );
 
     id: number;
@@ -35,14 +35,14 @@ declare module "@mempool/electrum-client" {
     connectSocket(
       conn: Socket | TlsSocketWrapper,
       port: number,
-      host: string
+      host: string,
     ): Promise<void>;
     close(): void;
     request(method: string, params: any[]): Promise<any>;
     requestBatch(
       method: string,
       params: any[],
-      secondParam?: any
+      secondParam?: any,
     ): Promise<any>;
     response(msg: any): void;
     onMessage(body: any, n: number): void;
@@ -101,12 +101,12 @@ declare module "@mempool/electrum-client" {
       host: string,
       protocol: string,
       options: unknown,
-      callbacks: Callbacks
+      callbacks: Callbacks,
     );
 
     public initElectrum(
       electrumConfig: ElectrumConfig,
-      persistencePolicy?: PersistencePolicy
+      persistencePolicy?: PersistencePolicy,
     ): Promise<this>;
 
     versionInfo: any;
@@ -116,7 +116,7 @@ declare module "@mempool/electrum-client" {
     public requestBatch(
       method: string,
       params: any[],
-      secondParam: any
+      secondParam: any,
     ): Promise<any>;
 
     public onClose(): void;
@@ -131,7 +131,7 @@ declare module "@mempool/electrum-client" {
 
     server_version(
       client_name,
-      protocol_version
+      protocol_version,
     ): Promise<{ id: string; result: string }>;
     // server_banner() {
     //   return this.request('server.banner', []);
@@ -163,7 +163,7 @@ declare module "@mempool/electrum-client" {
     //   return this.requestBatch('blockchain.scripthash.listunspent', scripthash);
     // }
     blockchainScripthash_getHistory(scripthash) {
-      return this.request('blockchain.scripthash.get_history', [scripthash]);
+      return this.request("blockchain.scripthash.get_history", [scripthash]);
     }
     // blockchainScripthash_getHistoryBatch(scripthash) {
     //   return this.requestBatch('blockchain.scripthash.get_history', scripthash);
@@ -189,23 +189,17 @@ declare module "@mempool/electrum-client" {
     // blockchainTransaction_broadcast(rawtx) {
     //   return this.request('blockchain.transaction.broadcast', [rawtx]);
     // }
-    blockchainTransaction_get(
-      tx_hash,
-      verbose
-    ): Promise<{
-      id: string;
-      result: sting;
-    }> {}
+    blockchainTransaction_get(tx_hash, verbose): Promise<result> {}
     blockchainTransaction_getBatch(
       tx_hash,
-      verbose
+      verbose,
     ): Promise<{
       id: string;
       result: string[];
     }> {}
     blockchainTransaction_getMerkle(
       tx_hash,
-      height
+      height,
     ): Promise<{
       id: string;
       result: {
@@ -223,7 +217,7 @@ declare module "@mempool/electrum-client" {
     // // ---------------------------------
     blockchainUtxo_getAddress(
       tx_hash,
-      index
+      index,
     ): Promise<{
       id: string;
       result: {

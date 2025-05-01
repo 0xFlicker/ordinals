@@ -64,9 +64,9 @@ const WalletStandardModalProvider: FC<{ children: NonNullable<ReactNode> }> = ({
   );
 };
 
-const WalletStandardInnerProvider: FC<{ children: NonNullable<ReactNode> }> = ({
-  children,
-}) => {
+export const WalletStandardProvider: FC<{
+  children: NonNullable<ReactNode>;
+}> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const connectors = useDynamicInjectedConnectors();
   const bitflick = useBitflickWalletImpl({ state, dispatch, connectors });
@@ -76,12 +76,6 @@ const WalletStandardInnerProvider: FC<{ children: NonNullable<ReactNode> }> = ({
       <WalletStandardModalProvider>{children}</WalletStandardModalProvider>
     </WalletStandardContext.Provider>
   );
-};
-
-export const WalletStandardProvider: FC<{
-  children: NonNullable<ReactNode>;
-}> = ({ children }) => {
-  return <WalletStandardInnerProvider>{children}</WalletStandardInnerProvider>;
 };
 
 export const useBitflickWallet = () => {

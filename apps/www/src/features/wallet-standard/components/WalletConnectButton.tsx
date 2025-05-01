@@ -6,6 +6,7 @@ import { BitcoinIcon } from "@/components/BitcoinIcon";
 import { EthereumIcon } from "@/components/EthereumIcon";
 import Box from "@mui/material/Box";
 import { Avatar } from "@mui/material";
+import { useAuth } from "@/features/auth";
 
 export type WalletConnectIntent = "connect" | "login";
 
@@ -70,7 +71,6 @@ export const WalletConnectButton: FC<{
 }> = ({ pickBtc = true, pickEvm = true, intent = "login", user: propUser }) => {
   const {
     isConnected,
-    isLoggedIn,
     setNeedsBitcoinSelection,
     setNeedsEvmSelection,
     setNeedsConnect,
@@ -78,14 +78,14 @@ export const WalletConnectButton: FC<{
     activeBtcProvider,
     activeEvmProvider,
     setIntent,
-    user: contextUser,
     ordinalsAddress,
     evmAddress,
   } = useBitflickWallet();
 
+  const { userId, handle, isLoggedIn } = useAuth();
+
   // Prioritize user from props over context user
-  const user = propUser || contextUser;
-  const handle = user?.handle;
+  const resolvedUser = propUser || { userId, handle };
 
   useEffect(() => {
     if (typeof intent === "string") {
@@ -198,9 +198,9 @@ export const WalletConnectButton: FC<{
       variant="contained"
       onClick={handleConnect}
       startIcon={renderIcons(
-        user?.userId ?? ordinalsAddress ?? evmAddress ?? ""
+        resolvedUser.userId ?? ordinalsAddress ?? evmAddress ?? ""
       )}
-      disabled={propUser?.userId ? true : isLoggedIn}
+      disabled={resolvedUser.userId ? true : isLoggedIn}
       color={isLoggedInOrPropUser ? "success" : "primary"}
       sx={{
         textTransform: "none",

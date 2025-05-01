@@ -156,7 +156,7 @@ export async function electrumGetAddressTransactions({
         history[i].tx_hash,
         false,
       );
-      const tx = parseTransaction(txHex, history[i].height);
+      const tx = parseTransaction(history[i].tx_hash, txHex, history[i].height);
       transactions.push(tx);
     }
 
@@ -187,7 +187,11 @@ function toHexString(value: any): string {
 /**
  * Parses a raw transaction hex into a Transaction object
  */
-function parseTransaction(txHex: string, height?: number): Transaction {
+function parseTransaction(
+  txid: string,
+  txHex: string,
+  height?: number,
+): Transaction {
   // Decode the transaction using @cmdcode/tapscript
   const tx = Tx.decode(Buffer.from(txHex, "hex"));
 
@@ -249,7 +253,7 @@ function parseTransaction(txHex: string, height?: number): Transaction {
   }));
 
   return {
-    txid: "", // We don't have the txid directly, it would need to be calculated
+    txid,
     version: tx.version,
     locktime:
       typeof tx.locktime === "number"

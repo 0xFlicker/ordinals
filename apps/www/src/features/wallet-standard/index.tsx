@@ -1,14 +1,17 @@
+"use client";
+
 import { ReactNode } from "react";
 
 import { DefaultProvider } from "@/context/default";
 import { WalletStandardProvider } from "@/features/wallet-standard/Context";
 import { MagicEdenProvider } from "@/features/magic-eden/Context";
-import { Provider as XverseProvider } from "../features/xverse/Context";
+import { Provider as XverseProvider } from "@/features/xverse/Context";
 import { AddressPurpose, BitcoinNetwork } from "sats-connect";
 import { AuthProvider } from "@/features/auth";
 import { WagmiProvider } from "wagmi";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { wagmiConfig } from "@/features/web3/wagmi";
+import { TFullUser } from "@/utils/transforms";
 
 const queryClient = new QueryClient();
 
@@ -33,14 +36,14 @@ function InnerContext({
   );
 }
 
-export default function Context({
-  autoLogin,
+export function MultiChainProvider({
   children,
   initialBitcoinNetwork,
   initialBitcoinPurpose,
+  initialUser,
 }: {
   children: NonNullable<ReactNode>;
-  autoLogin?: boolean;
+  initialUser?: TFullUser;
   initialBitcoinNetwork: BitcoinNetwork["type"];
   initialBitcoinPurpose: AddressPurpose[];
 }) {
@@ -51,7 +54,7 @@ export default function Context({
           network={initialBitcoinNetwork}
           purpose={initialBitcoinPurpose}
         >
-          <AuthProvider autoLogin={autoLogin}>
+          <AuthProvider user={initialUser}>
             <InnerContext
               initialBitcoinNetwork={initialBitcoinNetwork}
               initialBitcoinPurpose={initialBitcoinPurpose}

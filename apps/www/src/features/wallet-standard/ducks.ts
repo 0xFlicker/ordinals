@@ -73,7 +73,6 @@ export interface WalletStandardState {
   intendedBtcPurposes: AddressPurpose[];
   intent?: WalletStandardIntent;
   flags: Record<WalletFlags, boolean>;
-  user?: IUserWithAddresses & IUserWithRoles;
 }
 
 export const initialState: WalletStandardState = {
@@ -164,12 +163,6 @@ export const walletStandardSlice = createSlice({
       action: PayloadAction<WalletStandardIntent | undefined>
     ) => {
       state.intent = action.payload;
-    },
-    setUser: (
-      state,
-      action: PayloadAction<IUserWithAddresses & IUserWithRoles>
-    ) => {
-      state.user = action.payload;
     },
   },
 });

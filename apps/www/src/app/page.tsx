@@ -2,8 +2,11 @@ import { baseUrl } from "@/utils/config";
 import { Metadata } from "next";
 import Client from "./client";
 import { gql } from "graphql-tag";
-import { getUserIdFromSession, getUserHandle } from "./actions";
+import { getUserIdFromSession, getUserHandle, getFullUser } from "./actions";
 import { WalletConnectButton } from "@/features/wallet-standard/components/WalletConnectButton";
+import { MultiChainProvider } from "@/features/wallet-standard";
+import { BitcoinNetworkType } from "sats-connect";
+import { AddressPurpose } from "sats-connect";
 
 export const metadata: Metadata = {
   title: "Bitflick",
@@ -31,48 +34,32 @@ export const metadata: Metadata = {
   },
 };
 
-gql`
-  query handle($id: ID!) {
-    user(id: $id) {
-      handle
-    }
-  }
-`;
-
-gql`
-  query getAppInfo {
-    appInfo {
-      pubKey
-    }
-  }
-`;
-
 export default async function Page() {
   try {
     const userId = await getUserIdFromSession();
     if (!userId) {
       return <Client />;
     }
-    const handle = await getUserHandle(userId);
-    if (!handle) {
-      return (
-        <Client appRight={<WalletConnectButton user={{ userId, handle }} />} />
-      );
-    }
+    const user = await getFullUser(userId);
+
     return (
-      <Client
-        appRight={
-          <WalletConnectButton
-            user={{
-              handle,
-              userId,
-            }}
-          />
-        }
-      />
+      <MultiChainProvider
+        initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
+        initialBitcoinPurpose={[AddressPurpose.Payment]}
+        initialUser={user}
+      >
+        <Client appRight={<WalletConnectButton user={user} />} />
+      </MultiChainProvider>
     );
   } catch (error) {
     console.error(error);
-    return <Client />;
+    return (
+      <MultiChainProvider
+        initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
+        initialBitcoinPurpose={[AddressPurpose.Payment]}
+      >
+        <Client appRight={<WalletConnectButton />} />
+      </MultiChainProvider>
+    );
   }
 }

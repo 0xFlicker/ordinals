@@ -1,3 +1,4 @@
+"use client";
 import { FC, ReactNode, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Card from "@mui/material/Card";
@@ -13,21 +14,62 @@ import { useFetchFundingStatusQuery } from "./FetchFundingStatus.generated";
 import { Field } from "@/components/Field";
 import { FundingStatus } from "@/graphql/types";
 import { AppLink } from "@/components/AppLink";
+import Skeleton from "@mui/material/Skeleton";
 
 const Loading: FC = () => {
   return (
-    <Card>
-      <CardHeader title="loading" />
-      <Box
-        component={CardContent}
-        sx={{ p: 4 }}
-        height={400}
-        display="flex"
-        flexDirection="column"
-        alignContent="center"
-      >
-        <CircularProgress />
-      </Box>
+    <Card
+      sx={{
+        width: "100%",
+        bgcolor: "background.paper",
+        border: "2px solid #000",
+        boxShadow: 24,
+        p: 4,
+      }}
+    >
+      <CardHeader
+        title="inscription status"
+        titleTypographyProps={{
+          variant: "h6",
+        }}
+        sx={{
+          textAlign: "center",
+        }}
+      />
+      <CardContent>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Box width={16} height={16} sx={{ mr: 1 }}>
+            <Skeleton variant="circular" width={16} height={16} />
+          </Box>
+          <Box sx={{ flex: 1, display: "flex", flexDirection: "row" }}>
+            <Skeleton variant="text" width="20%" sx={{ mr: "10%" }} />
+            <Skeleton variant="text" width="70%" />
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Box width={16} height={16} sx={{ mr: 1 }}>
+            <Skeleton variant="circular" width={16} height={16} />
+          </Box>
+          <Box sx={{ flex: 1, display: "flex", flexDirection: "row" }}>
+            <Skeleton variant="text" width="20%" sx={{ mr: "10%" }} />
+            <Skeleton variant="text" width="70%" />
+          </Box>
+        </Box>
+      </CardContent>
     </Card>
   );
 };
@@ -72,6 +114,7 @@ export const Status: FC<{
     variables: {
       id: fundingId,
     },
+    skip: !fundingId,
     pollInterval: 5000,
   });
 

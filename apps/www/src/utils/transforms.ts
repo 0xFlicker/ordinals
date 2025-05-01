@@ -1,4 +1,5 @@
 import {
+  IUser,
   TAllowedAction,
   TPermission,
   UserAddressType,
@@ -17,11 +18,12 @@ import {
   graphqlResourceToEResource,
 } from "@/features/auth/transforms/allowedActions";
 
-export type TFullUser = IUserWithAddresses &
-  IUserWithRoles & {
-    allowedActions: TAllowedAction[];
-    permissions: TPermission[];
-  };
+export type TFullUser =
+  | IUserWithAddresses &
+      IUserWithRoles & {
+        allowedActions: TAllowedAction[];
+        permissions: TPermission[];
+      };
 
 export function mapSelfToUser(self: GetUserQuery["user"]): TFullUser {
   const user = new UserWithRolesAndAddressesModel({

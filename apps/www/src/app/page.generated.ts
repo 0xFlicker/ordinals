@@ -762,12 +762,12 @@ export type Web3UserLinkVerifiedAddressArgs = {
   request: LinkVerifiedAddressRequest;
 };
 
-export type HandleQueryVariables = Types.Exact<{
+export type UserInfoQueryVariables = Types.Exact<{
   id: Types.Scalars['ID']['input'];
 }>;
 
 
-export type HandleQuery = { __typename?: 'Query', user: { __typename?: 'Web3User', handle: string } };
+export type UserInfoQuery = { __typename?: 'Query', user: { __typename?: 'Web3User', id: string, token?: string | null, handle: string, addresses: Array<{ __typename?: 'Address', address: string, type: Types.AddressType }>, roles: Array<{ __typename?: 'Role', id: string, name: string }>, allowedActions: Array<{ __typename?: 'Permission', action: Types.PermissionAction, resource: Types.PermissionResource, identifier?: string | null }> } };
 
 export type GetAppInfoQueryVariables = Types.Exact<{ [key: string]: never; }>;
 
@@ -775,9 +775,24 @@ export type GetAppInfoQueryVariables = Types.Exact<{ [key: string]: never; }>;
 export type GetAppInfoQuery = { __typename?: 'Query', appInfo: { __typename?: 'AppInfo', pubKey: string } };
 
 
-export const HandleDocument = gql`
-    query handle($id: ID!) {
+export const UserInfoDocument = gql`
+    query userInfo($id: ID!) {
   user(id: $id) {
+    id
+    addresses {
+      address
+      type
+    }
+    roles {
+      id
+      name
+    }
+    allowedActions {
+      action
+      resource
+      identifier
+    }
+    token
     handle
   }
 }
@@ -797,8 +812,8 @@ const defaultWrapper: SdkFunctionWrapper = (action, _operationName, _operationTy
 
 export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = defaultWrapper) {
   return {
-    handle(variables: HandleQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<HandleQuery> {
-      return withWrapper((wrappedRequestHeaders) => client.request<HandleQuery>(HandleDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'handle', 'query');
+    userInfo(variables: UserInfoQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<UserInfoQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<UserInfoQuery>(UserInfoDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'userInfo', 'query');
     },
     getAppInfo(variables?: GetAppInfoQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetAppInfoQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<GetAppInfoQuery>(GetAppInfoDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'getAppInfo', 'query');

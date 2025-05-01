@@ -5,6 +5,7 @@ import { getSdk } from "./actions.generated";
 import { cookies } from "next/headers";
 import { verifyJwtForLogin } from "@0xflick/ordinals-rbac-models";
 import { importSPKIKey } from "@0xflick/ordinals-rbac-models";
+import { mapSelfToUser } from "@/utils/transforms";
 
 gql`
   query getAppInfo {
@@ -64,7 +65,7 @@ export async function getFullUser(id: string) {
     })
   );
   const { user } = await sdk.getUser({ id });
-  return user;
+  return mapSelfToUser(user);
 }
 
 export async function getUserHandle(id: string) {

@@ -14,13 +14,7 @@ import {
   actions,
 } from "../ducks";
 import { BtcAccount } from "../types";
-import {
-  IUserWithAddresses,
-  IUserWithRoles,
-  UserAddressType,
-  UserWithRolesAndAddressesModel,
-  createJweRequest,
-} from "@0xflick/ordinals-rbac-models";
+import { createJweRequest } from "@0xflick/ordinals-rbac-models";
 import { useConnect, injected, useSignMessage } from "wagmi";
 import { AnyAction } from "@reduxjs/toolkit";
 import {
@@ -28,11 +22,10 @@ import {
   useBitflickEvmNonceMutation,
   useBitflickSiwbSignInMutation,
   useBitflickSiweSignInMutation,
-  useBitflickSelfQuery,
-  BitflickSelfQuery,
 } from "./useBitflickWalletImpl.generated";
 import gql from "graphql-tag";
 import { mapSelfToUser } from "@/utils/transforms";
+import { useAuth } from "@/features/auth";
 
 gql`
   query BitflickSelf {
@@ -192,11 +185,7 @@ export const useBitflickWalletImpl = ({
   const [fetchEvmNonce] = useBitflickEvmNonceMutation();
   const [fetchSiwb] = useBitflickSiwbSignInMutation();
   const [fetchSiwe] = useBitflickSiweSignInMutation();
-  const {
-    data: selfData,
-    loading: selfLoading,
-    error: selfError,
-  } = useBitflickSelfQuery();
+
   const [operationTimeoutId, setOperationTimeoutId] =
     useState<NodeJS.Timeout | null>(null);
   const [pendingConnectOperation, setPendingConnectOperation] =
@@ -204,6 +193,13 @@ export const useBitflickWalletImpl = ({
 
   const magicEden = useMagicEden();
   const xverse = useXverseConnect();
+
+  const { userId, handle } = useAuth();
+  useEffect(() => {
+    if (userId && handle) {
+      dispatch(actions.setIsLoggedIn(true));
+    }
+  }, [dispatch, userId, handle]);
 
   const registerProvider = useCallback(
     (provider: WalletProvider) => {
@@ -1046,17 +1042,6 @@ export const useBitflickWalletImpl = ({
     pendingConnectOperation,
     setPendingConnectOperation,
   ]);
-
-  useEffect(() => {
-    if (!selfData?.self) {
-      return;
-    }
-    const user = mapSelfToUser(selfData.self);
-    if (user) {
-      dispatch(actions.setUser(user));
-      dispatch(actions.setIsLoggedIn(true));
-    }
-  }, [selfData, dispatch]);
 
   return {
     connectAsync,

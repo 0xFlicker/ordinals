@@ -61,10 +61,14 @@ function createCheckFundingStream({
       findValue: fundingAmountSat,
     }),
   ).pipe(
-    map((mempoolResponse) => {
-      if (!mempoolResponse)
-        throw new Error(`No mempool response for funding ${fundingId}`);
-      return mempoolResponse;
+    map((response) => {
+      logger.info(
+        { ...response },
+        `Electrum response for funding ${fundingId}`,
+      );
+      if (!response)
+        throw new Error(`No electrum response for funding ${fundingId}`);
+      return response;
     }),
     retry({
       resetOnSuccess: true,
@@ -73,6 +77,7 @@ function createCheckFundingStream({
     }),
     mergeMap(async (funding) => {
       logger.info(
+        { fundingId, txid: funding.txid, address, amount: funding.amount },
         `Funding ${fundingId} for ${address} found!  Paid ${funding.amount} for a request of: ${fundingAmountSat}`,
       );
       if (funding.amount < fundingAmountSat) {

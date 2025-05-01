@@ -15,7 +15,7 @@ interface AuthState {
   roles: string[];
   addresses: IUserAddress[];
   permissions: TPermission[];
-  isLoaded: boolean;
+  isLoggedIn: boolean;
   isLoading: boolean;
   error: string | null;
 }
@@ -23,7 +23,7 @@ interface AuthState {
 export const initialState: AuthState = {
   isLoading: true,
   error: null,
-  isLoaded: false,
+  isLoggedIn: false,
   allowedActions: [],
   roles: [],
   addresses: [],
@@ -55,7 +55,7 @@ const authSlice = createSlice({
         "userId" in action.payload ? action.payload.userId : undefined;
       state.handle =
         "handle" in action.payload ? action.payload.handle : undefined;
-      state.isLoaded = true;
+      state.isLoggedIn = true;
       state.isLoading = false;
       state.error = null;
     },
@@ -64,7 +64,7 @@ const authSlice = createSlice({
       state.error = action.payload;
     },
     userRequested(state) {
-      state.isLoaded = false;
+      state.isLoggedIn = false;
       state.isLoading = true;
       state.error = null;
     },

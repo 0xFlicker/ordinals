@@ -109,16 +109,17 @@ async function submitBatchTransaction(
 
 // Our scheduled Lambda handler
 export const handler: Handler = async () => {
-  const allReadFundings: Promise<{
+  const allReadyFundings: Promise<{
     doc: IInscriptionDocCommon;
     funding: StatusFunding;
   }>[] = [];
+  const unableToBatchFundings: InscriptionFunding[] = [];
   for await (const funding of fundingDao.listAllFundingsByStatusFundedAt({
     fundingStatus: "funded",
     fundedAt: new Date(),
   })) {
     logger.info({ funding }, "Funding");
-    allReadFundings.push(
+    allReadyFundings.push(
       fundingDocDao
         .getInscriptionTransaction({
           id: funding.id,
@@ -130,7 +131,7 @@ export const handler: Handler = async () => {
         })),
     );
   }
-  const readyFundings = await Promise.all(allReadFundings);
+  const readyFundings = await Promise.all(allReadyFundings);
 
   if (readyFundings.length === 0) {
     logger.info("No ready fundings to batch; exiting.");
@@ -179,6 +180,44 @@ export const handler: Handler = async () => {
     const { fastestFee, hourFee } = await getFeeEstimates(network);
     const fundings: GroupableFunding[] = [];
     for (const { doc, funding } of requests) {
+      if (!funding.fundingTxid) {
+        logger.error({ funding }, "Funding has no funding txid");
+        unableToBatchFundings.push({
+          id: funding.id,
+          fundedAt: funding.fundedAt,
+          sizeEstimate: funding.sizeEstimate,
+          inputs: [
+            {
+              amount: funding.fundingAmountSat,
+              leaf: doc.genesisLeaf,
+              tapkey: doc.genesisTapKey,
+              cblock: doc.genesisCBlock,
+              padding: doc.padding,
+              script: doc.genesisScript,
+              secKey: Buffer.from(doc.secKey, "hex"),
+              rootTapKey: doc.rootTapKey,
+              inscriptions: doc.writableInscriptions,
+              txid: funding.fundingTxid,
+              vout: funding.fundingVout,
+            },
+          ],
+          ...(doc.tipAmountDestination && doc.tip
+            ? {
+                feeDestinations: [
+                  {
+                    address: doc.tipAmountDestination,
+                    weight: 100,
+                  },
+                ],
+                feeTarget: doc.tip,
+              }
+            : {
+                feeDestinations: [],
+              }),
+          parentInscriptionId: doc.parentInscriptionId,
+        });
+        continue;
+      }
       logger.info(
         {
           address: funding.address,
@@ -246,11 +285,11 @@ export const handler: Handler = async () => {
         laterFundings,
         laterParentInscription,
       }),
-      rejectedFundings.length > 0
+      rejectedFundings.length > 0 || unableToBatchFundings.length > 0
         ? sendCouldNotSubmitBatchEvent(sqsClient, {
             batchId,
             error: "Failed to group fundings",
-            fundings: rejectedFundings,
+            fundings: rejectedFundings.concat(unableToBatchFundings),
           })
         : Promise.resolve<null>(null),
       ...Object.values(nextParentInscription).map(async ({ fundings, hex }) => {

@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { baseUrl } from "@/utils/config";
 import Context from "./context";
 import { ReactNode } from "react";
-import "./global.css";
 const inter = Inter({ subsets: ["latin"] });
 
 const roboto = Roboto({
