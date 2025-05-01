@@ -1,12 +1,12 @@
 import { baseUrl } from "@/utils/config";
 import { Metadata } from "next";
 import Client from "./client";
-import { gql } from "graphql-tag";
-import { getUserIdFromSession, getUserHandle, getFullUser } from "./actions";
 import { WalletConnectButton } from "@/features/wallet-standard/components/WalletConnectButton";
 import { MultiChainProvider } from "@/features/wallet-standard";
 import { BitcoinNetworkType } from "sats-connect";
 import { AddressPurpose } from "sats-connect";
+import { Hero } from "./Hero";
+import Box from "@mui/material/Box";
 
 export const metadata: Metadata = {
   title: "Bitflick",
@@ -35,31 +35,21 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  try {
-    const userId = await getUserIdFromSession();
-    if (!userId) {
-      return <Client />;
-    }
-    const user = await getFullUser(userId);
-
-    return (
-      <MultiChainProvider
-        initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-        initialBitcoinPurpose={[AddressPurpose.Payment]}
-        initialUser={user}
+  return (
+    <MultiChainProvider
+      initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
+      initialBitcoinPurpose={[AddressPurpose.Payment]}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100vh",
+        }}
       >
-        <Client appRight={<WalletConnectButton user={user} />} />
-      </MultiChainProvider>
-    );
-  } catch (error) {
-    console.error(error);
-    return (
-      <MultiChainProvider
-        initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-        initialBitcoinPurpose={[AddressPurpose.Payment]}
-      >
+        <Hero />
         <Client appRight={<WalletConnectButton />} />
-      </MultiChainProvider>
-    );
-  }
+      </Box>
+    </MultiChainProvider>
+  );
 }

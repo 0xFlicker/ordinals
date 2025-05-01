@@ -69,10 +69,7 @@ export const Inscribe: FC<{}> = () => {
     });
   const {
     isConnected,
-    isConnecting,
     ordinalsAddress: discoveredAddress,
-    setIntent,
-    setNeedsBitcoinSelection,
     connectBtcAsync,
     loginBtcAsync,
   } = useBitflickWallet();

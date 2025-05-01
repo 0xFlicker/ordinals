@@ -3,6 +3,7 @@ import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
 import { getUserIdFromSession, getFullUser } from "../actions";
 import { SwitchableNetwork } from "@/layouts/SwitchableNetwork";
 import { MultiChainProvider } from "@/features/wallet-standard";
+import Container from "@mui/material/Container";
 
 export default async function InscribePage() {
   const userId = await getUserIdFromSession();
@@ -14,7 +15,9 @@ export default async function InscribePage() {
       initialUser={user}
     >
       <SwitchableNetwork title="Inscribe" user={user ?? undefined}>
-        <Inscribe />
+        <Container maxWidth="md">
+          <Inscribe />
+        </Container>
       </SwitchableNetwork>
     </MultiChainProvider>
   );

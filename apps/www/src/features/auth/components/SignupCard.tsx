@@ -7,23 +7,22 @@ import CardContent from "@mui/material/CardContent";
 import CardActions from "@mui/material/CardActions";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
-import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import CircularProgress from "@mui/material/CircularProgress";
 import CheckIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/ErrorRounded";
-import { useXverse } from "@/features/xverse";
-import { useXverseConnect } from "@/features/xverse/hooks/useXverseConnect";
 import { useSignUpAnonymouslyMutation } from "../hooks/signUp.generated";
 import { useRouter } from "next/navigation";
 import { useCheckNameLazyQuery } from "../hooks/checkName.generated";
-import { useGetAppInfoQuery } from "../hooks/app.generated";
 import {
   IUserWithAddresses,
   IUserWithRoles,
   UserWithRolesModel,
 } from "@0xflick/ordinals-rbac-models";
 import { useBitflickWallet } from "@/features/wallet-standard/Context";
+import Paper from "@mui/material/Paper";
+import { BitCard } from "@/components/BitCard";
+
 // Define the possible states for the signup flow
 type SignupState = "CONNECT" | "SIGN" | "PICK_HANDLE";
 
@@ -101,10 +100,7 @@ export const SignupCard: FC<{
     loginBtcAsync,
     isConnected,
     isConnecting,
-    isLoggedIn,
-    isLoggingIn,
     setNeedsBitcoinSelection,
-    setNeedsEvmSelection,
     btcAccounts,
   } = useBitflickWallet();
 
@@ -304,7 +300,7 @@ export const SignupCard: FC<{
   const buttonProps = getButtonProps();
 
   return (
-    <Card
+    <BitCard
       sx={{
         minWidth: {
           xs: "100%",
@@ -336,6 +332,6 @@ export const SignupCard: FC<{
           {buttonProps.text}
         </Button>
       </CardActions>
-    </Card>
+    </BitCard>
   );
 };

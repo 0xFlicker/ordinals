@@ -66,7 +66,7 @@ export interface WalletStandardState {
   availableProviders: WalletProvider[];
   isConnected: boolean;
   isConnecting: boolean;
-  isLoggedIn: boolean;
+  hasLoggedIn: boolean;
   isLoggingIn: boolean;
   btcAccounts: BtcAccount[];
   evmAccounts: EvmAccount[];
@@ -79,7 +79,7 @@ export const initialState: WalletStandardState = {
   availableProviders: [],
   isConnected: false,
   isConnecting: false,
-  isLoggedIn: false,
+  hasLoggedIn: false,
   isLoggingIn: false,
   btcAccounts: [],
   evmAccounts: [],
@@ -128,8 +128,8 @@ export const walletStandardSlice = createSlice({
     setIsConnecting: (state, action: PayloadAction<boolean>) => {
       state.isConnecting = action.payload;
     },
-    setIsLoggedIn: (state, action: PayloadAction<boolean>) => {
-      state.isLoggedIn = action.payload;
+    setHasLoggedIn: (state, action: PayloadAction<boolean>) => {
+      state.hasLoggedIn = action.payload;
     },
     setIsLoggingIn: (state, action: PayloadAction<boolean>) => {
       state.isLoggingIn = action.payload;

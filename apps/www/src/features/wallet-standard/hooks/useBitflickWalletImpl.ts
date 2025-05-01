@@ -197,7 +197,7 @@ export const useBitflickWalletImpl = ({
   const { userId, handle } = useAuth();
   useEffect(() => {
     if (userId && handle) {
-      dispatch(actions.setIsLoggedIn(true));
+      dispatch(actions.setHasLoggedIn(true));
     }
   }, [dispatch, userId, handle]);
 
@@ -246,18 +246,18 @@ export const useBitflickWalletImpl = ({
   const needsBitcoinSelection = useMemo(() => {
     return (
       state.activeBtcProvider?.chainType === "btc" &&
-      !state.isLoggedIn &&
+      !state.hasLoggedIn &&
       !state.isConnected
     );
-  }, [state.activeBtcProvider, state.isLoggedIn, state.isConnected]);
+  }, [state.activeBtcProvider, state.hasLoggedIn, state.isConnected]);
 
   const needsEvmSelection = useMemo(() => {
     return (
       state.activeEvmProvider?.chainType === "evm" &&
-      !state.isLoggedIn &&
+      !state.hasLoggedIn &&
       !state.isConnected
     );
-  }, [state.activeEvmProvider, state.isLoggedIn, state.isConnected]);
+  }, [state.activeEvmProvider, state.hasLoggedIn, state.isConnected]);
 
   const expireOperation = useCallback((reject: (reason: any) => void) => {
     // Set up a timeout to reject the promise if it takes too long
@@ -624,7 +624,7 @@ export const useBitflickWalletImpl = ({
         switch (state.activeBtcProvider.type) {
           case WalletProviderType.SATS_CONNECT: {
             const result = await xverse.handleLogin(address);
-            dispatch(actions.setIsLoggedIn(true));
+            dispatch(actions.setHasLoggedIn(true));
             return result;
           }
           case WalletProviderType.MAGIC_EDEN: {
@@ -671,7 +671,7 @@ export const useBitflickWalletImpl = ({
               throw new Error("No SIWB data received");
             }
 
-            dispatch(actions.setIsLoggedIn(true));
+            dispatch(actions.setHasLoggedIn(true));
             const user = siwbData.siwb.data?.user
               ? mapSelfToUser(siwbData.siwb.data?.user)
               : null;
@@ -762,7 +762,7 @@ export const useBitflickWalletImpl = ({
             user: null,
           };
         }
-        dispatch(actions.setIsLoggedIn(true));
+        dispatch(actions.setHasLoggedIn(true));
         const user = mapSelfToUser(siweData.siwe.data?.user);
         if (!user) {
           throw new Error("No user data received");

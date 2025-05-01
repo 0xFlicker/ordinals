@@ -44,7 +44,7 @@ export const WalletPicker: FC<WalletPickerProps> = ({
     setActiveEvmProvider,
     setIntent,
     isConnected,
-    isLoggedIn,
+    hasLoggedIn: isLoggedIn,
     needsBitcoinSelection,
     needsEvmSelection,
     setNeedsConnect,
