@@ -716,6 +716,7 @@ export type SignUpAnonymouslyResponse = {
 export type SiwbData = {
   __typename?: 'SiwbData';
   token: Scalars['String']['output'];
+  type: SiweResponseType;
   user?: Maybe<Web3User>;
 };
 
@@ -728,6 +729,7 @@ export type SiwbResponse = {
 export type SiweData = {
   __typename?: 'SiweData';
   token: Scalars['String']['output'];
+  type: SiweResponseType;
   user?: Maybe<Web3User>;
 };
 
@@ -736,6 +738,11 @@ export type SiweResponse = {
   data?: Maybe<SiweData>;
   problems?: Maybe<Array<AuthProblem>>;
 };
+
+export type SiweResponseType =
+  | 'EXISTING_USER'
+  | 'LINKED_USER_REQUEST'
+  | 'NEW_USER';
 
 export type Web3Namespace =
   | 'SIWB'
@@ -898,6 +905,7 @@ export type ResolversTypes = {
   SiwbResponse: ResolverTypeWrapper<Omit<SiwbResponse, 'data'> & { data?: Maybe<ResolversTypes['SiwbData']> }>;
   SiweData: ResolverTypeWrapper<Omit<SiweData, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
   SiweResponse: ResolverTypeWrapper<Omit<SiweResponse, 'data'> & { data?: Maybe<ResolversTypes['SiweData']> }>;
+  SiweResponseType: SiweResponseType;
   String: ResolverTypeWrapper<Scalars['String']['output']>;
   Web3Namespace: Web3Namespace;
   Web3User: ResolverTypeWrapper<Web3UserModel>;
@@ -1294,6 +1302,7 @@ export type SignUpAnonymouslyResponseResolvers<ContextType = Context, ParentType
 
 export type SiwbDataResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SiwbData'] = ResolversParentTypes['SiwbData']> = {
   token?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['SiweResponseType'], ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -1306,6 +1315,7 @@ export type SiwbResponseResolvers<ContextType = Context, ParentType extends Reso
 
 export type SiweDataResolvers<ContextType = Context, ParentType extends ResolversParentTypes['SiweData'] = ResolversParentTypes['SiweData']> = {
   token?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['SiweResponseType'], ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

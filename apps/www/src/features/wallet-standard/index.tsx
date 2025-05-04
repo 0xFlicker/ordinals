@@ -67,3 +67,5 @@ export function MultiChainProvider({
     </WagmiProvider>
   );
 }
+
+export { WalletConnectButton } from "./components/WalletConnectButton";

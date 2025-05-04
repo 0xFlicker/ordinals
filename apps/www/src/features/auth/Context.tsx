@@ -2,6 +2,7 @@ import { createContext, useReducer, useContext } from "react";
 import { initialState, reducer } from "./ducks";
 import { useAuthImpl } from "./ContextImpl";
 import { TFullUser } from "@/utils/transforms";
+
 type AuthContextState = ReturnType<typeof useAuthImpl>;
 
 export const AuthContext = createContext<AuthContextState | null>(null);

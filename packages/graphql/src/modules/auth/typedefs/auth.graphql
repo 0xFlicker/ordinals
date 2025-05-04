@@ -22,9 +22,16 @@ enum Web3Namespace {
   SIWB
 }
 
+enum SiweResponseType {
+  NEW_USER
+  EXISTING_USER
+  LINKED_USER_REQUEST
+}
+
 type SiwbData {
   token: String!
   user: Web3User
+  type: SiweResponseType!
 }
 
 type SiwbResponse {
@@ -35,6 +42,7 @@ type SiwbResponse {
 type SiweData {
   token: String!
   user: Web3User
+  type: SiweResponseType!
 }
 
 type SiweResponse {

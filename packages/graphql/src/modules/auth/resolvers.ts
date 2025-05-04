@@ -1,8 +1,10 @@
 import {
+  createJwtTokenForAddressAddition,
   createJwtTokenForLogin,
   createJwtTokenForNewUser,
   decryptJweToken,
   UserAddressType,
+  verifyJwtForLogin,
   verifyJwtForNewUserCreation,
 } from "@0xflick/ordinals-rbac";
 import { v4 as uuidv4 } from "uuid";
@@ -227,7 +229,15 @@ export const resolvers: AuthModule.Resolvers = {
     siwe: async (
       _,
       { address, jwe },
-      { authMessageDomain, authMessageJwtClaimIssuer, userNonceDao, setToken },
+      {
+        authMessageDomain,
+        authMessageJwtClaimIssuer,
+        userDao,
+        userNonceDao,
+        userRolesDao,
+        setToken,
+        getToken,
+      },
     ) => {
       const { protectedHeader, plaintext } = await decryptJweToken(jwe);
       const signature = Buffer.from(plaintext).toString("utf8");
@@ -301,17 +311,74 @@ export const resolvers: AuthModule.Resolvers = {
             problems: [{ message: "Invalid signature" }],
           };
         }
-        const token = await createJwtTokenForNewUser({
-          address: { address, type },
-          nonce,
-          issuer: authMessageJwtClaimIssuer,
-        });
-        setToken(token, "siwe");
-        return {
-          data: {
-            token,
-          },
-        };
+        // check if user exists
+        try {
+          const user = await userDao.getUserByAddress({ address });
+          const roleIds: string[] = [];
+          for await (const roleId of userRolesDao.getRoleIds(user.userId)) {
+            roleIds.push(roleId);
+          }
+          // Create a full user token
+          const token = await createJwtTokenForLogin({
+            user: {
+              userId: user.userId,
+              handle: user.handle,
+              roleIds,
+            },
+            issuer: authMessageJwtClaimIssuer,
+          });
+          setToken(token);
+          return {
+            data: {
+              token,
+              user: new Web3UserModel({
+                userId: user.userId,
+                token,
+                handle: user.handle,
+                userDao,
+              }),
+              type: "EXISTING_USER",
+            },
+          };
+        } catch (error) {
+          // No user found with that address, but what about the token?
+          const token = getToken();
+          if (!token) {
+            // User not found, create a token that can be used in the future to create a user
+            const newToken = await createJwtTokenForNewUser({
+              address: { address, type },
+              nonce,
+              issuer: authMessageJwtClaimIssuer,
+            });
+            return {
+              data: {
+                token: newToken,
+                type: "NEW_USER",
+              },
+            };
+          }
+          const user = await verifyJwtForLogin(token);
+          if (!user) {
+            throw new Error("Invalid token");
+          }
+          // User found, generate a JWT that can be used to link the address to the user
+          const linkedToken = await createJwtTokenForAddressAddition({
+            address: { address, type: "EVM" },
+            userId: user.userId,
+            issuer: authMessageJwtClaimIssuer,
+          });
+          return {
+            data: {
+              user: new Web3UserModel({
+                userId: user.userId,
+                token,
+                userDao,
+              }),
+              token: linkedToken,
+              type: "LINKED_USER_REQUEST",
+            },
+          };
+        }
       } catch (error) {
         return {
           data: null,
@@ -331,6 +398,7 @@ export const resolvers: AuthModule.Resolvers = {
         authMessageJwtClaimIssuer,
         userNonceDao,
         setToken,
+        getToken,
         userRolesDao,
         userDao,
       },
@@ -400,6 +468,7 @@ export const resolvers: AuthModule.Resolvers = {
             problems: [{ message: "Invalid signature" }],
           };
         }
+        logger.debug({ address, nonce }, "Verified SIWB");
 
         let userId: string;
         try {
@@ -407,27 +476,66 @@ export const resolvers: AuthModule.Resolvers = {
             address,
           );
           userId = userIdFromDb;
+          logger.debug(
+            { userId, address, nonce },
+            "User found with that address",
+          );
+          // TODO: user could have a different address in the session token, but we are ignoring that for now
         } catch (error) {
-          const token = await createJwtTokenForNewUser({
-            address: { address, type },
-            nonce,
+          // No user found with that address, but what about the token?
+          const token = getToken();
+          if (!token) {
+            logger.debug(
+              { address, nonce },
+              "No token found, creating new user token",
+            );
+            // User not found, create a token that can be used in the future to create a user
+            const newToken = await createJwtTokenForNewUser({
+              address: { address, type },
+              nonce,
+              issuer: authMessageJwtClaimIssuer,
+            });
+            return {
+              data: {
+                token: newToken,
+                type: "NEW_USER",
+              },
+            };
+          }
+          const user = await verifyJwtForLogin(token);
+          if (!user) {
+            throw new Error("Invalid token");
+          }
+          logger.debug(
+            { address, nonce, userId: user.userId },
+            "User found, generating linked token for new address",
+          );
+          // User found, generate a JWT that can be used to link the address to the user
+          const linkedToken = await createJwtTokenForAddressAddition({
+            address: { address, type: "BTC" },
+            userId: user.userId,
             issuer: authMessageJwtClaimIssuer,
           });
           return {
             data: {
-              token,
+              user: new Web3UserModel({
+                userId: user.userId,
+                token,
+                userDao,
+              }),
+              token: linkedToken,
+              type: "LINKED_USER_REQUEST",
             },
           };
         }
 
         const roleIds: string[] = [];
         for await (const roleId of userRolesDao.getRoleIds(userId)) {
-          console.log("roleId", roleId);
           roleIds.push(roleId);
         }
 
-        logger.info(`User ID: ${userId}`);
         const { handle } = await userDao.getUserById({ userId });
+        logger.debug({ userId, address, nonce }, "User found, creating token");
         const token = await createJwtTokenForLogin({
           user: {
             userId,
@@ -446,6 +554,7 @@ export const resolvers: AuthModule.Resolvers = {
               token,
               userDao,
             }),
+            type: "EXISTING_USER",
           },
         };
       } catch (error) {

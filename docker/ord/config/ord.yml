@@ -1,0 +1,9 @@
+chain: regtest
+index_runes: true
+index_transactions: true
+index_sats: true
+index_addresses: true
+server_url: http://localhost:80
+bitcoin_rpc_url: http://bitcoind:18443
+bitcoin_rpc_username: test
+bitcoin_rpc_password: test

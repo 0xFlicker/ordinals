@@ -718,6 +718,7 @@ export type SignUpAnonymouslyResponse = {
 export type SiwbData = {
   __typename?: 'SiwbData';
   token: Scalars['String']['output'];
+  type: SiweResponseType;
   user?: Maybe<Web3User>;
 };
 
@@ -730,6 +731,7 @@ export type SiwbResponse = {
 export type SiweData = {
   __typename?: 'SiweData';
   token: Scalars['String']['output'];
+  type: SiweResponseType;
   user?: Maybe<Web3User>;
 };
 
@@ -738,6 +740,12 @@ export type SiweResponse = {
   data?: Maybe<SiweData>;
   problems?: Maybe<Array<AuthProblem>>;
 };
+
+export enum SiweResponseType {
+  ExistingUser = 'EXISTING_USER',
+  LinkedUserRequest = 'LINKED_USER_REQUEST',
+  NewUser = 'NEW_USER'
+}
 
 export enum Web3Namespace {
   Siwb = 'SIWB',

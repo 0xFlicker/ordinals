@@ -6,9 +6,9 @@ export namespace AuthModule {
     AppInfo: 'name' | 'pubKey';
     AuthProblem: 'message';
     SignUpAnonymouslyResponse: 'user' | 'problems';
-    SiwbData: 'token' | 'user';
+    SiwbData: 'token' | 'user' | 'type';
     SiwbResponse: 'data' | 'problems';
-    SiweData: 'token' | 'user';
+    SiweData: 'token' | 'user' | 'type';
     SiweResponse: 'data' | 'problems';
     SignInBitcoinResponse: 'user' | 'problems';
     Query: 'appInfo' | 'self' | 'checkUserExistsForAddress' | 'checkUserExistsForHandle';
@@ -17,6 +17,7 @@ export namespace AuthModule {
   
   interface DefinedEnumValues {
     Web3Namespace: 'SIWE' | 'SIWB';
+    SiweResponseType: 'NEW_USER' | 'EXISTING_USER' | 'LINKED_USER_REQUEST';
   };
   
   interface DefinedInputFields {
@@ -29,6 +30,7 @@ export namespace AuthModule {
   export type SignUpAnonymouslyResponse = Pick<Types.SignUpAnonymouslyResponse, DefinedFields['SignUpAnonymouslyResponse']>;
   export type Web3User = Types.Web3User;
   export type Web3Namespace = DefinedEnumValues['Web3Namespace'];
+  export type SiweResponseType = DefinedEnumValues['SiweResponseType'];
   export type SiwbData = Pick<Types.SiwbData, DefinedFields['SiwbData']>;
   export type SiwbResponse = Pick<Types.SiwbResponse, DefinedFields['SiwbResponse']>;
   export type SiweData = Pick<Types.SiweData, DefinedFields['SiweData']>;
@@ -83,6 +85,7 @@ export namespace AuthModule {
       '*'?: gm.Middleware[];
       token?: gm.Middleware[];
       user?: gm.Middleware[];
+      type?: gm.Middleware[];
     };
     SiwbResponse?: {
       '*'?: gm.Middleware[];
@@ -93,6 +96,7 @@ export namespace AuthModule {
       '*'?: gm.Middleware[];
       token?: gm.Middleware[];
       user?: gm.Middleware[];
+      type?: gm.Middleware[];
     };
     SiweResponse?: {
       '*'?: gm.Middleware[];

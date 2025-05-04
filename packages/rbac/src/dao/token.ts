@@ -50,7 +50,7 @@ export async function createJwtTokenForAddressAddition({
   issuer,
 }: {
   userId: string;
-  address: { type: "evm" | "btc"; address: string };
+  address: { type: "EVM" | "BTC"; address: string };
   issuer: string;
 }): Promise<string> {
   const key = await jwkKey;

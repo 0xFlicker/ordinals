@@ -1,7 +1,6 @@
 "use client";
 import { FC, useCallback, useState, useEffect, useRef } from "react";
 import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
 import CardHeader from "@mui/material/CardHeader";
 import CardContent from "@mui/material/CardContent";
 import CardActions from "@mui/material/CardActions";
@@ -20,7 +19,6 @@ import {
   UserWithRolesModel,
 } from "@0xflick/ordinals-rbac-models";
 import { useBitflickWallet } from "@/features/wallet-standard/Context";
-import Paper from "@mui/material/Paper";
 import { BitCard } from "@/components/BitCard";
 
 // Define the possible states for the signup flow
@@ -91,7 +89,8 @@ const PickHandleContent: FC<{
 
 export const SignupCard: FC<{
   onSignup?: (user: IUserWithRoles | IUserWithAddresses) => void;
-}> = ({ onSignup }) => {
+  redirectWhenConnectedPath?: string;
+}> = ({ onSignup, redirectWhenConnectedPath }) => {
   const router = useRouter();
   // const { handleBitcoinConnect, isConnected, isConnecting, ordinalsAddress } =
   //   useXverseConnect();
@@ -102,6 +101,7 @@ export const SignupCard: FC<{
     isConnecting,
     setNeedsBitcoinSelection,
     btcAccounts,
+    setIntent,
   } = useBitflickWallet();
 
   const [signUpAnonymously] = useSignUpAnonymouslyMutation();
@@ -164,9 +164,16 @@ export const SignupCard: FC<{
     switch (signupState) {
       case "CONNECT":
         if (isConnected) {
-          await connectBtcAsync();
+          const response = await loginBtcAsync(btcAccounts[0].address);
+          if (response.user) {
+            onSignup?.(response.user);
+          } else if (response.token) {
+            setToken(response.token);
+            setSignupState("PICK_HANDLE");
+          }
         } else {
           setNeedsBitcoinSelection(true);
+          setIntent("login");
         }
         break;
       case "SIGN":
@@ -203,10 +210,10 @@ export const SignupCard: FC<{
     signupState,
     isConnected,
     btcAccounts,
-    connectBtcAsync,
-    setNeedsBitcoinSelection,
     loginBtcAsync,
     onSignup,
+    setNeedsBitcoinSelection,
+    setIntent,
   ]);
 
   // Handle the signup with handle
@@ -221,16 +228,27 @@ export const SignupCard: FC<{
         },
       });
       if (data?.signUpAnonymously.user) {
-        onSignup?.(
-          new UserWithRolesModel({
-            userId: data.signUpAnonymously.user.id,
-            handle,
-            roleIds: data.signUpAnonymously.user.roles.map((role) => role.id),
-          })
-        );
+        const user = new UserWithRolesModel({
+          userId: data.signUpAnonymously.user.id,
+          handle,
+          roleIds: data.signUpAnonymously.user.roles.map((role) => role.id),
+        });
+        onSignup?.(user);
+        if (redirectWhenConnectedPath) {
+          router.push(redirectWhenConnectedPath);
+        }
       }
     }
-  }, [token, handle, isValid, isHandleVerified, signUpAnonymously, onSignup]);
+  }, [
+    token,
+    isValid,
+    isHandleVerified,
+    signUpAnonymously,
+    handle,
+    onSignup,
+    redirectWhenConnectedPath,
+    router,
+  ]);
 
   // Handle updating the handle
   const updateHandle = useCallback((newHandle: string) => {

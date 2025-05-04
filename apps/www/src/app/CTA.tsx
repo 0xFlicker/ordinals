@@ -3,20 +3,21 @@ import NextImage from "next/image";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
-import Container from "@mui/material/Container";
 import Paper from "@mui/material/Paper";
+import Grid from "@mui/material/Grid";
 
 const CTA_IMG = "/images/frame.png";
 
 export const CTA: FC = () => {
   return (
-    <Container maxWidth="lg" sx={{ my: 8 }}>
+    <Grid size={12} sx={{ display: "flex", justifyContent: "center", mb: 8 }}>
       <Paper
         sx={{
           position: "relative",
           borderRadius: 4,
           overflow: "hidden",
           minHeight: "400px",
+          maxWidth: "1000px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -65,16 +66,26 @@ export const CTA: FC = () => {
               lineHeight: 1.6,
             }}
           >
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
-            ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-            aliquip ex ea commodo consequat.
+            Make Bitcoin native NFT collections without running a node. Cheap,
+            fast, and easy.
+          </Typography>
+          <Typography
+            variant="body1"
+            color="white"
+            sx={{
+              mb: 6,
+              textShadow: "1px 1px 2px rgba(0,0,0,0.3)",
+              fontSize: "1.1rem",
+              lineHeight: 1.6,
+            }}
+          >
+            Create now
           </Typography>
           <Button
             variant="contained"
             color="primary"
             size="large"
-            href="/app"
+            href="/onboarding?r=/app"
             sx={{
               px: 6,
               py: 2,
@@ -87,6 +98,6 @@ export const CTA: FC = () => {
           </Button>
         </Box>
       </Paper>
-    </Container>
+    </Grid>
   );
 };

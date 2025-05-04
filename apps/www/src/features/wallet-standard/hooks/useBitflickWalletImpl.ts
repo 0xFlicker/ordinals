@@ -14,18 +14,25 @@ import {
   actions,
 } from "../ducks";
 import { BtcAccount } from "../types";
-import { createJweRequest } from "@0xflick/ordinals-rbac-models";
+import {
+  TIUserWithAddresses,
+  AllowedAction,
+  IUserWithRoles,
+  TPermission,
+  createJweRequest,
+  IUserWithAddresses,
+  TAllowedAction,
+} from "@0xflick/ordinals-rbac-models";
 import { useConnect, injected, useSignMessage } from "wagmi";
 import { AnyAction } from "@reduxjs/toolkit";
 import {
   useBitflickBtcNonceMutation,
   useBitflickEvmNonceMutation,
-  useBitflickSiwbSignInMutation,
-  useBitflickSiweSignInMutation,
 } from "./useBitflickWalletImpl.generated";
 import gql from "graphql-tag";
 import { mapSelfToUser } from "@/utils/transforms";
 import { useAuth } from "@/features/auth";
+import { SiweResponseType } from "@/graphql/types";
 
 gql`
   query BitflickSelf {
@@ -62,66 +69,20 @@ gql`
       pubKey
     }
   }
-  mutation BitflickSiweSignIn($address: ID!, $jwe: String!) {
-    siwe(address: $address, jwe: $jwe) {
-      data {
-        token
-        user {
-          id
-          addresses {
-            address
-            type
-          }
-          roles {
-            id
-            name
-          }
-          allowedActions {
-            action
-            resource
-            identifier
-          }
-          handle
-        }
-      }
-      problems {
-        message
-      }
-    }
-  }
-
-  mutation BitflickSiwbSignIn($address: ID!, $jwe: String!) {
-    siwb(address: $address, jwe: $jwe) {
-      data {
-        token
-        user {
-          id
-          addresses {
-            address
-            type
-          }
-          roles {
-            id
-            name
-          }
-          allowedActions {
-            action
-            resource
-            identifier
-          }
-          handle
-        }
-      }
-      problems {
-        message
-      }
-    }
-  }
 `;
+
 // Singleton service to manage async operations
 class AsyncOperationManager {
   private static instance: AsyncOperationManager;
   private operations: Map<string, boolean> = new Map();
+  private timeouts: Map<string, NodeJS.Timeout> = new Map();
+  private pendingOperations: Map<
+    string,
+    {
+      resolve: (value: any) => void;
+      reject: (reason: any) => void;
+    }
+  > = new Map();
 
   private constructor() {}
 
@@ -146,22 +107,80 @@ class AsyncOperationManager {
 
   endOperation(operationId: string): void {
     this.operations.set(operationId, false);
+    this.clearTimeout(operationId);
+    this.pendingOperations.delete(operationId);
+  }
+
+  setOperationTimeout(
+    operationId: string,
+    callback: () => void,
+    ms: number
+  ): void {
+    this.clearTimeout(operationId);
+    const timeoutId = setTimeout(callback, ms);
+    this.timeouts.set(operationId, timeoutId);
+  }
+
+  private clearTimeout(operationId: string): void {
+    const timeoutId = this.timeouts.get(operationId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.timeouts.delete(operationId);
+    }
+  }
+
+  mergeOperation(
+    operationId: string,
+    resolve: (value: any) => void,
+    reject: (reason: any) => void
+  ): void {
+    const existingOperation = this.pendingOperations.get(operationId);
+    if (existingOperation) {
+      this.pendingOperations.set(operationId, {
+        resolve: (value: any) => {
+          existingOperation.resolve(value);
+          resolve(value);
+          return value;
+        },
+        reject: (reason: any) => {
+          existingOperation.reject(reason);
+          reject(reason);
+          throw reason;
+        },
+      });
+    } else {
+      this.pendingOperations.set(operationId, { resolve, reject });
+    }
+
+    this.setOperationTimeout(
+      operationId,
+      () => {
+        this.pendingOperations.delete(operationId);
+        reject(new Error("Operation timed out"));
+      },
+      300000
+    ); // 5 minutes timeout
+  }
+
+  resolveOperation(operationId: string, value: any): void {
+    const operation = this.pendingOperations.get(operationId);
+    if (operation) {
+      operation.resolve(value);
+      this.endOperation(operationId);
+    }
+  }
+
+  rejectOperation(operationId: string, reason: any): void {
+    const operation = this.pendingOperations.get(operationId);
+    if (operation) {
+      operation.reject(reason);
+      this.endOperation(operationId);
+    }
   }
 }
 
 // Get the singleton instance
 const operationManager = AsyncOperationManager.getInstance();
-
-type PendingOperationState = {
-  connect?: {
-    resolve: (value: any) => void;
-    reject: (reason: any) => void;
-  };
-  login?: {
-    resolve: (value: any) => void;
-    reject: (reason: any) => void;
-  };
-};
 
 export const useBitflickWalletImpl = ({
   state,
@@ -183,18 +202,20 @@ export const useBitflickWalletImpl = ({
 
   const [fetchBtcNonce] = useBitflickBtcNonceMutation();
   const [fetchEvmNonce] = useBitflickEvmNonceMutation();
-  const [fetchSiwb] = useBitflickSiwbSignInMutation();
-  const [fetchSiwe] = useBitflickSiweSignInMutation();
-
-  const [operationTimeoutId, setOperationTimeoutId] =
-    useState<NodeJS.Timeout | null>(null);
-  const [pendingConnectOperation, setPendingConnectOperation] =
-    useState<PendingOperationState>({});
 
   const magicEden = useMagicEden();
   const xverse = useXverseConnect();
 
-  const { userId, handle } = useAuth();
+  const {
+    userId,
+    handle,
+    linkVerifiedAddressBtc,
+    linkVerifiedAddressEvm,
+    signInWithSiwb,
+    signInWithSiwe,
+    signUpAnonymously,
+  } = useAuth();
+
   useEffect(() => {
     if (userId && handle) {
       dispatch(actions.setHasLoggedIn(true));
@@ -259,74 +280,6 @@ export const useBitflickWalletImpl = ({
     );
   }, [state.activeEvmProvider, state.hasLoggedIn, state.isConnected]);
 
-  const expireOperation = useCallback((reject: (reason: any) => void) => {
-    // Set up a timeout to reject the promise if it takes too long
-    const timeoutId = setTimeout(() => {
-      setPendingConnectOperation({});
-      reject(new Error("Operation timed out"));
-    }, 300000); // 5 minutes timeout
-
-    // Store the timeout ID in local state
-    setOperationTimeoutId((existingOperationTimeoutId) => {
-      if (existingOperationTimeoutId) {
-        clearTimeout(existingOperationTimeoutId);
-      }
-      return timeoutId;
-    });
-  }, []);
-
-  const mergeOperation = useCallback(
-    ({
-      resolve,
-      reject,
-      operation: newOperationMode,
-    }: {
-      resolve: (value: any) => void;
-      reject: (reason: any) => void;
-      operation: "connect" | "login";
-    }) => {
-      const otherMode = newOperationMode === "connect" ? "login" : "connect";
-
-      setPendingConnectOperation((existingOperation) => {
-        if (newOperationMode === "connect" && existingOperation.login) {
-          reject(new Error("Login operation already in progress"));
-        }
-        if (existingOperation[newOperationMode]) {
-          return {
-            [newOperationMode]: {
-              resolve: (value: any) => {
-                existingOperation[newOperationMode]?.resolve(value);
-                resolve(value);
-                return value;
-              },
-              reject: (reason: any) => {
-                existingOperation[newOperationMode]?.reject(reason);
-                reject(reason);
-                throw reason;
-              },
-            },
-            ...(existingOperation[otherMode]
-              ? { [otherMode]: existingOperation[otherMode] }
-              : {}),
-          };
-        }
-        return {
-          [newOperationMode]: {
-            resolve,
-            reject,
-          },
-          ...(existingOperation[otherMode]
-            ? { [otherMode]: existingOperation[otherMode] }
-            : {}),
-        };
-      });
-
-      expireOperation(reject);
-    },
-    [expireOperation]
-  );
-
-  // Async version of connectBtc that returns the result
   const connectBtcAsync = useCallback(
     async (
       provider?: BtcWalletProvider
@@ -334,21 +287,15 @@ export const useBitflickWalletImpl = ({
       provider: BtcWalletProvider;
       addresses: BtcAccount[];
     }> => {
+      provider = provider ?? state.activeBtcProvider;
       if (!provider && !needsBitcoinSelection) {
         // If we need to show a modal, create a promise that will resolve when the user completes the action
         return new Promise((resolve, reject) => {
-          mergeOperation({
-            resolve,
-            reject,
-            operation: "connect",
-          });
-
-          // Show the modal
+          operationManager.mergeOperation("connect", resolve, reject);
           dispatch(actions.setNeedsBitcoinSelection(true));
         });
       }
 
-      provider = provider ?? state.activeBtcProvider;
       if (!provider) {
         throw new Error("No active BTC provider");
       }
@@ -445,7 +392,6 @@ export const useBitflickWalletImpl = ({
             throw new Error("Unsupported provider");
         }
       } finally {
-        dispatch(actions.setIsConnected(false));
         dispatch(actions.setIsConnecting(false));
         dispatch(actions.setNeedsConnect(false));
         dispatch(actions.setNeedsBitcoinSelection(false));
@@ -458,13 +404,11 @@ export const useBitflickWalletImpl = ({
       state.intendedBtcPurposes,
       state.intent,
       dispatch,
-      mergeOperation,
       magicEden,
       xverse,
     ]
   );
 
-  // Async version of connectEvm that returns the result
   const connectEvmAsync = useCallback(
     async (
       provider?: EvmWalletProvider
@@ -472,21 +416,13 @@ export const useBitflickWalletImpl = ({
       provider: EvmWalletProvider;
       accounts: EvmAccount[];
     }> => {
+      provider = provider ?? state.activeEvmProvider;
       if (!provider && !needsEvmSelection) {
-        // If we need to show a modal, create a promise that will resolve when the user completes the action
         return new Promise((resolve, reject) => {
-          // Store the pending operation in local state
-          mergeOperation({
-            resolve,
-            reject,
-            operation: "connect",
-          });
-          // Show the modal
+          operationManager.mergeOperation("connect", resolve, reject);
           dispatch(actions.setNeedsEvmSelection(true));
         });
       }
-
-      provider = provider ?? state.activeEvmProvider;
       if (!provider) {
         throw new Error("No active EVM provider");
       }
@@ -530,264 +466,127 @@ export const useBitflickWalletImpl = ({
       } finally {
         dispatch(actions.setIsConnecting(false));
         dispatch(actions.setNeedsConnect(false));
+        dispatch(actions.setNeedsEvmSelection(false));
+        dispatch(actions.setNeedsBitcoinSelection(false));
       }
     },
     [
       needsEvmSelection,
       state.activeEvmProvider,
       state.intent,
-      mergeOperation,
       dispatch,
       connectors,
       wagmiConnectAsync,
     ]
   );
 
-  // Async version of connect that returns the result
-  const connectAsync = useCallback(
-    async ({ btc, evm }: { btc?: boolean; evm?: boolean } = {}) => {
-      const operationId = "connect";
-
-      // Try to start the operation
-      if (!AsyncOperationManager.getInstance().startOperation(operationId)) {
-        // return the pending operation
-        return new Promise((resolve, reject) => {
-          // Store the pending operation in local state
-          mergeOperation({
-            resolve,
-            reject,
-            operation: "connect",
-          });
-        });
-      }
-
-      try {
-        // If BTC is specified, use connectBtcAsync
-        if (btc) {
-          return await connectBtcAsync();
-        }
-
-        // If EVM is specified, use connectEvmAsync
-        if (evm) {
-          return await connectEvmAsync();
-        }
-
-        // If no specific type is specified, use the active provider
-        if (state.activeBtcProvider) {
-          return await connectBtcAsync();
-        } else if (state.activeEvmProvider) {
-          return await connectEvmAsync();
-        }
-
-        // If no provider is active, show the selection modal for both
-        return new Promise((resolve, reject) => {
-          // Store the pending operation in local state
-          mergeOperation({
-            resolve,
-            reject,
-            operation: "connect",
-          });
-
-          if (btc) {
-            dispatch(actions.setNeedsBitcoinSelection(true));
-          } else if (evm) {
-            dispatch(actions.setNeedsEvmSelection(true));
-          }
-        });
-      } finally {
-        AsyncOperationManager.getInstance().endOperation(operationId);
-      }
-    },
-    [
-      mergeOperation,
-      state.activeBtcProvider,
-      state.activeEvmProvider,
-      connectBtcAsync,
-      connectEvmAsync,
-      dispatch,
-    ]
-  );
-
   const loginBtcAsync = useCallback(
     async (address: string) => {
-      if (!state.activeBtcProvider) {
-        throw new Error("No active BTC provider");
+      // spin up our "sign" op
+      if (!operationManager.startOperation("sign")) {
+        throw new Error("Sign operation already in progress");
       }
-
-      const lock = AsyncOperationManager.getInstance().startOperation("login");
-      if (!lock) {
-        throw new Error("Login operation already in progress");
-      }
-
+      dispatch(actions.setIsLoggingIn(true));
       try {
-        dispatch(actions.setIsLoggingIn(true));
-        switch (state.activeBtcProvider.type) {
-          case WalletProviderType.SATS_CONNECT: {
-            const result = await xverse.handleLogin(address);
-            dispatch(actions.setHasLoggedIn(true));
-            return result;
-          }
+        // 1) fetch a Bitcoin nonce + message
+        const { data: nonceData } = await fetchBtcNonce({
+          variables: { address },
+        });
+        if (!nonceData) throw new Error("No nonce");
+
+        // 2) ask the wallet to sign
+        const { messageToSign, nonce, pubKey } = nonceData.nonceBitcoin;
+        let signature: string | null | undefined = null;
+        switch (state.activeBtcProvider?.type) {
           case WalletProviderType.MAGIC_EDEN: {
-            if (!magicEden.isConnected) {
-              throw new Error("Magic Eden is not connected");
-            }
-            const { data: nonceData } = await fetchBtcNonce({
-              variables: {
-                address,
-              },
-            });
-
-            if (!nonceData) {
-              throw new Error("No nonce data received");
-            }
-
-            const {
-              nonceBitcoin: { messageToSign, nonce, pubKey },
-            } = nonceData;
-
-            const signature = await magicEden.sign({
+            signature = await magicEden.sign({
               address,
               messageToSign,
             });
-
-            if (!signature) {
-              throw new Error("Signature was declined");
-            }
-
-            const jwe = await createJweRequest({
-              signature,
-              nonce,
-              pubKeyStr: pubKey,
-            });
-
-            const { data: siwbData } = await fetchSiwb({
-              variables: {
-                address,
-                jwe,
+            break;
+          }
+          case WalletProviderType.SATS_CONNECT: {
+            signature = await xverse.sign({
+              address,
+              messageToSign,
+              network: {
+                type: BitcoinNetworkType.Mainnet,
               },
             });
-
-            if (!siwbData) {
-              throw new Error("No SIWB data received");
-            }
-
-            dispatch(actions.setHasLoggedIn(true));
-            const user = siwbData.siwb.data?.user
-              ? mapSelfToUser(siwbData.siwb.data?.user)
-              : null;
-            if (user) {
-              return {
-                token: siwbData.siwb.data?.token,
-                user,
-              };
-            }
-            return {
-              token: siwbData.siwb.data?.token,
-              user: null,
-            };
+            break;
           }
+          default:
+            throw new Error("Unsupported provider");
         }
-      } finally {
-        dispatch(actions.setIsLoggingIn(false));
-        dispatch(actions.setNeedsLogin(false));
-        AsyncOperationManager.getInstance().endOperation("login");
-      }
-    },
-    [
-      state.activeBtcProvider,
-      xverse,
-      dispatch,
-      magicEden,
-      fetchBtcNonce,
-      fetchSiwb,
-    ]
-  );
 
-  // Async version of loginEvm that returns the result
-  const loginEvmAsync = useCallback(
-    async (address?: string) => {
-      if (!state.activeEvmProvider) {
-        throw new Error("No active EVM provider");
-      }
-      if (!address) {
-        address = state.evmAccounts[0]?.address;
-      }
-      if (!address) {
-        throw new Error("No address provided");
-      }
+        if (!signature) throw new Error("User declined signature");
 
-      const lock = AsyncOperationManager.getInstance().startOperation("login");
-      if (!lock) {
-        throw new Error("Login operation already in progress");
-      }
-
-      try {
-        dispatch(actions.setIsLoggingIn(true));
-        const { data: nonceData } = await fetchEvmNonce({
-          variables: {
-            address,
-            chainId: 1,
-          },
-        });
-        if (!nonceData) {
-          throw new Error("No nonce data received");
-        }
-        const {
-          nonceEthereum: { messageToSign, nonce, pubKey },
-        } = nonceData;
-
-        const signature = await signMessageAsync({
-          message: messageToSign,
-        });
-
+        // 3) build our JWE
         const jwe = await createJweRequest({
           signature,
           nonce,
           pubKeyStr: pubKey,
         });
 
-        const { data: siweData } = await fetchSiwe({
-          variables: {
-            address,
-            jwe,
-          },
-        });
-
-        if (!siweData) {
-          throw new Error("No SIWE data received");
-        }
-        if (!siweData.siwe.data?.user) {
-          return {
-            token: siweData.siwe.data?.token,
-            user: null,
-          };
-        }
-        dispatch(actions.setHasLoggedIn(true));
-        const user = mapSelfToUser(siweData.siwe.data?.user);
-        if (!user) {
-          throw new Error("No user data received");
-        }
-        return {
-          token: siweData.siwe.data?.token,
-          user,
-        };
+        // 4) hand off to auth context (this will dispatch authSucceeded / authFailed)
+        return await signInWithSiwb(address, jwe);
       } finally {
         dispatch(actions.setIsLoggingIn(false));
         dispatch(actions.setNeedsLogin(false));
-        AsyncOperationManager.getInstance().endOperation("login");
+        operationManager.endOperation("sign");
       }
     },
     [
-      state.activeEvmProvider,
-      state.evmAccounts,
-      fetchEvmNonce,
-      signMessageAsync,
-      fetchSiwe,
       dispatch,
+      fetchBtcNonce,
+      signInWithSiwb,
+      magicEden,
+      state.activeBtcProvider?.type,
+      xverse,
     ]
   );
 
-  // Async version of login that returns the result
+  const loginEvmAsync = useCallback(
+    async (address?: string) => {
+      if (!state.activeEvmProvider) throw new Error("No EVM provider");
+      address = address ?? state.evmAccounts[0]?.address;
+      if (!address) throw new Error("No EVM address");
+
+      if (!operationManager.startOperation("sign")) {
+        throw new Error("Sign operation already in progress");
+      }
+      dispatch(actions.setIsLoggingIn(true));
+      try {
+        const { data: nonceData } = await fetchEvmNonce({
+          variables: { address, chainId: 1 },
+        });
+        if (!nonceData) throw new Error("No nonce");
+
+        const { messageToSign, nonce, pubKey } = nonceData.nonceEthereum;
+        const signature = await signMessageAsync({ message: messageToSign });
+        const jwe = await createJweRequest({
+          signature,
+          nonce,
+          pubKeyStr: pubKey,
+        });
+
+        return await signInWithSiwe(address, jwe);
+      } finally {
+        dispatch(actions.setIsLoggingIn(false));
+        dispatch(actions.setNeedsLogin(false));
+        operationManager.endOperation("sign");
+      }
+    },
+    [
+      dispatch,
+      fetchEvmNonce,
+      signInWithSiwe,
+      signMessageAsync,
+      state.activeEvmProvider,
+      state.evmAccounts,
+    ]
+  );
+
   const loginAsync = useCallback(
     async ({
       address,
@@ -797,7 +596,17 @@ export const useBitflickWalletImpl = ({
       address?: string;
       btc?: boolean;
       evm?: boolean;
-    } = {}) => {
+    } = {}): Promise<{
+      user:
+        | (IUserWithAddresses &
+            IUserWithRoles & {
+              allowedActions: TAllowedAction[];
+              permissions: TPermission[];
+            })
+        | undefined;
+      token: string;
+      type: SiweResponseType;
+    }> => {
       let modalNeeded = false;
       if (btc && !state.flags.needsBitcoinSelection) {
         dispatch(actions.setNeedsBitcoinSelection(true));
@@ -808,7 +617,9 @@ export const useBitflickWalletImpl = ({
         modalNeeded = true;
       }
       if (modalNeeded) {
-        return;
+        return new Promise((resolve, reject) => {
+          operationManager.mergeOperation("login", resolve, reject);
+        });
       }
 
       if (btc || state.activeBtcProvider) {
@@ -826,11 +637,7 @@ export const useBitflickWalletImpl = ({
       }
 
       return new Promise((resolve, reject) => {
-        mergeOperation({
-          resolve,
-          reject,
-          operation: "login",
-        });
+        operationManager.mergeOperation("login", resolve, reject);
       });
     },
     [
@@ -843,30 +650,89 @@ export const useBitflickWalletImpl = ({
       dispatch,
       loginBtcAsync,
       loginEvmAsync,
-      mergeOperation,
+    ]
+  );
+
+  const connectAsync: (opts?: { btc?: boolean; evm?: boolean }) => Promise<
+    | {
+        provider: EvmWalletProvider;
+        accounts: EvmAccount[];
+      }
+    | {
+        provider: BtcWalletProvider;
+        addresses: BtcAccount[];
+      }
+  > = useCallback(
+    async ({ btc, evm }: { btc?: boolean; evm?: boolean } = {}) => {
+      const operationId = "connect";
+
+      // Try to start the operation
+      if (!operationManager.startOperation(operationId)) {
+        // return the pending operation
+        return new Promise((resolve, reject) => {
+          operationManager.mergeOperation("connect", resolve, reject);
+        });
+      }
+
+      try {
+        // If BTC is specified, use connectBtcAsync
+        if (btc) {
+          return await connectBtcAsync(state.activeBtcProvider);
+        }
+
+        // If EVM is specified, use connectEvmAsync
+        if (evm) {
+          return await connectEvmAsync(state.activeEvmProvider);
+        }
+
+        // If no specific type is specified, use the active provider
+        if (state.activeBtcProvider) {
+          return await connectBtcAsync(state.activeBtcProvider);
+        } else if (state.activeEvmProvider) {
+          return await connectEvmAsync(state.activeEvmProvider);
+        }
+
+        // If no provider is active, show the selection modal for both
+        return new Promise((resolve, reject) => {
+          operationManager.mergeOperation("connect", resolve, reject);
+
+          if (btc) {
+            dispatch(actions.setNeedsBitcoinSelection(true));
+          } else if (evm) {
+            dispatch(actions.setNeedsEvmSelection(true));
+          } else if (!evm && !btc) {
+            dispatch(actions.setNeedsBitcoinSelection(true));
+            dispatch(actions.setNeedsEvmSelection(true));
+          }
+        });
+      } finally {
+        operationManager.endOperation(operationId);
+      }
+    },
+    [
+      state.activeBtcProvider,
+      state.activeEvmProvider,
+      connectBtcAsync,
+      connectEvmAsync,
+      dispatch,
     ]
   );
 
   // Use a stable ID for each operation
-  const connectOperationId = useMemo(() => "connect", []);
-  const loginOperationId = useMemo(() => "login", []);
+  const connectOperationId = "connect";
+  const signOperationId = "sign";
 
   useEffect(() => {
-    // Only run if needsLogin is true and the operation is not already running
     if (
       state.flags.needsLogin &&
-      !operationManager.isOperationRunning(loginOperationId)
+      !operationManager.isOperationRunning(signOperationId)
     ) {
-      // Immediately set the flag to false to prevent multiple executions
       dispatch(actions.setNeedsLogin(false));
-
-      // Execute the operation
-      loginAsync().finally(() => {
-        // Mark the operation as not running
-        operationManager.endOperation(loginOperationId);
-      });
+      loginAsync().finally(() =>
+        operationManager.endOperation(signOperationId)
+      );
     }
-  }, [state.flags.needsLogin, loginAsync, dispatch, loginOperationId]);
+  }, [state.flags.needsLogin, loginAsync, dispatch, signOperationId]);
 
   useEffect(() => {
     // Only run if needsConnect is true and the operation is not already running
@@ -997,51 +863,6 @@ export const useBitflickWalletImpl = ({
     },
     [dispatch, connectEvmAsync]
   );
-
-  // Effect to handle provider selection and connection
-  useEffect(() => {
-    // If a provider was selected and we have a pending connect operation
-    if (
-      (state.activeBtcProvider || state.activeEvmProvider) &&
-      (pendingConnectOperation.connect || pendingConnectOperation.login)
-    ) {
-      // Clear any existing timeout
-      if (operationTimeoutId) {
-        clearTimeout(operationTimeoutId);
-        setOperationTimeoutId(null);
-      }
-
-      // Execute the appropriate connect function
-      const executeConnect = async () => {
-        try {
-          let result;
-          if (state.activeBtcProvider) {
-            result = await connectBtcAsync(state.activeBtcProvider);
-          } else if (state.activeEvmProvider) {
-            result = await connectEvmAsync(state.activeEvmProvider);
-          }
-
-          // Resolve the pending operation with the result
-          pendingConnectOperation.connect?.resolve(result);
-        } catch (error) {
-          // Reject the pending operation with the error
-          pendingConnectOperation.connect?.reject(error);
-        } finally {
-          setPendingConnectOperation(({ login }) => ({ login }));
-        }
-      };
-
-      executeConnect();
-    }
-  }, [
-    state.activeBtcProvider,
-    state.activeEvmProvider,
-    connectBtcAsync,
-    connectEvmAsync,
-    operationTimeoutId,
-    pendingConnectOperation,
-    setPendingConnectOperation,
-  ]);
 
   return {
     connectAsync,
