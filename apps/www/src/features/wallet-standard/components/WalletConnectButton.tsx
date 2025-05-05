@@ -68,7 +68,14 @@ export const WalletConnectButton: FC<{
   pickEvm?: boolean;
   intent?: WalletConnectIntent;
   user?: { handle?: string; userId?: string };
-}> = ({ pickBtc = true, pickEvm = true, intent = "login", user: propUser }) => {
+  hideAvatar?: boolean;
+}> = ({
+  pickBtc = true,
+  pickEvm = true,
+  intent = "login",
+  user: propUser,
+  hideAvatar = false,
+}) => {
   const {
     isConnected,
     setNeedsBitcoinSelection,
@@ -82,7 +89,7 @@ export const WalletConnectButton: FC<{
     evmAddress,
   } = useBitflickWallet();
 
-  const { userId, handle, isLoggedIn } = useAuth();
+  const { userId, handle, isRealUser, isAnonUser } = useAuth();
 
   // Prioritize user from props over context user
   const resolvedUser = propUser || { userId, handle };
@@ -94,7 +101,7 @@ export const WalletConnectButton: FC<{
   }, [intent, setIntent]);
 
   const renderIcons = (userId: string) => {
-    if (userId) {
+    if (userId && !hideAvatar) {
       const canvas = createStellarIdenticon(userId);
       return (
         <Avatar
@@ -138,14 +145,18 @@ export const WalletConnectButton: FC<{
   const getButtonText = () => {
     if (handle) {
       return handle;
-    } else if (isLoggedIn) {
-      return "Connected";
     } else if (isConnected) {
       return "Login";
     } else {
       return intent === "login" ? "Connect & Login" : "Connect";
     }
   };
+
+  console.log({
+    ordinalsAddress,
+    evmAddress,
+    resolvedUser,
+  });
 
   const handleConnect = () => {
     // If user is provided in props, don't do anything on click
@@ -169,10 +180,7 @@ export const WalletConnectButton: FC<{
         setNeedsConnect(true);
       }
     } else if (intent === "login") {
-      if (isLoggedIn) {
-        // Already logged in, do nothing
-        return;
-      } else if (isConnected) {
+      if (isConnected) {
         // Connected but not logged in, proceed to login
         setNeedsLogin(true);
       } else if (
@@ -191,7 +199,7 @@ export const WalletConnectButton: FC<{
     }
   };
 
-  const isLoggedInOrPropUser = propUser?.userId || isLoggedIn;
+  const isLoggedInOrPropUser = propUser?.userId || isConnected;
 
   return (
     <Button
@@ -200,7 +208,7 @@ export const WalletConnectButton: FC<{
       startIcon={renderIcons(
         resolvedUser.userId ?? ordinalsAddress ?? evmAddress ?? ""
       )}
-      disabled={resolvedUser.userId ? true : isLoggedIn}
+      disabled={resolvedUser.userId ? true : isRealUser || isAnonUser}
       color={isLoggedInOrPropUser ? "success" : "primary"}
       sx={{
         textTransform: "none",

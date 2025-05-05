@@ -56,6 +56,7 @@ export type TFundingDb<T extends Record<string, any>> = {
   tipAmountDestination?: string;
   batchId?: string;
   sizeEstimate: number;
+  creatorUserId?: string;
 } & T;
 
 export type TFundingCollectionDb<T extends Record<string, any>> = {
@@ -79,6 +80,7 @@ type TPresaleDb = Omit<
 type TFundingByStatus = {
   address: string;
   id: string;
+  creatorId?: string;
   createdAt: Date;
   nextCheckAt: Date;
   fundingAmountSat: number;
@@ -91,7 +93,7 @@ type TFundedByStatus = {
   sizeEstimate: number;
   fundingTxid: string;
   fundingVout: number;
-} & Omit<TFundingByStatus, "nextCheckAt" | "createdAt">;
+} & Omit<TFundingByStatus, "nextCheckAt" | "genesisScriptHash">;
 
 function excludePrimaryKeys<T extends Record<string, any>>(
   input: T,
@@ -595,6 +597,8 @@ export class FundingDao<
           fundingTxid: item.fundingTxid,
           fundingVout: item.fundingVout,
           genesisScriptHash: item.genesisScriptHash,
+          creatorId: item.creatorId,
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(0),
         })) ?? [],
       cursor: encodeCursor({
         page,
@@ -1042,6 +1046,63 @@ export class FundingDao<
             item as TFundingCollectionDb<CollectionMeta>,
           ),
         ) ?? [],
+      cursor,
+      page,
+      count,
+      size,
+    };
+  }
+
+  public async getAllInscriptionsByCreatorUserId(userId: string) {
+    const inscriptionsIds: string[] = [];
+    for await (const inscriptionId of this.getAllInscriptionsByCreatorUserIdIterator(
+      userId,
+    )) {
+      inscriptionsIds.push(inscriptionId);
+    }
+    return inscriptionsIds;
+  }
+
+  public getAllInscriptionsByCreatorUserIdIterator(userId: string) {
+    return paginate((options) =>
+      this.getAllInscriptionsByCreatorUserIdPaginated(userId, options),
+    );
+  }
+
+  async getAllInscriptionsByCreatorUserIdPaginated(
+    userId: string,
+    options?: IPaginationOptions,
+  ) {
+    const pagination = decodeCursor(options?.cursor);
+    const result = await this.client.send(
+      new QueryCommand({
+        TableName: FundingDao.TABLE_NAME,
+        IndexName: "creatorUserId-index",
+        KeyConditionExpression: "creatorUserId = :creatorUserId, sk = :sk",
+        ExpressionAttributeValues: {
+          ":creatorUserId": userId,
+          ":sk": "funding",
+        },
+        ProjectionExpression: "id",
+        ...(options?.limit
+          ? {
+              Limit: options.limit,
+            }
+          : {}),
+        ...(pagination
+          ? {
+              ExclusiveStartKey: pagination.lastEvaluatedKey,
+            }
+          : {}),
+      }),
+    );
+    const lastEvaluatedKey = result.LastEvaluatedKey;
+    const page = pagination ? pagination.page + 1 : 1;
+    const size = result.Items?.length ?? 0;
+    const count = (pagination ? pagination.count : 0) + size;
+    const cursor = encodeCursor({ lastEvaluatedKey, page, count });
+    return {
+      items: result.Items?.map((item) => item.id as string) ?? [],
       cursor,
       page,
       count,

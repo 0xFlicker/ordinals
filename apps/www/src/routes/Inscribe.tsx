@@ -46,8 +46,6 @@ export const Inscribe: FC<{}> = () => {
   const [customFeeRate, setCustomFeeRate] = useState<number>(10);
   const [networkSelectOpen, setNetworkSelectOpen] = useState<boolean>(false);
   const [feeLevelSelectOpen, setFeeLevelSelectOpen] = useState<boolean>(false);
-  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
-  const [isSiwbPending, setIsSiwbPending] = useState<boolean>(false);
 
   const isValidOrdinalsAddress = useMemo(() => {
     try {
@@ -73,11 +71,6 @@ export const Inscribe: FC<{}> = () => {
     connectBtcAsync,
     loginBtcAsync,
   } = useBitflickWallet();
-
-  const { isLoggedIn } = useAuth();
-
-  console.log("isConnected", isConnected);
-  console.log("ordinalsAddress", ordinalsAddress);
 
   const handleWalletClick = useCallback(async () => {
     if (isConnected && discoveredAddress) {
@@ -107,11 +100,8 @@ export const Inscribe: FC<{}> = () => {
     async (files: File[]) => {
       try {
         if (!isConnected) {
-          console.log("not connected");
-          setPendingFiles(files);
           const result = await connectBtcAsync();
           if (result && result.addresses.length > 0) {
-            console.log("connected and got addresses");
             await loginBtcAsync(result.addresses[0].address);
           }
         }

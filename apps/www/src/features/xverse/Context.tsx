@@ -7,7 +7,6 @@ import {
   useContext,
   useMemo,
   useReducer,
-  useState,
   useEffect,
 } from "react";
 import Wallet, {
@@ -33,10 +32,8 @@ import {
 import {
   useBitcoinNonceMutation,
   useSignInBitcoinMutation,
-  useSiwbMutation,
 } from "./graphql/nonce.generated";
 import { useGetAppInfoQuery } from "@/features/auth/hooks/app.generated";
-import { useSiwbSignIn } from "../auth/hooks/useSignIn";
 
 function useXverseContext(opts: {
   network: BitcoinNetwork["type"];
@@ -52,7 +49,6 @@ function useXverseContext(opts: {
 
   const [fetchNonce] = useBitcoinNonceMutation();
   const [signInBitcoin] = useSignInBitcoinMutation();
-  const [fetchSiwb] = useSiwbSignIn();
   const { data: appInfoData } = useGetAppInfoQuery();
   const issuer = appInfoData?.appInfo?.name;
 

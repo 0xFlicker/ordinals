@@ -1,6 +1,5 @@
 import { Inter } from "next/font/google";
 import { Context } from "./context";
-import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,12 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Context
-          initialBitcoinNetwork={BitcoinNetworkType.Mainnet}
-          initialBitcoinPurpose={[AddressPurpose.Ordinals, AddressPurpose.Payment]}
-        >
-          {children}
-        </Context>
+        <Context>{children}</Context>
       </body>
     </html>
   );

@@ -6,16 +6,36 @@ import { WalletConnectButton } from "@/features/wallet-standard/components/Walle
 
 export const SwitchableNetwork: FC<
   PropsWithChildren<{
-    title: string;
+    title?: string;
     user?: { handle?: string; userId?: string };
+    hidden?: boolean;
   }>
-> = ({ children, title, user }) => {
+> = ({ children, title, user, hidden }) => {
   return (
     <>
-      <AppBar left={title} right={<WalletConnectButton user={user} />} />
+      <AppBar
+        left={title}
+        right={<WalletConnectButton user={user} />}
+        sx={{
+          ...(hidden
+            ? {
+                position: "fixed",
+                boxShadow: "none",
+                "& .MuiToolbar-root": {
+                  minHeight: "64px",
+                },
+              }
+            : {}),
+        }}
+        color={hidden ? "transparent" : "inherit"}
+      />
       <Container
         sx={{
-          pt: 8,
+          ...(hidden
+            ? {
+                pt: 8,
+              }
+            : {}),
         }}
       >
         {children}

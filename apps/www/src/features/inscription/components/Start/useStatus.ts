@@ -10,10 +10,7 @@ export function useStatus(collectionId: string) {
   const count = useMemo(() => {
     if (data) {
       return {
-        revealedCount: data.revealedFundings.fundings?.reduce(
-          (acc, f) => acc + (f?.fundingRevealTxIds?.length ?? 0),
-          0
-        ),
+        revealedCount: data.revealedFundings.fundings?.length ?? 0,
         totalCount: data.collection?.totalCount ?? 0,
         maxSupply: data.collection?.maxSupply ?? 0,
       };

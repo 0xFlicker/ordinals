@@ -2,7 +2,7 @@ import { useXverseConnect } from "@/features/xverse/hooks/useXverseConnect";
 import { v4 as uuidv4 } from "uuid";
 import { magicEdenIcon, useMagicEden } from "@/features/magic-eden/Context";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
-import { useCallback, useEffect, useMemo, useState, Dispatch } from "react";
+import { useCallback, useEffect, useMemo, Dispatch } from "react";
 import {
   BtcWalletProvider,
   EvmAccount,
@@ -15,8 +15,6 @@ import {
 } from "../ducks";
 import { BtcAccount } from "../types";
 import {
-  TIUserWithAddresses,
-  AllowedAction,
   IUserWithRoles,
   TPermission,
   createJweRequest,
@@ -30,7 +28,6 @@ import {
   useBitflickEvmNonceMutation,
 } from "./useBitflickWalletImpl.generated";
 import gql from "graphql-tag";
-import { mapSelfToUser } from "@/utils/transforms";
 import { useAuth } from "@/features/auth";
 import { SiweResponseType } from "@/graphql/types";
 
@@ -196,25 +193,20 @@ export const useBitflickWalletImpl = ({
     provider: any;
   }[];
 }) => {
-  // const wallets = useWallets();
+  // EVM things
   const { connectAsync: wagmiConnectAsync } = useConnect();
   const { signMessageAsync } = useSignMessage();
 
+  // Nonce things, for SIWE/SIWB
   const [fetchBtcNonce] = useBitflickBtcNonceMutation();
   const [fetchEvmNonce] = useBitflickEvmNonceMutation();
 
+  // Bitcoin wallet things
   const magicEden = useMagicEden();
   const xverse = useXverseConnect();
 
-  const {
-    userId,
-    handle,
-    linkVerifiedAddressBtc,
-    linkVerifiedAddressEvm,
-    signInWithSiwb,
-    signInWithSiwe,
-    signUpAnonymously,
-  } = useAuth();
+  // Auth things
+  const { userId, handle, signInWithSiwb, signInWithSiwe } = useAuth();
 
   useEffect(() => {
     if (userId && handle) {

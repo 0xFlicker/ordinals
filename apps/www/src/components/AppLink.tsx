@@ -4,9 +4,9 @@ import { Link as MUILink, LinkProps } from "@mui/material";
 import { FC, PropsWithChildren, forwardRef } from "react";
 
 export const AppLink: FC<PropsWithChildren<LinkProps>> = forwardRef(
-  function AppLink({ children, ...props }, ref) {
+  function AppLink({ children, href, ...props }, ref) {
     return (
-      <MUILink ref={ref} {...props} component={NextLink}>
+      <MUILink ref={ref} {...props} component={NextLink} href={href ?? "#"}>
         {children}
       </MUILink>
     );

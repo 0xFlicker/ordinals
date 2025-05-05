@@ -368,7 +368,15 @@ export const OnboardingCard: FC<OnboardingCardProps> = ({
       ];
       break;
     case "CHOICE_EXISTING_USER_NEW_ADDRESS":
-      content = <Typography>Choose an option</Typography>;
+      content = (
+        <>
+          <Typography variant="h6">Choose an option</Typography>
+          <Typography variant="body2">
+            Would like to link this address to your existing user{" "}
+            {initialUser?.handle}?
+          </Typography>
+        </>
+      );
       buttons = [
         {
           text: "Link Address",
@@ -376,7 +384,7 @@ export const OnboardingCard: FC<OnboardingCardProps> = ({
           disabled: false,
         },
         {
-          text: "Sign In Anonymously",
+          text: "Continue Without Linking",
           onClick: handleChoiceAnon,
           disabled: false,
         },

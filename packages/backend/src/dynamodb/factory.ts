@@ -7,6 +7,7 @@ import { OpenEditionClaimsDao } from "./openEdition.js";
 import { WalletDAO } from "./wallet.js";
 import { UploadsDAO } from "./uploads.js";
 import { BatchDAO } from "./batch.js";
+import { SocialsDAO } from "./socials.js";
 
 export function createDynamoDbFundingDao<
   ItemMeta extends Record<string, any> = {},
@@ -81,4 +82,15 @@ export function createDynamoDbBatchDao({
   batchTableName = batchTableName ?? tableNames.get().funding;
   BatchDAO.TABLE_NAME = batchTableName ?? BatchDAO.TABLE_NAME;
   return new BatchDAO(db ?? getDb());
+}
+
+export function createDynamoDbSocialsDao({
+  db,
+  socialsTableName,
+}: {
+  db?: DynamoDBDocumentClient;
+  socialsTableName?: string;
+} = {}) {
+  socialsTableName = socialsTableName ?? tableNames.get().socials;
+  return new SocialsDAO(db ?? getDb(), socialsTableName);
 }

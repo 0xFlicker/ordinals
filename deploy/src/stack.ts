@@ -3,7 +3,7 @@ import { Construct } from "constructs";
 import * as s3 from "aws-cdk-lib/aws-s3";
 
 import { Storage } from "./storage.js";
-import { DynamoDB } from "./dynamodb.js";
+import { DynamoDB } from "./dynamodb/index.js";
 import { Www } from "./distribution.js";
 import { Graphql } from "./graphql.js";
 import { Frame } from "./frame.js";
@@ -56,6 +56,7 @@ export class BackendStack extends cdk.Stack {
       walletTable,
       usersTable,
       uploadsTable,
+      socialsTable,
     } = new DynamoDB(this, "DynamoDB", {
       domainName: new URL(origin).host,
     });
@@ -121,12 +122,12 @@ export class BackendStack extends cdk.Stack {
         value: graphqlApiUrl,
       });
 
-      new Www(this, "Www", {
-        // Adding cert manually because cloudflare
-        // noCert: true,
-        domain: `www.${new URL(origin).host}`,
-        graphqlApi,
-      });
+      // new Www(this, "Www", {
+      //   // Adding cert manually because cloudflare
+      //   // noCert: true,
+      //   domain: `www.${new URL(origin).host}`,
+      //   graphqlApi,
+      // });
     }
   }
 }

@@ -1,0 +1,23 @@
+type Inscription {
+  id: ID!
+
+  owner: Web3User
+
+  content: String!
+  contentUrl: String!
+  contentLength: Int!
+  contentType: String!
+
+  parents: [Inscription!]!
+  children: [Inscription!]!
+}
+
+input InscriptionQuery {
+  userId: ID
+  address: ID
+  handle: String
+}
+
+type Query {
+  inscriptions(query: InscriptionQuery!): [Inscription!]!
+}

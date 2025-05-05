@@ -11,8 +11,6 @@ import {
 import { actions, initialState } from "./ducks";
 import { mapSelfToUser, TFullUser } from "@/utils/transforms";
 import { AnyAction } from "@reduxjs/toolkit";
-import { SignInType } from "./ducks";
-
 gql`
   query AuthSelf {
     self {

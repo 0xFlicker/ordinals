@@ -82,7 +82,7 @@ export const useBitflickWallet = () => {
   const response = useContext(WalletStandardContext);
   if (!response) {
     throw new Error(
-      "useWalletStandard must be used within a WalletStandardProvider"
+      "useBitflickWallet must be used within a WalletStandardProvider"
     );
   }
   return response;

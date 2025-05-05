@@ -10,25 +10,27 @@ let fundingTableStreamArn;
 let parentInscriptionSecKeyEnvelopeKeyId;
 let fundingSecKeyEnvelopeKeyId;
 for (const [key, value] of Object.entries(outputs["ordinals"])) {
-  if (key.startsWith("DynamoDBRbacTableName")) {
+  if (key.startsWith("DynamoDBRbacName")) {
     tableNames.rbac = value;
-  } else if (key.startsWith("DynamoDBUserNonceTable")) {
+  } else if (key.startsWith("DynamoDBUserNonceName")) {
     tableNames.userNonce = value;
-  } else if (key.startsWith("DynamoDBFundingTableName")) {
+  } else if (key.startsWith("DynamoDBFundingName")) {
     tableNames.funding = value;
-  } else if (key.startsWith("DynamoDBClaimsTableName")) {
+  } else if (key.startsWith("DynamoDBClaimsName")) {
     tableNames.claims = value;
   } else if (key.startsWith("DynamoDBOpenEditionClaimsTableName")) {
     tableNames.openEditionClaims = value;
-  } else if (key.startsWith("DynamoDBWalletTableName")) {
+  } else if (key.startsWith("DynamoDBWalletName")) {
     tableNames.wallet = value;
-  } else if (key.startsWith("DynamoDBUploadsTableName")) {
+  } else if (key.startsWith("DynamoDBUploadsName")) {
     tableNames.uploads = value;
-  } else if (key.startsWith("DynamoDBUsersTableName")) {
+  } else if (key.startsWith("DynamoDBUsersName")) {
     tableNames.users = value;
+  } else if (key.startsWith("DynamoDBSocialsName")) {
+    tableNames.socials = value;
   } else if (key.startsWith("StorageinscriptionsBucketName")) {
     inscriptionBucketName = value;
-  } else if (key.startsWith("DynamoDBFundingTableStreamArn")) {
+  } else if (key.startsWith("DynamoDBFundingStreamArn")) {
     fundingTableStreamArn = value;
   } else if (key.startsWith("UploadBucketuploadsBucketName")) {
     uploadBucketName = value;

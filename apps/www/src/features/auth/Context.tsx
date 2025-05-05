@@ -1,3 +1,4 @@
+"use client";
 import { createContext, useReducer, useContext } from "react";
 import { initialState, reducer } from "./ducks";
 import { useAuthImpl } from "./ContextImpl";

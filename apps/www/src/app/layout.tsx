@@ -17,6 +17,7 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   title: "Bitflick",
   description: "Bitflick inscription launchpad",
+  metadataBase: new URL(baseUrl.get()),
 };
 
 export default async function RootLayout({

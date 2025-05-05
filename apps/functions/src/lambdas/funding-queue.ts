@@ -88,10 +88,6 @@ function createCheckFundingStream({
           fundingVout: funding.vout,
           id: fundingId,
         });
-        await fundingDao.updateFundingNextCheckAt({
-          id: fundingId,
-          nextCheckAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
-        });
       }
       return funding;
     }),
@@ -170,6 +166,7 @@ export const handler: Handler = async () => {
           network,
           txid,
           vout,
+          creatorId,
         }) => {
           try {
             const event: FundedEvent = {
@@ -180,6 +177,7 @@ export const handler: Handler = async () => {
               network,
               txid,
               vout,
+              creatorId,
             };
             const { MessageId } = await sqsClient.send(
               new SendMessageCommand({
@@ -199,6 +197,7 @@ export const handler: Handler = async () => {
               network,
               txid,
               vout,
+              creatorId,
             };
           } catch (error) {
             logger.error(error, `Error sending message to SQS`);

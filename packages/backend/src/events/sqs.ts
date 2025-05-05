@@ -21,26 +21,5 @@ export type FundedEvent = {
   fundedAmount: number;
   network: BitcoinNetworkNames;
   collectionId?: string;
-};
-
-export type GenesisEvent = {
-  fundingId: string;
-  genesisTxid: string;
-  fundingTxid: string;
-  fundedAmount: number;
-  fundedAddress: string;
-  network: BitcoinNetworkNames;
-  collectionId?: string;
-};
-
-export type RevealEvent = {
-  fundingId: string;
-  fundingTxid: string;
-  genesisTxid: string;
-  revealTxid: string;
-  minerFee: number;
-  platformFee: number;
-  inscriptionFee: number;
-  network: BitcoinNetworkNames;
-  collectionId?: string;
+  creatorId?: string;
 };

@@ -1,7 +1,5 @@
 import { FC } from "react";
 import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
-import BitcoinIcon from "@/components/BitcoinIcon";
 import Grid from "@mui/material/Grid";
 import CardContent from "@mui/material/CardContent";
 import CardHeader from "@mui/material/CardHeader";

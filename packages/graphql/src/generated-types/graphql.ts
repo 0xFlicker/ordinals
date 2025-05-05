@@ -217,6 +217,18 @@ export type FundingStatus =
   | 'GENESIS'
   | 'REVEALED';
 
+export type Inscription = {
+  __typename?: 'Inscription';
+  children: Array<Inscription>;
+  content: Scalars['String']['output'];
+  contentLength: Scalars['Int']['output'];
+  contentType: Scalars['String']['output'];
+  contentUrl: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  owner?: Maybe<Web3User>;
+  parents: Array<Inscription>;
+};
+
 export type InscriptionData = {
   __typename?: 'InscriptionData';
   base64Content?: Maybe<Scalars['String']['output']>;
@@ -295,6 +307,12 @@ export type InscriptionProblem = {
   code?: Maybe<Scalars['Int']['output']>;
   fileName: Scalars['String']['output'];
   message?: Maybe<Scalars['String']['output']>;
+};
+
+export type InscriptionQuery = {
+  address?: InputMaybe<Scalars['ID']['input']>;
+  handle?: InputMaybe<Scalars['String']['input']>;
+  userId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type InscriptionRequestInput = {
@@ -585,6 +603,7 @@ export type Query = {
   currentBitcoinFees: FeeEstimate;
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
+  inscriptions: Array<Inscription>;
   presale?: Maybe<PresaleResponse>;
   presales: PresalesResult;
   role?: Maybe<Role>;
@@ -635,6 +654,11 @@ export type QueryInscriptionFundingArgs = {
 
 export type QueryInscriptionFundingsArgs = {
   query: InscriptionFundingQuery;
+};
+
+
+export type QueryInscriptionsArgs = {
+  query: InscriptionQuery;
 };
 
 
@@ -864,6 +888,7 @@ export type ResolversTypes = {
   FeeLevel: FeeLevel;
   FundingStatus: FundingStatus;
   ID: ResolverTypeWrapper<Scalars['ID']['output']>;
+  Inscription: ResolverTypeWrapper<Omit<Inscription, 'children' | 'owner' | 'parents'> & { children: Array<ResolversTypes['Inscription']>, owner?: Maybe<ResolversTypes['Web3User']>, parents: Array<ResolversTypes['Inscription']> }>;
   InscriptionData: ResolverTypeWrapper<InscriptionData>;
   InscriptionDataInput: InscriptionDataInput;
   InscriptionFileInlineInput: InscriptionFileInlineInput;
@@ -873,6 +898,7 @@ export type ResolversTypes = {
   InscriptionFundingQuery: InscriptionFundingQuery;
   InscriptionFundingsResult: ResolverTypeWrapper<Omit<InscriptionFundingsResult, 'fundings'> & { fundings?: Maybe<Array<ResolversTypes['InscriptionFunding']>> }>;
   InscriptionProblem: ResolverTypeWrapper<InscriptionProblem>;
+  InscriptionQuery: InscriptionQuery;
   InscriptionRequestInput: InscriptionRequestInput;
   InscriptionUploadData: ResolverTypeWrapper<InscriptionUploadData>;
   InscriptionUploadFileData: ResolverTypeWrapper<InscriptionUploadFileData>;
@@ -937,6 +963,7 @@ export type ResolversParentTypes = {
   CreateInscriptionResponse: Omit<CreateInscriptionResponse, 'data'> & { data?: Maybe<ResolversParentTypes['InscriptionFunding']> };
   FeeEstimate: FeeEstimate;
   ID: Scalars['ID']['output'];
+  Inscription: Omit<Inscription, 'children' | 'owner' | 'parents'> & { children: Array<ResolversParentTypes['Inscription']>, owner?: Maybe<ResolversParentTypes['Web3User']>, parents: Array<ResolversParentTypes['Inscription']> };
   InscriptionData: InscriptionData;
   InscriptionDataInput: InscriptionDataInput;
   InscriptionFileInlineInput: InscriptionFileInlineInput;
@@ -946,6 +973,7 @@ export type ResolversParentTypes = {
   InscriptionFundingQuery: InscriptionFundingQuery;
   InscriptionFundingsResult: Omit<InscriptionFundingsResult, 'fundings'> & { fundings?: Maybe<Array<ResolversParentTypes['InscriptionFunding']>> };
   InscriptionProblem: InscriptionProblem;
+  InscriptionQuery: InscriptionQuery;
   InscriptionRequestInput: InscriptionRequestInput;
   InscriptionUploadData: InscriptionUploadData;
   InscriptionUploadFileData: InscriptionUploadFileData;
@@ -1100,6 +1128,18 @@ export type FeeEstimateResolvers<ContextType = Context, ParentType extends Resol
   halfHour?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   hour?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   minimum?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type InscriptionResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Inscription'] = ResolversParentTypes['Inscription']> = {
+  children?: Resolver<Array<ResolversTypes['Inscription']>, ParentType, ContextType>;
+  content?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  contentLength?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  contentType?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  contentUrl?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  owner?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
+  parents?: Resolver<Array<ResolversTypes['Inscription']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -1266,6 +1306,7 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   currentBitcoinFees?: Resolver<ResolversTypes['FeeEstimate'], ParentType, ContextType, RequireFields<QueryCurrentBitcoinFeesArgs, 'network'>>;
   inscriptionFunding?: Resolver<Maybe<ResolversTypes['InscriptionFunding']>, ParentType, ContextType, RequireFields<QueryInscriptionFundingArgs, 'id'>>;
   inscriptionFundings?: Resolver<ResolversTypes['InscriptionFundingsResult'], ParentType, ContextType, RequireFields<QueryInscriptionFundingsArgs, 'query'>>;
+  inscriptions?: Resolver<Array<ResolversTypes['Inscription']>, ParentType, ContextType, RequireFields<QueryInscriptionsArgs, 'query'>>;
   presale?: Resolver<Maybe<ResolversTypes['PresaleResponse']>, ParentType, ContextType, RequireFields<QueryPresaleArgs, 'id'>>;
   presales?: Resolver<ResolversTypes['PresalesResult'], ParentType, ContextType, RequireFields<QueryPresalesArgs, 'query'>>;
   role?: Resolver<Maybe<ResolversTypes['Role']>, ParentType, ContextType, RequireFields<QueryRoleArgs, 'id'>>;
@@ -1354,6 +1395,7 @@ export type Resolvers<ContextType = Context> = {
   CreateInscriptionProblem?: CreateInscriptionProblemResolvers<ContextType>;
   CreateInscriptionResponse?: CreateInscriptionResponseResolvers<ContextType>;
   FeeEstimate?: FeeEstimateResolvers<ContextType>;
+  Inscription?: InscriptionResolvers<ContextType>;
   InscriptionData?: InscriptionDataResolvers<ContextType>;
   InscriptionFunding?: InscriptionFundingResolvers<ContextType>;
   InscriptionFundingProblem?: InscriptionFundingProblemResolvers<ContextType>;

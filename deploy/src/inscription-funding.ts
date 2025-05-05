@@ -113,7 +113,6 @@ export class InscriptionFunding extends Construct {
             funding: props.fundingTable?.tableName ?? "null",
             claims: props.claimsTable.tableName,
             openEditionClaims: props.openEditionClaimsTable.tableName,
-            user: props.usersTable.tableName,
           }),
           EVENT_BUS_NAME: "default",
           FUNDED_QUEUE_URL: this.fundedQueue.queueUrl,
@@ -200,7 +199,6 @@ export class InscriptionFunding extends Construct {
           TABLE_NAMES: JSON.stringify({
             funding: props.fundingTable?.tableName ?? "null",
             batch: props.batchTable?.tableName ?? "null",
-            user: props.usersTable?.tableName ?? "null",
           }),
           ...parseEnv(`${props.domainName}/.env.graphql`),
           ...parseEnv(`${props.domainName}/.env.electrum`),
