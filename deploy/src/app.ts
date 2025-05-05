@@ -11,6 +11,19 @@ import {
 } from "./bitcoin/stack.js";
 import { ElectrsDeploymentStack } from "./bitcoin/electrs-build.js";
 import { AuroraServerlessV2Stack } from "./bitcoin/aurora.js";
+// Aspect to apply a 14-day retention policy to all CloudWatch Log Groups
+import { Aspects, IAspect } from "aws-cdk-lib";
+import { CfnLogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { IConstruct } from "constructs";
+
+class LogRetentionAspect implements IAspect {
+  constructor(private readonly retentionInDays: number) {}
+  public visit(node: IConstruct): void {
+    if (node instanceof CfnLogGroup && node.retentionInDays === undefined) {
+      node.retentionInDays = this.retentionInDays;
+    }
+  }
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -70,9 +83,12 @@ new ElectrsDeploymentStack(app, "electrs-build", {
 //   },
 // });
 
-new MariaDbStack(app, "mariadb", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-west-2",
-  },
-});
+  new MariaDbStack(app, "mariadb", {
+    env: {
+      account: process.env.CDK_DEFAULT_ACCOUNT,
+      region: "us-west-2",
+    },
+  });
+
+// Apply 14-day retention to all CloudWatch Log Groups
+Aspects.of(app).add(new LogRetentionAspect(RetentionDays.TWO_WEEKS));

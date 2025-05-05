@@ -1,5 +1,4 @@
 import { ApolloServer } from "apollo-server-lambda";
-import fs from "fs";
 import { parse } from "graphql";
 import { ApolloServerPluginLandingPageGraphQLPlayground } from "apollo-server-core";
 import {
@@ -16,7 +15,9 @@ import {
 } from "@0xflick/ordinals-backend";
 import type { APIGatewayProxyHandler } from "aws-lambda";
 import type { LambdaContextFunctionParams } from "apollo-server-lambda/dist/ApolloServer.js";
-import { join } from "path";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 const logger = createLogger({
   name: "graphql",
@@ -38,9 +39,11 @@ function setCookie(
     }),
   );
 }
-const typeDefs = parse(
-  await fs.promises.readFile(join(__dirname, "./schema.graphql"), "utf8"),
-);
+// Load and parse the GraphQL schema from file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const schemaStr = readFileSync(join(__dirname, "schema.graphql"), "utf8");
+const typeDefs = parse(schemaStr);
 const app = createApplication({
   modules: [
     createModule({

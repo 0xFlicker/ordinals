@@ -12,6 +12,6 @@ export const client = new ApolloClient({
   // }),
 
   // Localhost graphql is cross origin, so we need to send credentials
-  ...(process.env.NODE_ENV === "development" ? { credentials: "include" } : {}),
+  credentials: "include",
   cache: new InMemoryCache(),
 });

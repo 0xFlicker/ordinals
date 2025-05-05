@@ -100,7 +100,7 @@ export class BackendStack extends cdk.Stack {
 
     if (process.env.DEPLOYMENT !== "localstack") {
       const { httpApi: graphqlApi } = new Graphql(this, "Graphql", {
-        domainName: new URL(origin).host,
+        domainName: new URL(origin),
         claimsTable,
         fundingTable,
         openEditionClaimsTable,

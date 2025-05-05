@@ -11,6 +11,7 @@ import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as s3n from "aws-cdk-lib/aws-s3-notifications";
 import * as apigw2 from "aws-cdk-lib/aws-apigatewayv2";
+import * as route53 from "aws-cdk-lib/aws-route53";
 
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { textFromSecret } from "./utils/files.js";
@@ -55,7 +56,7 @@ export interface GraphqlProps {
   readonly usersTable: dynamodb.Table;
   readonly fundingSecKeyEnvelope: Envelope;
   readonly parentInscriptionSecKeyEnvelope: Envelope;
-  readonly domainName: string;
+  readonly domainName: URL;
 }
 
 export class Graphql extends Construct {
@@ -84,6 +85,8 @@ export class Graphql extends Construct {
   ) {
     super(scope, id);
 
+    // GraphQL schema is packaged with the Lambda and loaded at runtime
+
     // Create a NodejsFunction for the GraphQL lambda
     const graphqlLambda = new lambdaNodejs.NodejsFunction(
       this,
@@ -104,6 +107,16 @@ export class Graphql extends Construct {
           format: lambdaNodejs.OutputFormat.ESM,
           target: "node20",
           platform: "node",
+          commandHooks: {
+            beforeInstall: () => [],
+            beforeBundling: () => [],
+            afterBundling(inputDir, outputDir) {
+              // Copy the root-level schema.graphql into the bundle
+              return [
+                `cp ${inputDir}/../packages/graphql/schema.graphql ${outputDir}/schema.graphql`,
+              ];
+            },
+          },
         },
         environment: {
           LOG_LEVEL: "debug",
@@ -125,103 +138,10 @@ export class Graphql extends Construct {
           PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID:
             parentInscriptionSecKeyEnvelope.key.keyId,
           FUNDING_SEC_KEY_ENVELOPE_KEY_ID: fundingSecKeyEnvelope.key.keyId,
-          ...withSecretEnv(`${domainName}/.env.graphql`),
+          ...withSecretEnv(`${new URL(domainName).host}/.env.graphql`),
         },
       },
     );
-
-    // Copy the schema.graphql file to the Lambda function's code directory
-    const schemaGraphqlPath = path.join(
-      __dirname,
-      "../../packages/graphql/schema.graphql",
-    );
-    const schemaGraphqlContent = readFileSync(schemaGraphqlPath, "utf8");
-
-    // Create a custom resource to copy the schema.graphql file to the Lambda function's code directory
-    new cdk.CustomResource(this, "SchemaGraphqlCopy", {
-      serviceToken: new lambda.Function(this, "SchemaGraphqlCopyFunction", {
-        runtime: lambda.Runtime.NODEJS_20_X,
-        handler: "index.handler",
-        code: lambda.Code.fromInline(`
-          const AWS = require('aws-sdk');
-          const fs = require('fs');
-          const path = require('path');
-          
-          exports.handler = async (event) => {
-            if (event.RequestType === 'Delete') {
-              return;
-            }
-            
-            const lambda = new AWS.Lambda();
-            const functionName = event.ResourceProperties.functionName;
-            const schemaContent = event.ResourceProperties.schemaContent;
-            
-            // Get the function's code
-            const functionCode = await lambda.getFunction({ FunctionName: functionName }).promise();
-            const codeLocation = functionCode.Code.Location;
-            
-            // Download the function's code
-            const https = require('https');
-            const tempDir = '/tmp';
-            const zipPath = path.join(tempDir, 'function.zip');
-            
-            await new Promise((resolve, reject) => {
-              const file = fs.createWriteStream(zipPath);
-              https.get(codeLocation, (response) => {
-                response.pipe(file);
-                file.on('finish', () => {
-                  file.close();
-                  resolve();
-                });
-              }).on('error', (err) => {
-                fs.unlink(zipPath, () => {});
-                reject(err);
-              });
-            });
-            
-            // Extract the zip file
-            const AdmZip = require('adm-zip');
-            const zip = new AdmZip(zipPath);
-            const extractPath = path.join(tempDir, 'extracted');
-            zip.extractAllTo(extractPath, true);
-            
-            // Write the schema.graphql file
-            fs.writeFileSync(path.join(extractPath, 'schema.graphql'), schemaContent);
-            
-            // Create a new zip file
-            const newZip = new AdmZip();
-            newZip.addLocalFolder(extractPath);
-            const newZipPath = path.join(tempDir, 'new-function.zip');
-            newZip.writeZip(newZipPath);
-            
-            // Update the function's code
-            const newCode = fs.readFileSync(newZipPath);
-            await lambda.updateFunctionCode({
-              FunctionName: functionName,
-              ZipFile: newCode
-            }).promise();
-            
-            return {
-              PhysicalResourceId: \`schema-graphql-\${functionName}\`,
-              Data: {
-                SchemaGraphqlCopied: true
-              }
-            };
-          };
-        `),
-        timeout: cdk.Duration.minutes(5),
-        initialPolicy: [
-          new cdk.aws_iam.PolicyStatement({
-            actions: ["lambda:GetFunction", "lambda:UpdateFunctionCode"],
-            resources: [graphqlLambda.functionArn],
-          }),
-        ],
-      }).functionArn,
-      properties: {
-        functionName: graphqlLambda.functionName,
-        schemaContent: schemaGraphqlContent,
-      },
-    });
 
     this.graphqlLambda = graphqlLambda;
 
@@ -326,7 +246,7 @@ export class Graphql extends Construct {
 
     httpApi.addRoutes({
       path: "/graphql",
-      methods: [apigw2.HttpMethod.POST],
+      methods: [apigw2.HttpMethod.POST, apigw2.HttpMethod.GET],
       integration: graphqlIntegration,
     });
 
@@ -362,5 +282,20 @@ export class Graphql extends Construct {
       exportName: "GraphqlApiUrl",
       value: httpApi.url ?? "null",
     });
+    // Create a DNS record for the GraphQL API under the api.<domain> subdomain
+    const routeDomain = domainName.hostname;
+    // const hostedZone = new route53.HostedZone(this, "HostedZone", {
+    //   zoneName: routeDomain,
+    // });
+    // // extract the API Gateway host from the URL token at synth time using FnSplit/FnSelect
+    // const apiHost = cdk.Fn.select(
+    //   0,
+    //   cdk.Fn.split("/", cdk.Fn.select(1, cdk.Fn.split("://", httpApi.url!))),
+    // );
+    // new route53.CnameRecord(this, "GraphqlApiRecord", {
+    //   zone: hostedZone,
+    //   recordName: "api",
+    //   domainName: apiHost,
+    // });
   }
 }
