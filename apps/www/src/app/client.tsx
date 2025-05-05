@@ -52,41 +52,6 @@ export default function Client({ appRight }: { appRight?: React.ReactNode }) {
             ]}
           />
           <HowItWorks />
-          <AppLink
-            href="/start/7d33db3a-8d0f-4fe0-a781-74d314953aae"
-            underline="none"
-            sx={{ textDecoration: "none" }}
-          >
-            <Container maxWidth="lg">
-              <Box
-                sx={{ mt: 16, mb: 4 }}
-                display="flex"
-                alignContent="center"
-                justifyContent="center"
-              >
-                <NextImage
-                  alt="thinking face"
-                  src="/images/thinking.png"
-                  height={512}
-                  width={512}
-                />
-              </Box>
-              <Box
-                display="flex"
-                alignContent="center"
-                justifyContent="center"
-                width="100%"
-              >
-                <Typography
-                  variant="h3"
-                  justifyContent="center"
-                  color="text.primary"
-                >
-                  bitflick
-                </Typography>
-              </Box>
-            </Container>
-          </AppLink>
         </Grid>
       </Box>
     </>

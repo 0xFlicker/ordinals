@@ -10,8 +10,6 @@ export const client = new ApolloClient({
   // fragmentMatcher: new IntrospectionFragmentMatcher({
   //   introspectionQueryResultData: {} as any,
   // }),
-
-  // Localhost graphql is cross origin, so we need to send credentials
   credentials: "include",
   cache: new InMemoryCache(),
 });
