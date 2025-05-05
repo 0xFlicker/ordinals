@@ -284,18 +284,22 @@ export class Graphql extends Construct {
     });
     // Create a DNS record for the GraphQL API under the api.<domain> subdomain
     const routeDomain = domainName.hostname;
-    // const hostedZone = new route53.HostedZone(this, "HostedZone", {
-    //   zoneName: routeDomain,
-    // });
-    // // extract the API Gateway host from the URL token at synth time using FnSplit/FnSelect
-    // const apiHost = cdk.Fn.select(
-    //   0,
-    //   cdk.Fn.split("/", cdk.Fn.select(1, cdk.Fn.split("://", httpApi.url!))),
-    // );
-    // new route53.CnameRecord(this, "GraphqlApiRecord", {
-    //   zone: hostedZone,
-    //   recordName: "api",
-    //   domainName: apiHost,
-    // });
+    const hostedZone = route53.HostedZone.fromLookup(
+      this,
+      "GraphqlHostedZone",
+      {
+        domainName: routeDomain,
+      },
+    );
+    // extract the API Gateway host from the URL token at synth time using FnSplit/FnSelect
+    const apiHost = cdk.Fn.select(
+      0,
+      cdk.Fn.split("/", cdk.Fn.select(1, cdk.Fn.split("://", httpApi.url!))),
+    );
+    new route53.CnameRecord(this, "GraphqlApiRecord", {
+      zone: hostedZone,
+      recordName: "api",
+      domainName: apiHost,
+    });
   }
 }
