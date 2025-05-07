@@ -1,6 +1,8 @@
 import { Construct } from "constructs";
 import * as cdk from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as s3 from "aws-cdk-lib/aws-s3";
+import * as s3asset from "aws-cdk-lib/aws-s3-assets";
 import {
   Bitcoin,
   BitcoinExeStorage,
@@ -11,6 +13,7 @@ import {
 import path from "path";
 import { fileURLToPath } from "url";
 import { MariaDB } from "./mempool/mariadb.js";
+import { IBucket } from "aws-cdk-lib/aws-s3";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -42,46 +45,33 @@ export class BitcoinExeStack extends cdk.Stack {
 }
 
 interface BitcoinProps extends cdk.StackProps {
-  localArchivePath: string;
-  network: "testnet";
+  bucketName: string;
+  network: "test" | "testnet4" | "mainnet";
 }
 
 export class BitcoinStack extends cdk.Stack {
   constructor(
     scope: Construct,
     id: string,
-    { localArchivePath, network, ...props }: BitcoinProps,
+    { bucketName, network, ...props }: BitcoinProps,
   ) {
     super(scope, id, props);
 
     const bitcoinStorage = new BitcoinStorage(this, "BitcoinStorage");
 
-    const bitcoinExeStorage = new BitcoinExeStorage(this, "BitcoinExeStorage", {
-      localArchivePath,
-    });
+    const bucket = s3.Bucket.fromBucketName(
+      this,
+      "BitcoinExeBucket",
+      bucketName,
+    );
 
-    const electrsExeStorage = new ElectrsExeStorage(this, "ElectrsExeStorage", {
-      localArchivePath: path.join(__dirname, "../../electrs/electrs"),
-    });
-
-    const nodeExeStorage = new NodeExeStorage(this, "NodeExeStorage", {
-      localArchivePath: path.join(
-        __dirname,
-        "../../bitcoin/node-v20.9.0-linux-arm64.tar.xz",
-      ),
-    });
-
-    const bitcoin = new Bitcoin(this, "Bitcoin", {
-      bitcoinExeAsset: bitcoinExeStorage.bitcoinExeAsset,
-      electrsExeAsset: electrsExeStorage.electrsExeAsset,
-      nodeExeAsset: nodeExeStorage.nodeExeAsset,
+    new Bitcoin(this, "Bitcoin", {
+      executableBucket: bucket,
       blockchainDataBucket: bitcoinStorage.blockchainDataBucket,
       network,
-    });
-
-    new MariaDB(this, "MariaDb", {
-      bitcoinVpc: bitcoin.vpc,
-      initialLoad: process.env.INITIAL_LOAD === "true",
+      bitcoinKey: "bitcoin-core.tar.gz",
+      electrsKey: "electrs",
+      nodeKey: "node-v20.9.0-linux-arm64.tar.xz",
     });
 
     new cdk.CfnOutput(this, "BlockchainDataBucket", {

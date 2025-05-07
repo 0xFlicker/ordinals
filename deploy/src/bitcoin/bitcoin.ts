@@ -17,7 +17,7 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const { compile } = handlebars;
 
-type Network = "testnet";
+type Network = "test" | "testnet4" | "mainnet";
 
 export class BitcoinStorage extends Construct {
   readonly blockchainDataBucket: s3.IBucket;
@@ -89,27 +89,33 @@ export class NodeExeStorage extends Construct {
 }
 
 interface BitcoinProps {
+  executableBucket: s3.IBucket;
   network: Network;
   blockchainDataBucket: s3.IBucket;
-  bitcoinExeAsset: s3a.Asset;
-  electrsExeAsset: s3a.Asset;
-  nodeExeAsset: s3a.Asset;
+  bitcoinKey: string;
+  electrsKey: string;
+  nodeKey: string;
 }
 
 function createPublicVpc(scope: Construct, network: Network) {
   // Define a VPC (required for ALB and EC2 instances)
   const vpc = new ec2.Vpc(scope, `BitcoinVPC-${network}`, {
-    maxAzs: 2, // Default is all AZs in the region,
+    maxAzs: 3, // Default is all AZs in the region,
     subnetConfiguration: [
       {
         cidrMask: 24,
         name: "asterisk",
         subnetType: ec2.SubnetType.PUBLIC,
       },
+      {
+        cidrMask: 24,
+        name: "private",
+        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+      },
     ],
   });
 
-  const securityGroup = new ec2.SecurityGroup(
+  const btcServiceGroup = new ec2.SecurityGroup(
     scope,
     `SecurityGroup-${network}`,
     {
@@ -118,20 +124,49 @@ function createPublicVpc(scope: Construct, network: Network) {
     },
   );
 
-  if (network === "testnet") {
-    securityGroup.addIngressRule(
+  const btcClientGroup = new ec2.SecurityGroup(
+    scope,
+    `SecurityGroup-${network}-client`,
+    {
+      vpc,
+      description: "Btc client security group.",
+    },
+  );
+  if (network === "test") {
+    btcServiceGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(18333),
-      "allow p2p",
+      "allow p2p public",
     );
-
-    securityGroup.addIngressRule(
+    btcServiceGroup.addIngressRule(
+      ec2.Peer.securityGroupId(btcClientGroup.securityGroupId),
+      ec2.Port.tcp(60001),
+      "allow electrum client",
+    );
+  } else if (network === "testnet4") {
+    btcServiceGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(18333),
-      "allow p2p",
+      ec2.Port.tcp(48333),
+      "allow p2p public",
+    );
+    btcClientGroup.addIngressRule(
+      ec2.Peer.securityGroupId(btcServiceGroup.securityGroupId),
+      ec2.Port.tcp(60002),
+      "allow electrum client",
+    );
+  } else if (network === "mainnet") {
+    btcServiceGroup.addIngressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(8333),
+      "allow p2p public",
+    );
+    btcClientGroup.addIngressRule(
+      ec2.Peer.securityGroupId(btcServiceGroup.securityGroupId),
+      ec2.Port.tcp(50001),
+      "allow electrum client",
     );
   }
-  return { vpc, securityGroup };
+  return { vpc, btcServiceGroup, btcClientGroup };
 }
 
 function createLifecycleLambda(
@@ -166,56 +201,55 @@ function createLifecycleLambda(
   });
 }
 function createBtcUserData({
-  bitcoinExeAsset,
+  executableBucket,
+  bitcoinKey,
   blockchainDataBucket,
   cloudwatchConfiguration,
-  electrsExeAsset,
+  electrsKey,
   electrsConfig,
   network,
-  nodeExeAsset,
+  nodeKey,
   vpc,
 }: {
-  bitcoinExeAsset: s3a.Asset;
+  executableBucket: s3.IBucket;
+  bitcoinKey: string;
   blockchainDataBucket: s3.IBucket;
   cloudwatchConfiguration: s3a.Asset;
-  electrsExeAsset: s3a.Asset;
+  electrsKey: string;
   electrsConfig: s3a.Asset;
   network: Network;
-  nodeExeAsset: s3a.Asset;
+  nodeKey: string;
   vpc: ec2.IVpc;
 }) {
   const userData = ec2.UserData.forLinux();
   const nodeArchivePath = userData.addS3DownloadCommand({
-    bucket: nodeExeAsset.bucket,
-    bucketKey: nodeExeAsset.s3ObjectKey,
+    bucket: executableBucket,
+    bucketKey: bitcoinKey,
   });
 
-  const confTemplate = compile<{ rpcallowip: string }>(
+  const confTemplate = compile<{
+    rpcallowip: string;
+    network: Network;
+  }>(
     readFileSync(
-      path.join(
-        __dirname,
-        "../../bitcoin/",
-        network === "testnet" ? "testnet" : "mainnet",
-        "bitcoin.conf",
-      ),
+      path.join(__dirname, "../../bitcoin/", "conf", "bitcoin.conf"),
       "utf8",
     ),
   );
 
-  const conf = confTemplate({ rpcallowip: vpc.vpcCidrBlock });
+  const conf = confTemplate({ rpcallowip: vpc.vpcCidrBlock, network });
   userData.addCommands(
     `runuser -l  ec2-user -c 'mkdir -p /home/ec2-user/.bitcoin; echo "${conf}" > /home/ec2-user/.bitcoin/bitcoin.conf'`,
   );
   const bitcoindArchive = userData.addS3DownloadCommand({
-    bucket: bitcoinExeAsset.bucket,
-    bucketKey: bitcoinExeAsset.s3ObjectKey,
+    bucket: executableBucket,
+    bucketKey: bitcoinKey,
   });
 
   const template = compile<{
     bitcoin_archive: string;
     data_dir_s3: string;
     data_dir: string;
-    blockchain_data: string;
     node_archive: string;
     electrs_index_data_s3: string;
     electrs_index_data: string;
@@ -227,23 +261,15 @@ function createBtcUserData({
     bitcoin_archive: bitcoindArchive,
     data_dir_s3: cdk.Fn.join("", [
       "s3://",
-      cdk.Fn.join("/", [
-        blockchainDataBucket.bucketName,
-        network === "testnet" ? "testnet.tar.gz" : "mainnet.tar.gz",
-      ]),
+      cdk.Fn.join("/", [blockchainDataBucket.bucketName, `${network}.tar.gz`]),
     ]),
-    data_dir: `/home/ec2-user/.bitcoin${
-      network === "testnet" ? "/testnet3" : ""
-    }`,
-    blockchain_data: "/home/ec2-user/.bitcoin",
+    data_dir: `/home/ec2-user/.bitcoin_${network}`,
     node_archive: nodeArchivePath,
     electrs_index_data_s3: cdk.Fn.join("", [
       "s3://",
       cdk.Fn.join("/", [
         blockchainDataBucket.bucketName,
-        network === "testnet"
-          ? "electrs-testnet.tar.gz"
-          : "electrs-mainnet.tar.gz",
+        `electrs-${network}.tar.gz`,
       ]),
     ]),
     electrs_index_data: "/home/ec2-user/db",
@@ -257,8 +283,8 @@ function createBtcUserData({
   });
 
   userData.addS3DownloadCommand({
-    bucket: electrsExeAsset.bucket,
-    bucketKey: electrsExeAsset.s3ObjectKey,
+    bucket: executableBucket,
+    bucketKey: electrsKey,
     localFile: "/usr/local/bin/electrs",
   });
   userData.addCommands("chmod +x /usr/local/bin/electrs");
@@ -306,6 +332,17 @@ function createLaunchTemplate({
   });
 }
 
+function networkToBitcoinFlags(network: Network) {
+  switch (network) {
+    case "test":
+      return "-testnet";
+    case "testnet4":
+      return "-testnet4";
+    case "mainnet":
+      return "";
+  }
+}
+
 export class Bitcoin extends Construct {
   readonly vpc: ec2.IVpc;
   constructor(
@@ -314,9 +351,10 @@ export class Bitcoin extends Construct {
     {
       network,
       blockchainDataBucket,
-      bitcoinExeAsset,
-      electrsExeAsset,
-      nodeExeAsset,
+      executableBucket,
+      bitcoinKey,
+      electrsKey,
+      nodeKey,
     }: BitcoinProps,
   ) {
     super(scope, id);
@@ -324,18 +362,18 @@ export class Bitcoin extends Construct {
     new cdk.aws_ssm.CfnDocument(this, "Healthcheck", {
       content: {
         schemaVersion: "2.2",
-        description: "Check health of bitcoind service in testnet mode",
+        description: `Check health of bitcoind service in ${network} mode`,
         mainSteps: [
           {
             action: "aws:runShellScript",
-            name: "CheckBitcoindTestnet",
+            name: `CheckBitcoind${network}`,
             inputs: {
               timeoutSeconds: "30",
               runCommand: [
                 "#!/bin/bash",
-                `runuser -l  ec2-user -c '/usr/local/bin/bitcoin-cli ${
-                  network === "testnet" ? "-testnet " : ""
-                }-datadir=/home/ec2-user/.bitcoin getblockchaininfo'`,
+                `runuser -l  ec2-user -c '/usr/local/bin/bitcoin-cli ${networkToBitcoinFlags(
+                  network,
+                )}-datadir=/home/ec2-user/.bitcoin_${network} getblockchaininfo'`,
               ],
             },
           },
@@ -395,7 +433,10 @@ export class Bitcoin extends Construct {
       iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
     );
 
-    const { vpc, securityGroup } = createPublicVpc(this, network);
+    const { vpc, btcServiceGroup, btcClientGroup } = createPublicVpc(
+      this,
+      network,
+    );
     this.vpc = vpc;
 
     // Create an Application Load Balancer
@@ -412,12 +453,12 @@ export class Bitcoin extends Construct {
       `BitcoinALB-${network}`,
       {
         vpc,
-        internetFacing: true,
+        internetFacing: false,
       },
     );
     alb.addSecurityGroup(albSecurityGroup);
 
-    securityGroup.addIngressRule(
+    btcServiceGroup.addIngressRule(
       ec2.Peer.securityGroupId(albSecurityGroup.securityGroupId),
       ec2.Port.tcp(8080),
       "allow health check",
@@ -425,12 +466,10 @@ export class Bitcoin extends Construct {
 
     const nlb = new elbv2.NetworkLoadBalancer(this, "NLB", {
       vpc,
-      internetFacing: true,
+      internetFacing: false,
     });
 
     blockchainDataBucket.grantRead(role);
-    bitcoinExeAsset.grantRead(role);
-    electrsExeAsset.grantRead(role);
 
     const electrsConfig = new s3a.Asset(this, "ElectrsConfig", {
       path: path.join(__dirname, "../../electrs", network, "config.toml"),
@@ -444,7 +483,7 @@ export class Bitcoin extends Construct {
         path: path.join(
           __dirname,
           "../../bitcoin",
-          network,
+          "conf",
           "cloudwatch.config.json",
         ),
       },
@@ -452,25 +491,26 @@ export class Bitcoin extends Construct {
     cloudwatchConfiguration.grantRead(role);
 
     const userData = createBtcUserData({
-      bitcoinExeAsset,
+      executableBucket,
+      bitcoinKey,
       blockchainDataBucket,
       cloudwatchConfiguration,
-      electrsExeAsset,
+      electrsKey,
       electrsConfig,
       network,
-      nodeExeAsset,
+      nodeKey,
       vpc,
     });
 
     // Add a listener to the ALB
     const rpcListener = alb.addListener(`Listener-${network}`, {
-      port: network === "testnet" ? 18332 : 8332,
+      port: network === "test" ? 18332 : network === "testnet4" ? 48332 : 8332,
       protocol: elbv2.ApplicationProtocol.HTTP,
       open: true,
     });
 
     const electrsListener = nlb.addListener("ElectrsListener", {
-      port: network === "testnet" ? 60001 : 50001,
+      port: network === "test" ? 60001 : network === "testnet4" ? 60002 : 50001,
       protocol: elbv2.Protocol.TCP,
     });
 
@@ -498,7 +538,7 @@ export class Bitcoin extends Construct {
           context: this,
           userData,
           role,
-          securityGroup,
+          securityGroup: btcServiceGroup,
         }),
         instancesDistribution: {
           onDemandPercentageAboveBaseCapacity: 0,
@@ -599,7 +639,7 @@ export class Bitcoin extends Construct {
     });
 
     const healthCheckScript = new s3a.Asset(this, "HealthCheckScript", {
-      path: path.join(__dirname, "../../bitcoin", network, "healthcheck.mjs"),
+      path: path.join(__dirname, "../../bitcoin", "conf", "healthcheck.mjs"),
     });
     const healthCheckScriptPath = userData.addS3DownloadCommand({
       bucket: healthCheckScript.bucket,
@@ -610,14 +650,14 @@ export class Bitcoin extends Construct {
     asg.addUserData(
       `/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/amazon-cloudwatch-agent.json`,
     );
-    if (network === "testnet") {
-      asg.addUserData(
-        `runuser -l  ec2-user -c 'node ${healthCheckScriptPath} & bitcoind -testnet -datadir=/home/ec2-user/.bitcoin 2>> /home/ec2-user/bitcoin.stderr.log 1>> /home/ec2-user/bitcoin.stdout.log' & sleep 5 && /usr/local/bin/electrs --conf /home/ec2-user/electrs.conf 2>> /home/ec2-user/electrs.stderr.log 1>> /home/ec2-user/electrs.stdout.log`,
-      );
-    }
+    asg.addUserData(
+      `runuser -l  ec2-user -c 'node ${healthCheckScriptPath} & bitcoind ${networkToBitcoinFlags(
+        network,
+      )} -datadir=/home/ec2-user/.bitcoin_${network} 2>> /home/ec2-user/bitcoin.stderr.log 1>> /home/ec2-user/bitcoin.stdout.log' & sleep 5 && /usr/local/bin/electrs --conf /home/ec2-user/electrs.conf 2>> /home/ec2-user/electrs.stderr.log 1>> /home/ec2-user/electrs.stdout.log`,
+    );
 
     rpcListener.addTargets(`BitcoinTarget-${network}`, {
-      port: network === "testnet" ? 18332 : 8332,
+      port: network === "test" ? 18332 : network === "testnet4" ? 48332 : 8332,
       targets: [asg],
       protocol: elbv2.ApplicationProtocol.HTTP,
       healthCheck: {
@@ -631,7 +671,7 @@ export class Bitcoin extends Construct {
     });
 
     electrsListener.addTargets("ElectrsTargets", {
-      port: network === "testnet" ? 60001 : 50001,
+      port: network === "test" ? 60001 : network === "testnet4" ? 60002 : 50001,
       protocol: elbv2.Protocol.TCP,
       targets: [asg],
     });
@@ -685,6 +725,20 @@ export class Bitcoin extends Construct {
       retention: log.RetentionDays.TWO_WEEKS,
       logGroupName: `electrs-${network}-stderr-log`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    new cdk.CfnOutput(this, "BitcoinALB", {
+      value: alb.loadBalancerDnsName,
+    });
+    new cdk.CfnOutput(this, "BitcoinNLB", {
+      value: nlb.loadBalancerDnsName,
+    });
+
+    new cdk.CfnOutput(this, "BtcClientGroup", {
+      value: btcClientGroup.securityGroupId,
+    });
+    new cdk.CfnOutput(this, "BtcServiceGroup", {
+      value: btcServiceGroup.securityGroupId,
     });
   }
 }

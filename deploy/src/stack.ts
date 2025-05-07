@@ -10,6 +10,8 @@ import { Frame } from "./frame.js";
 import { Envelope } from "./envelope.js";
 import { InscriptionFunding } from "./inscription-funding.js";
 import { BitcoinRpcFunction } from "./rpc.js";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import { SiteToSiteVpn } from "./site-to-site-vpn.js";
 
 interface IProps extends cdk.StackProps {
   origin: string;
@@ -128,6 +130,60 @@ export class BackendStack extends cdk.Stack {
       //   domain: `www.${new URL(origin).host}`,
       //   graphqlApi,
       // });
+
+      // Site-to-Site VPN: connect this VPC to a VPN gateway
+      const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
+      const customerGatewayIp = this.node.tryGetContext("customerGatewayIp");
+      const remoteCidrs = this.node.tryGetContext("remoteCidrs");
+      if (customerGatewayIp && remoteCidrs) {
+        // Create the Site-to-Site VPN connection
+        const vpn = new SiteToSiteVpn(this, "SiteToSiteVpn", {
+          vpc,
+          customerGatewayIp,
+          remoteCidrs: JSON.parse(remoteCidrs),
+        });
+        // Export the VPN Connection ID for automation scripts
+        new cdk.CfnOutput(this, "VpnConnectionId", {
+          description: "ID of the AWS VPN Connection",
+          value: vpn.vpnConnection.ref,
+        });
+        // Optional: beachhead EC2 instance for VPN testing
+        const testKeyName = this.node.tryGetContext("testKeyName");
+        if (testKeyName) {
+          const beachheadSg = new ec2.SecurityGroup(this, "BeachheadSG", {
+            vpc,
+            description: "Beachhead SG for VPN testing",
+            allowAllOutbound: true,
+          });
+          beachheadSg.addIngressRule(
+            ec2.Peer.anyIpv4(),
+            ec2.Port.icmpPing(),
+            "Allow ICMP Ping",
+          );
+          beachheadSg.addIngressRule(
+            ec2.Peer.anyIpv4(),
+            ec2.Port.tcp(22),
+            "Allow SSH",
+          );
+          const beachhead = new ec2.Instance(this, "arm-beachhead", {
+            vpc,
+            instanceType: new ec2.InstanceType("t4g.nano"),
+            machineImage: ec2.MachineImage.latestAmazonLinux2023({
+              cpuType: ec2.AmazonLinuxCpuType.ARM_64,
+            }),
+            associatePublicIpAddress: true,
+            securityGroup: beachheadSg,
+            keyName: testKeyName,
+            vpcSubnets: {
+              subnetType: ec2.SubnetType.PUBLIC,
+            },
+          });
+          new cdk.CfnOutput(this, "BeachheadPublicIp", {
+            description: "Public IP for VPN test instance",
+            value: beachhead.instancePublicIp,
+          });
+        }
+      }
     }
   }
 }
