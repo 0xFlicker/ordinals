@@ -26,7 +26,7 @@ export class BuildStack extends cdk.Stack {
     });
 
     // Create a shared VPC for build instances
-    const vpc = new ec2.Vpc(this, "BuildVPC", { maxAzs: 2 });
+    const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
     // Build and upload Electrs
     new ElectrsBuilder(this, "ElectrsBuild", {
       bucket,
@@ -45,6 +45,7 @@ export class BuildStack extends cdk.Stack {
 
     // Expose bucket name
     new cdk.CfnOutput(this, "SharedBinaryBucketName", {
+      exportName: "SharedBinaryBucketName",
       value: bucket.bucketName,
     });
   }

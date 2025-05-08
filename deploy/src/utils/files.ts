@@ -37,7 +37,6 @@ export function textFromSecret(file: string) {
   }
 
   // For non-localstack deployments, use sops directly
-  console.log(`${__dirname}/../../../secrets/${file}`);
   const { stdout, stderr } = spawnSync("sops", ["--decrypt", file], {
     cwd: path.join(__dirname, "../../../secrets"),
     encoding: "utf8",

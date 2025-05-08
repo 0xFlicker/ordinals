@@ -221,10 +221,12 @@ function createBtcUserData({
   nodeKey: string;
   vpc: ec2.IVpc;
 }) {
-  const userData = ec2.UserData.forLinux();
+  const userData = ec2.UserData.forLinux({
+    shebang: "#!/bin/bash",
+  });
   const nodeArchivePath = userData.addS3DownloadCommand({
     bucket: executableBucket,
-    bucketKey: bitcoinKey,
+    bucketKey: nodeKey,
   });
 
   const confTemplate = compile<{
@@ -238,13 +240,34 @@ function createBtcUserData({
   );
 
   const conf = confTemplate({ rpcallowip: vpc.vpcCidrBlock, network });
+  // write bitcoin.conf into the network-specific data directory
   userData.addCommands(
-    `runuser -l  ec2-user -c 'mkdir -p /home/ec2-user/.bitcoin; echo "${conf}" > /home/ec2-user/.bitcoin/bitcoin.conf'`,
+    `runuser -l ec2-user -c 'mkdir -p /home/ec2-user/.bitcoin_${network} && echo "${conf}" > /home/ec2-user/.bitcoin_${network}/bitcoin.conf'`,
   );
   const bitcoindArchive = userData.addS3DownloadCommand({
     bucket: executableBucket,
     bucketKey: bitcoinKey,
   });
+
+  userData.addS3DownloadCommand({
+    bucket: cloudwatchConfiguration.bucket,
+    bucketKey: cloudwatchConfiguration.s3ObjectKey,
+    localFile: "/opt/amazon-cloudwatch-agent.json",
+  });
+
+  userData.addS3DownloadCommand({
+    bucket: executableBucket,
+    bucketKey: electrsKey,
+    localFile: "/usr/local/bin/electrs",
+  });
+  userData.addCommands("chmod +x /usr/local/bin/electrs");
+
+  userData.addS3DownloadCommand({
+    bucket: electrsConfig.bucket,
+    bucketKey: electrsConfig.s3ObjectKey,
+    localFile: "/home/ec2-user/electrs.conf",
+  });
+  userData.addCommands("chown ec2-user:ec2-user /home/ec2-user/electrs.conf");
 
   const template = compile<{
     bitcoin_archive: string;
@@ -275,26 +298,6 @@ function createBtcUserData({
     electrs_index_data: "/home/ec2-user/db",
   });
   userData.addCommands(setupScript);
-
-  userData.addS3DownloadCommand({
-    bucket: cloudwatchConfiguration.bucket,
-    bucketKey: cloudwatchConfiguration.s3ObjectKey,
-    localFile: "/opt/amazon-cloudwatch-agent.json",
-  });
-
-  userData.addS3DownloadCommand({
-    bucket: executableBucket,
-    bucketKey: electrsKey,
-    localFile: "/usr/local/bin/electrs",
-  });
-  userData.addCommands("chmod +x /usr/local/bin/electrs");
-
-  userData.addS3DownloadCommand({
-    bucket: electrsConfig.bucket,
-    bucketKey: electrsConfig.s3ObjectKey,
-    localFile: "/home/ec2-user/electrs.conf",
-  });
-  userData.addCommands("chown ec2-user:ec2-user /home/ec2-user/electrs.conf");
 
   return userData;
 }
@@ -415,7 +418,7 @@ export class Bitcoin extends Construct {
           },
         },
       },
-      name: "root",
+      name: `bitcoin-root-${network}`,
       documentFormat: "JSON",
       documentType: "Session",
     });
@@ -454,6 +457,7 @@ export class Bitcoin extends Construct {
       {
         vpc,
         internetFacing: false,
+        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       },
     );
     alb.addSecurityGroup(albSecurityGroup);
@@ -463,13 +467,31 @@ export class Bitcoin extends Construct {
       ec2.Port.tcp(8080),
       "allow health check",
     );
+    // allow bitcoind RPC from the ALB
+    const rpcPort =
+      network === "test" ? 18332 : network === "testnet4" ? 48332 : 8332;
+    btcServiceGroup.addIngressRule(
+      ec2.Peer.securityGroupId(albSecurityGroup.securityGroupId),
+      ec2.Port.tcp(rpcPort),
+      "allow RPC from ALB",
+    );
 
     const nlb = new elbv2.NetworkLoadBalancer(this, "NLB", {
       vpc,
       internetFacing: false,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
     });
+    // allow electrs TCP traffic from VPC (NLB preserves client IP)
+    const electrsPort =
+      network === "test" ? 60001 : network === "testnet4" ? 60002 : 50001;
+    btcServiceGroup.addIngressRule(
+      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Port.tcp(electrsPort),
+      "allow electrs from VPC subnets",
+    );
 
-    blockchainDataBucket.grantRead(role);
+    executableBucket.grantRead(role);
+    blockchainDataBucket.grantReadWrite(role);
 
     const electrsConfig = new s3a.Asset(this, "ElectrsConfig", {
       path: path.join(__dirname, "../../electrs", network, "config.toml"),
@@ -530,6 +552,7 @@ export class Bitcoin extends Construct {
     // Define an EC2 Auto Scaling Group with Spot Instances
     const asg = new autoscaling.AutoScalingGroup(this, "Asg", {
       vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       healthCheck: autoscaling.HealthCheck.ec2({
         grace: cdk.Duration.seconds(360),
       }),
@@ -602,9 +625,10 @@ export class Bitcoin extends Construct {
             new iam.PolicyStatement({
               actions: ["ssm:SendCommand", "ssm:GetCommandInvocation"],
               resources: [
-                `arn:aws:ec2:${cdk.Stack.of(this).region}:${
+                // Restrict SSM SendCommand/GetCommandInvocation to the health-check document
+                `arn:aws:ssm:${cdk.Stack.of(this).region}:${
                   cdk.Stack.of(this).account
-                }:instance/*`,
+                }:document/${commandName}`,
               ],
             }),
           ],
@@ -620,9 +644,6 @@ export class Bitcoin extends Construct {
     // This role would let the lambda do anything to any instance
     // but since the lambda is running well known commands I think
     // it's ok
-    hookFunctionRole.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMFullAccess"),
-    );
     const asgNotificationLambda = createLifecycleLambda(
       this,
       commandName,
@@ -651,7 +672,10 @@ export class Bitcoin extends Construct {
       `/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/amazon-cloudwatch-agent.json`,
     );
     asg.addUserData(
-      `runuser -l  ec2-user -c 'node ${healthCheckScriptPath} & bitcoind ${networkToBitcoinFlags(
+      // launch health-check server and bitcoind, then electrs
+      `runuser -l ec2-user -c 'node ${healthCheckScriptPath} "${networkToBitcoinFlags(
+        network,
+      )}" "/home/ec2-user/.bitcoin_${network}" & bitcoind ${networkToBitcoinFlags(
         network,
       )} -datadir=/home/ec2-user/.bitcoin_${network} 2>> /home/ec2-user/bitcoin.stderr.log 1>> /home/ec2-user/bitcoin.stdout.log' & sleep 5 && /usr/local/bin/electrs --conf /home/ec2-user/electrs.conf 2>> /home/ec2-user/electrs.stderr.log 1>> /home/ec2-user/electrs.stdout.log`,
     );

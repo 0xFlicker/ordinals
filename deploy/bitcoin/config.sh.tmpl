@@ -1,36 +1,39 @@
 #!/bin/bash
 
 NODE_ARCHIVE={{node_archive}}
-NODE_FOLDER=dirname $NODE_ARCHIVE
+NODE_FOLDER=$(dirname "$NODE_ARCHIVE")
 BITCOIN_ARCHIVE={{bitcoin_archive}}
-BITCOIN_FOLDER=dirname $BITCOIN_ARCHIVE
+BITCOIN_FOLDER=$(dirname "$BITCOIN_ARCHIVE")
 DATA_DIR_S3={{data_dir_s3}}
 DATA_DIR={{data_dir}}
 ELECTRS_INDEX_DATA_S3={{electrs_index_data_s3}}
 ELECTRS_INDEX_DATA={{electrs_index_data}}
 
-# extract node
-cd $NODE_FOLDER
-tar -xJf $NODE_ARCHIVE
+# extract node binaries
+cd "$NODE_FOLDER"
+tar -xJf "$NODE_ARCHIVE"
 mv node*/bin/* /usr/local/bin
 rm -rf node-*
 
-# extract electrs index
-mkdir -p $ELECTRS_INDEX_DATA
-cd $ELECTRS_INDEX_DATA
-aws s3 cp $ELECTRS_INDEX_DATA_S3 - | tar xzf -
+# extract electrs index data
+mkdir -p "$ELECTRS_INDEX_DATA"
+cd "$ELECTRS_INDEX_DATA"
+aws s3 cp "$ELECTRS_INDEX_DATA_S3" - | tar -xzf -
 
-# extract bitcoin
-cd $BITCOIN_FOLDER
-tar xzf $BITCOIN_ARCHIVE
-mv bitcoin*/bin/* /usr/local/bin
-rm -rf bitcoin-*
+# extract bitcoin binaries
+# extract bitcoin binaries
+cd "$BITCOIN_FOLDER"
+tar -xzf "$BITCOIN_ARCHIVE"
+# move bitcoin executables
+mv bitcoind bitcoin-cli /usr/local/bin/
+# cleanup bitcoin archive
+rm -f "$BITCOIN_ARCHIVE"
 
-# extract data dir and conf from s3
-mkdir -p $DATA_DIR
-cd $DATA_DIR
-aws s3 cp $DATA_DIR_S3 - | tar xzf -
+# extract blockchain data and config
+mkdir -p "$DATA_DIR"
+cd "$DATA_DIR"
+aws s3 cp "$DATA_DIR_S3" - | tar -xzf -
 
 # assign ownership to ec2-user
-chown -R ec2-user:ec2-user $DATA_DIR
-chown -R ec2-user:ec2-user $ELECTRS_INDEX_DATA
+chown -R ec2-user:ec2-user "$DATA_DIR"
+chown -R ec2-user:ec2-user "$ELECTRS_INDEX_DATA"

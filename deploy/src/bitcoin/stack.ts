@@ -13,7 +13,6 @@ import {
 import path from "path";
 import { fileURLToPath } from "url";
 import { MariaDB } from "./mempool/mariadb.js";
-import { IBucket } from "aws-cdk-lib/aws-s3";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -45,7 +44,6 @@ export class BitcoinExeStack extends cdk.Stack {
 }
 
 interface BitcoinProps extends cdk.StackProps {
-  bucketName: string;
   network: "test" | "testnet4" | "mainnet";
 }
 
@@ -53,16 +51,18 @@ export class BitcoinStack extends cdk.Stack {
   constructor(
     scope: Construct,
     id: string,
-    { bucketName, network, ...props }: BitcoinProps,
+    { network, ...props }: BitcoinProps,
   ) {
     super(scope, id, props);
 
     const bitcoinStorage = new BitcoinStorage(this, "BitcoinStorage");
 
+    // Import the shared binaries bucket name from BuildStack
+    // const exeBucketName = cdk.Fn.importValue("SharedBinaryBucketName");
     const bucket = s3.Bucket.fromBucketName(
       this,
       "BitcoinExeBucket",
-      bucketName,
+      "build-sharedbinarybucket5ed2c620-a532o2rrxyls",
     );
 
     new Bitcoin(this, "Bitcoin", {

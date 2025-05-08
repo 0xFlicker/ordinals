@@ -59,7 +59,6 @@ new BitcoinExeStack(app, "bitcoin-exe", {
 });
 
 new BitcoinStack(app, "bitcoin-testnet4", {
-  bucketName: process.env.BITCOIN_EXE_BUCKET || "",
   network: "testnet4",
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,

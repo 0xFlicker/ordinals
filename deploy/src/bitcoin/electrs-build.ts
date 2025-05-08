@@ -46,12 +46,12 @@ export class ElectrsBuilder extends Construct {
     const waitHandle = new cfn.CfnWaitConditionHandle(this, "WaitHandle");
     const waitCondition = new cfn.CfnWaitCondition(this, "WaitCondition", {
       handle: waitHandle.ref,
-      timeout: "PT60M",
+      timeout: (10 * 60).toString(), // 10 minutes, in seconds, as a string
       count: 1,
     });
     // Ensure the wait condition does not proceed until the instance is created
     const cfnInstance = instance.node.defaultChild as ec2.CfnInstance;
-    waitCondition.addDependsOn(cfnInstance);
+    waitCondition.addDependency(cfnInstance);
 
     instance.role.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName(
