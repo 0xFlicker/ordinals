@@ -9,7 +9,11 @@ import * as s3a from "aws-cdk-lib/aws-s3-assets";
 import * as autoscaling from "aws-cdk-lib/aws-autoscaling";
 import * as log from "aws-cdk-lib/aws-logs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import { buildSync } from "esbuild";
+import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
+import { Aws, Tags } from "aws-cdk-lib";
+import * as dlm from "aws-cdk-lib/aws-dlm";
+import * as events from "aws-cdk-lib/aws-events";
+import * as targets from "aws-cdk-lib/aws-events-targets";
 // handlebars templating removed; configs inline
 import path from "path";
 import { fileURLToPath } from "url";
@@ -158,6 +162,42 @@ function createBtcUserData({
   // Prepare data directory for blockchain
   const dataDir = `/home/ec2-user/.bitcoin_${network}`;
   userData.addCommands(`mkdir -p ${dataDir}`);
+  // Create or restore data volume and mount it
+  const dataVolumeSize =
+    network === "mainnet" ? 600 : network === "testnet4" ? 200 : 50;
+  userData.addCommands(
+    "# fetch IMDSv2 token",
+    "TOKEN=$(curl -sf -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds:21600')",
+    "# retrieve availability zone",
+    'AZ=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)',
+    "if [ -z \"$AZ\" ]; then echo 'ERROR: AZ not found'; exit 1; fi",
+    "# try to get the latest seed snapshot",
+    `if ! SNAP_ID=$(aws ssm get-parameter --name /bitcoin/${network}/latestSnapshot --query Parameter.Value --output text 2>/dev/null); then
+  echo 'No seed snapshot, creating new volume';
+  VOL_ID=$(aws ec2 create-volume --availability-zone $AZ --size ${dataVolumeSize} --volume-type gp3 --tag-specifications 'ResourceType=volume,Tags=[{Key=Service,Value=bitcoin-data},{Key=Chain,Value=${network}}]' --query VolumeId --output text)
+else
+  echo 'Restoring from snapshot $SNAP_ID';
+  VOL_ID=$(aws ec2 create-volume --availability-zone $AZ --snapshot-id $SNAP_ID --volume-type gp3 --tag-specifications 'ResourceType=volume,Tags=[{Key=Service,Value=bitcoin-data},{Key=Chain,Value=${network}}]' --query VolumeId --output text)
+fi`,
+    "aws ec2 wait volume-available --volume-ids $VOL_ID",
+    'INSTANCE_ID=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)',
+    "aws ec2 attach-volume --volume-id $VOL_ID --device /dev/xvdb --instance-id $INSTANCE_ID",
+    "# only seed role tags for DLM",
+    'INSTANCE_LC=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-life-cycle 2>/dev/null || echo on-demand)',
+    'if [ "$INSTANCE_LC" != "spot" ]; then',
+    "  aws ec2 create-tags --resources $VOL_ID --tags Key=SnapshotRole,Value=seed",
+    "fi",
+    "# mount the data device",
+    "if [ -b /dev/xvdb ]; then DATA_DEVICE=/dev/xvdb; else DATA_DEVICE=/dev/nvme1n1; fi",
+    `DATA_DIR=${dataDir}`,
+    "while [ ! -b $DATA_DEVICE ]; do sleep 1; done",
+    "if ! blkid $DATA_DEVICE; then mkfs.ext4 $DATA_DEVICE; fi",
+    "mount $DATA_DEVICE $DATA_DIR",
+    "grep -q '$DATA_DEVICE' /etc/fstab || echo '$DATA_DEVICE $DATA_DIR ext4 defaults,nofail 0 2' >> /etc/fstab",
+    "chown -R ec2-user:ec2-user $DATA_DIR",
+    "mkdir -p $DATA_DIR/electrs",
+    "chown -R ec2-user:ec2-user $DATA_DIR/electrs",
+  );
   const bitcoindArchive = userData.addS3DownloadCommand({
     bucket: executableBucket,
     bucketKey: bitcoinKey,
@@ -190,7 +230,7 @@ function createBtcUserData({
 
   const electrsConf = [
     `cookie_file = "/home/ec2-user/.bitcoin_${network}/${network}/.cookie"`,
-    `db_dir = "/home/ec2-user/db"`,
+    `db_dir = "${dataDir}/electrs"`,
     `network = "${networkToElectrsNetwork(network)}"`,
     `electrum_rpc_addr = "0.0.0.0:${networkToElectrsPort(network)}"`,
     `log_filters = "INFO"`,
@@ -201,19 +241,12 @@ function createBtcUserData({
     `EOF`,
   );
 
-  // Inline initialization for node binaries, blockchain, and electrs data
-  const dataDirS3 = `s3://${blockchainDataBucket.bucketName}/${network}.tar.gz`;
-  const electrsDataDir = "/home/ec2-user/db";
-  const electrsDataS3 = `s3://${blockchainDataBucket.bucketName}/electrs-${network}.tar.gz`;
+  // Inline initialization for node binaries and blockchain data
   userData.addCommands(
     `NODE_ARCHIVE=${nodeArchivePath}`,
     `NODE_FOLDER=$(dirname "$NODE_ARCHIVE")`,
     `BITCOIN_ARCHIVE=${bitcoindArchive}`,
     `BITCOIN_FOLDER=$(dirname "$BITCOIN_ARCHIVE")`,
-    `DATA_DIR_S3=${dataDirS3}`,
-    `DATA_DIR=${dataDir}`,
-    `ELECTRS_INDEX_DATA_S3=${electrsDataS3}`,
-    `ELECTRS_INDEX_DATA=${electrsDataDir}`,
     "",
     "# extract node binaries",
     'cd "$NODE_FOLDER"',
@@ -221,32 +254,16 @@ function createBtcUserData({
     "mv node*/bin/* /usr/local/bin",
     "rm -rf node-*",
     "",
-    "# extract electrs index data",
-    'mkdir -p "$ELECTRS_INDEX_DATA"',
-    'cd "$ELECTRS_INDEX_DATA"',
-    'aws s3 cp "$ELECTRS_INDEX_DATA_S3" - | tar -xzf -',
-    "",
     "# extract bitcoin binaries",
     'cd "$BITCOIN_FOLDER"',
     'tar -xzf "$BITCOIN_ARCHIVE"',
     "mv bitcoind bitcoin-cli /usr/local/bin/",
     'rm -f "$BITCOIN_ARCHIVE"',
     "",
-    "# extract blockchain data",
-    `mkdir -p /home/ec2-user/.bitcoin`,
-    `mkdir -p "${dataDir}"`,
-    `cd "${dataDir}"`,
-    'aws s3 cp "$DATA_DIR_S3" - | tar -xzf -',
-    "",
-    "# assign ownership",
-    `chown -R ec2-user:ec2-user /home/ec2-user/.bitcoin`,
-    `chown -R ec2-user:ec2-user "${dataDir}"`,
-    `chown -R ec2-user:ec2-user "${electrsDataDir}"`,
   );
-  // Write bitcoin.conf with network and RPC settings
+  // Write bitcoin.conf with network section and RPC settings directly into dataDir
   const confLines = [
     `[${network}]`,
-    `datadir=${dataDir}`,
     `txindex=1`,
     `prune=0`,
     `server=1`,
@@ -255,40 +272,11 @@ function createBtcUserData({
     `debug=rpc`,
   ];
   userData.addCommands(
-    `cat << EOF > /home/ec2-user/.bitcoin/bitcoin.conf`,
+    // Write config into the mounted data directory so bitcoind loads it
+    `cat << EOF > ${dataDir}/bitcoin.conf`,
     ...confLines,
     `EOF`,
-    `chown ec2-user:ec2-user /home/ec2-user/.bitcoin/bitcoin.conf`,
-  );
-
-  // ensure cron is installed for backup scheduling
-  userData.addCommands("yum install -y cronie");
-
-  // Create backup script and cron job for periodic S3 backups
-  userData.addCommands(
-    "cat << 'EOF' > /home/ec2-user/backup.sh",
-    "#!/bin/bash",
-    `AWS_BUCKET=${blockchainDataBucket.bucketName}`,
-    `DATA_DIR=/home/ec2-user/.bitcoin_${network}`,
-    `ELECTRS_DIR=/home/ec2-user/db`,
-    "",
-    "set -e",
-    "pkill electrs || true",
-    "bitcoin-cli stop",
-    "sleep 10",
-    "# backup blockchain data via streaming tar",
-    `tar cz -C $DATA_DIR . | aws s3 cp - s3://$AWS_BUCKET/${network}.tar.gz`,
-    "# backup electrs index data via streaming tar",
-    `tar cz -C $ELECTRS_DIR . | aws s3 cp - s3://$AWS_BUCKET/electrs-${network}.tar.gz`,
-    "# restart services",
-    `runuser -l ec2-user -c 'bitcoind ${networkToBitcoinFlags(
-      network,
-    )} -rpcauth=$(sops -d /home/ec2-user/.env.bitcoin | grep BITCOIN_RPC_AUTH | cut -d= -f2) -debuglogfile=/home/ec2-user/bitcoin.log -daemonwait'`,
-    "sleep 10",
-    `runuser -l ec2-user -c '/usr/local/bin/electrs --conf /home/ec2-user/electrs.conf >> /home/ec2-user/electrs.log 2>&1 &'`,
-    "EOF",
-    "chmod +x /home/ec2-user/backup.sh",
-    `echo "0 3 * * * /home/ec2-user/backup.sh >> /home/ec2-user/backup.log 2>&1" | crontab -u ec2-user -`,
+    `chown ec2-user:ec2-user ${dataDir}/bitcoin.conf`,
   );
 
   return userData;
@@ -318,10 +306,11 @@ function createLaunchTemplate({
     machineImage: ec2.MachineImage.latestAmazonLinux2023({
       cpuType: ec2.AmazonLinuxCpuType.ARM_64,
     }),
+    // Only root volume is mapped; data volume will be created/attached via user-data
     blockDevices: [
       {
         deviceName: "/dev/xvda",
-        volume: ec2.BlockDeviceVolume.ebs(dataVolumeSize, {
+        volume: ec2.BlockDeviceVolume.ebs(20, {
           volumeType: ec2.EbsDeviceVolumeType.GP3,
         }),
       },
@@ -380,6 +369,9 @@ export class Bitcoin extends Construct {
     }: BitcoinProps,
   ) {
     super(scope, id);
+    // Tag all resources for the Bitcoin stack
+    Tags.of(this).add("Service", "bitcoin-data");
+    Tags.of(this).add("Network", network);
     // Simplified health-check: rely on ALB HTTP health-check against bitcoind RPC (200 or 401)
     new cdk.aws_ssm.CfnDocument(this, "Session", {
       content: {
@@ -429,6 +421,19 @@ export class Bitcoin extends Construct {
     );
     role.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
+    );
+    // Permissions for EBS volume operations and parameter retrieval in user-data
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "ec2:CreateVolume",
+          "ec2:AttachVolume",
+          "ec2:DescribeVolumes",
+          "ec2:CreateTags",
+          "ssm:GetParameter",
+        ],
+        resources: ["*"],
+      }),
     );
 
     const { vpc, btcServiceGroup, btcClientGroup } = createPublicVpc(
@@ -533,19 +538,6 @@ export class Bitcoin extends Construct {
       protocol: elbv2.Protocol.TCP,
     });
 
-    // const electrumListener = alb.addListener("Listener-electrum", {
-    //   port: network === "testnet" ? 60001 : 50001,
-    //   protocol: elbv2.ApplicationProtocol.HTTP,
-    //   open: true,
-    // });
-
-    // const electrumSslListener = alb.addListener("Listener-electrum", {
-    //   port: network === "testnet" ? 60002 : 50002,
-    //   protocol: elbv2.ApplicationProtocol.HTTP,
-    //   sslPolicy: elbv2.SslPolicy.RECOMMENDED,
-    //   open: true,
-    // });
-
     // Define an EC2 Auto Scaling Group with Spot Instances
     const asg = new autoscaling.AutoScalingGroup(this, "Asg", {
       vpc,
@@ -617,20 +609,111 @@ export class Bitcoin extends Construct {
     asg.addUserData(
       "yum update -y",
       "yum install -y amazon-cloudwatch-agent",
-      // Install SOPS for decrypting secrets
+      // TODO: Replace with cosign-verified SOPS binary install
       "yum install -y https://github.com/getsops/sops/releases/download/v3.10.2/sops-3.10.2-1.aarch64.rpm",
       // Fetch encrypted dotenv with RPC auth
       `aws s3 cp s3://${secretAsset.s3BucketName}/${secretAsset.s3ObjectKey} /home/ec2-user/.env.bitcoin`,
       // Start CloudWatch agent
       "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/amazon-cloudwatch-agent.json",
-      `runuser -l ec2-user -c 'bitcoind ${networkToBitcoinFlags(
+      `runuser -l ec2-user -c 'bitcoind -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(
         network,
-      )} -rpcauth=$(sops -d /home/ec2-user/.env.bitcoin | grep BITCOIN_RPC_AUTH | cut -d'=' -f2-) -debuglogfile=/home/ec2-user/bitcoin.log -daemonwait'`,
+      )} -rpcauth=$(sops -d /home/ec2-user/.env.bitcoin | grep BITCOIN_RPC_AUTH | cut -d\'=\' -f2-) -debuglogfile=/home/ec2-user/bitcoin.log -daemonwait'`,
       // Give bitcoind time to initialize
       "sleep 60",
       // Launch electrs
       `runuser -l ec2-user -c '/usr/local/bin/electrs --conf /home/ec2-user/electrs.conf >> /home/ec2-user/electrs.log 2>&1 &'`,
     );
+    // Lambda to update latest data snapshot on snapshot completion
+    const updateLatestSnapshotFn = new lambdaNodejs.NodejsFunction(
+      this,
+      "UpdateLatestSnapshotFn",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        entry: path.join(
+          __dirname,
+          "../../../apps/functions/src/lambdas/updateLatestSnapshot.ts",
+        ),
+        handler: "handler",
+        environment: {
+          PARAM_NAME: `/bitcoin/${network}/latestSnapshot`, // SSM parameter to write latest snapshot ID
+          NETWORK: network,
+        },
+      },
+    );
+    // Permissions to describe snapshots and update a single SSM parameter
+    updateLatestSnapshotFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["ec2:DescribeSnapshots", "ssm:PutParameter"],
+        resources: [
+          // Only the latestSnapshot parameter for this network
+          `arn:aws:ssm:${Aws.REGION}:${Aws.ACCOUNT_ID}:parameter/bitcoin/${network}/latestSnapshot`,
+        ],
+      }),
+    );
+    // Trigger on snapshot completion events
+    const snapshotRule = new events.Rule(this, "SnapshotCompleteRule", {
+      eventPattern: {
+        source: ["aws.ec2"],
+        detailType: ["EC2 Snapshot State-change Notification"],
+        detail: { state: ["completed"] },
+      },
+    });
+    snapshotRule.addTarget(new targets.LambdaFunction(updateLatestSnapshotFn));
+    // IAM role and lifecycle policy: automated snapshots via DLM
+    // IAM role for DLM (Data Lifecycle Manager)
+    const dlmServiceRole = new iam.Role(this, `DlmServiceRole-${network}`, {
+      assumedBy: new iam.ServicePrincipal("dlm.amazonaws.com"),
+    });
+    // Inline policy granting necessary EC2 and tagging permissions for snapshot lifecycle
+    dlmServiceRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "ec2:CreateSnapshot",
+          "ec2:DeleteSnapshot",
+          "ec2:CreateTags",
+          "ec2:DeleteTags",
+          "ec2:DescribeSnapshots",
+          "ec2:DescribeVolumes",
+          "ec2:ModifySnapshotAttribute",
+          "resourcegroupstaggingapi:GetResources",
+          "resourcegroupstaggingapi:GetTagKeys",
+          "resourcegroupstaggingapi:GetTagValues",
+        ],
+        resources: ["*"],
+      }),
+    );
+    new dlm.CfnLifecyclePolicy(this, `SnapshotPolicy-${network}`, {
+      // Human-readable description is required by CFN
+      description: `DLM policy for Bitcoin data ${network}`,
+      executionRoleArn: dlmServiceRole.roleArn,
+      state: "ENABLED",
+      policyDetails: {
+        resourceTypes: ["VOLUME"],
+        targetTags: [
+          { key: "Service", value: "bitcoin-data" },
+          { key: "Chain", value: network },
+          { key: "SnapshotRole", value: "seed" },
+        ],
+        schedules: [
+          {
+            name: "BitcoinDataSnapshotSchedule",
+            createRule: { interval: 6, intervalUnit: "HOURS" },
+            retainRule: { count: 24 },
+            fastRestoreRule: {
+              availabilityZones: vpc.publicSubnets.map(
+                (s) => s.availabilityZone!,
+              ),
+              count: 1,
+            },
+            copyTags: true,
+          },
+        ],
+      },
+      tags: [
+        { key: "Service", value: "bitcoin-data" },
+        { key: "Chain", value: network },
+      ],
+    });
 
     // Health-check directly against bitcoind RPC (treat 200 or 401 as healthy)
     rpcListener.addTargets(`BitcoinTarget-${network}`, {

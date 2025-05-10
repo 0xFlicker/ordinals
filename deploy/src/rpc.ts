@@ -20,7 +20,7 @@ export interface BitcoinRpcFunctionProps {
   readonly networks: BitcoinNetwork[];
   readonly sopsLayer: lambda.LayerVersion;
   readonly vpc?: ec2.IVpc;
-  readonly btcClientGroup: ec2.ISecurityGroup;
+  readonly btcClientGroup?: ec2.ISecurityGroup;
 }
 
 export class BitcoinRpcFunction extends Construct {
@@ -56,11 +56,15 @@ export class BitcoinRpcFunction extends Construct {
         this,
         `JsonRpc-${network}`,
         {
-          vpc: props.vpc,
-          vpcSubnets: {
-            subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-          },
-          securityGroups: [props.btcClientGroup],
+          ...(props.vpc
+            ? {
+                vpc: props.vpc,
+                vpcSubnets: {
+                  subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                },
+              }
+            : {}),
+          securityGroups: props.btcClientGroup ? [props.btcClientGroup] : [],
           runtime: lambda.Runtime.NODEJS_20_X,
           architecture: lambda.Architecture.ARM_64,
           timeout: cdk.Duration.seconds(5),

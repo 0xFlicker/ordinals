@@ -70,14 +70,31 @@ const vpcStack = new VpcStack(app, "app-vpc", {
 });
 const vpc = vpcStack.vpc;
 // Deploy Bitcoin Testnet4 stack into the shared VPC
-const { btcClientGroup } = new BitcoinStack(app, "bitcoin-testnet4", {
-  network: "testnet4",
-  vpc,
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
+const { btcClientGroup: testnet4ClientGroup } = new BitcoinStack(
+  app,
+  "bitcoin-testnet4",
+  {
+    network: "testnet4",
+    vpc,
+    env: {
+      account: process.env.CDK_DEFAULT_ACCOUNT,
+      region: "us-east-1",
+    },
   },
-});
+);
+
+const { btcClientGroup: mainnetClientGroup } = new BitcoinStack(
+  app,
+  "bitcoin-mainnet",
+  {
+    network: "mainnet",
+    vpc,
+    env: {
+      account: process.env.CDK_DEFAULT_ACCOUNT,
+      region: "us-east-1",
+    },
+  },
+);
 
 new BackendStack(app, "ordinals", {
   env: {
@@ -86,8 +103,6 @@ new BackendStack(app, "ordinals", {
   },
   origin: process.env.ORIGIN || "https://bitflick.xyz",
   sopsLayer,
-  vpc,
-  btcClientGroup,
 });
 
 new FrameStack(app, "frame", {
@@ -97,18 +112,6 @@ new FrameStack(app, "frame", {
   },
   origin: process.env.ORIGIN || "https://bitflick.xyz",
   sopsLayer,
-  vpc,
-  btcClientGroup,
-});
-
-new BitcoinStack(app, "bitcoin-mainnet", {
-  network: "mainnet",
-  // deploy Mainnet stack into the shared VPC
-  vpc,
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
-  },
 });
 
 // Build and upload Bitcoin and Electrs binaries using a shared S3 bucket

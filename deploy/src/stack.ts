@@ -23,9 +23,9 @@ interface IProps extends cdk.StackProps {
   /** SOPS layer for secrets decryption */
   sopsLayer: lambda.LayerVersion;
   /** Shared VPC for application resources */
-  vpc: ec2.IVpc;
+  vpc?: ec2.IVpc;
   /** Security group permitting Bitcoin client access */
-  btcClientGroup: ec2.ISecurityGroup;
+  btcClientGroup?: ec2.ISecurityGroup;
 }
 
 export class BackendStack extends cdk.Stack {
