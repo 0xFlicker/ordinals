@@ -1,55 +1,3 @@
-enum AddressType {
-  EVM
-  BTC
-}
-
-type Address {
-  type: AddressType!
-  address: String!
-}
-
-type Nonce {
-  nonce: String!
-  messageToSign: String!
-  domain: String!
-  expiration: String!
-  issuedAt: String!
-  uri: String!
-  version: String
-  chainId: Int
-  pubKey: String!
-  address: Address!
-}
-
-input LinkVerifiedAddressRequest {
-  address: String!
-  # One, and only one, of the following must be provided
-  siweJwe: String
-  siwbJwe: String
-}
-
-type Web3User {
-  id: ID!
-  addresses: [Address!]!
-  roles: [Role!]!
-  allowedActions: [Permission!]!
-  token: String
-  handle: String!
-
-  linkVerifiedAddress(request: LinkVerifiedAddressRequest!): Web3User!
-}
-
-type Mutation {
-  nonceEthereum(address: ID!, chainId: Int!): Nonce!
-  nonceBitcoin(address: ID!): Nonce!
-  nonceFrame(trustedBytes: String!): Nonce!
-  user(id: ID!): Web3User!
-}
-
-type Query {
-  user(id: ID!): Web3User!
-}
-
 input PresaleRequest {
   collectionId: ID!
   farcasterVerifiedPayload: String
@@ -168,6 +116,58 @@ type Mutation {
   role(id: ID!): Role!
 }
 
+enum AddressType {
+  EVM
+  BTC
+}
+
+type Address {
+  type: AddressType!
+  address: String!
+}
+
+type Nonce {
+  nonce: String!
+  messageToSign: String!
+  domain: String!
+  expiration: String!
+  issuedAt: String!
+  uri: String!
+  version: String
+  chainId: Int
+  pubKey: String!
+  address: Address!
+}
+
+input LinkVerifiedAddressRequest {
+  address: String!
+  # One, and only one, of the following must be provided
+  siweJwe: String
+  siwbJwe: String
+}
+
+type Web3User {
+  id: ID!
+  addresses: [Address!]!
+  roles: [Role!]!
+  allowedActions: [Permission!]!
+  token: String
+  handle: String!
+
+  linkVerifiedAddress(request: LinkVerifiedAddressRequest!): Web3User!
+}
+
+type Mutation {
+  nonceEthereum(address: ID!, chainId: Int!): Nonce!
+  nonceBitcoin(address: ID!): Nonce!
+  nonceFrame(trustedBytes: String!): Nonce!
+  user(id: ID!): Web3User!
+}
+
+type Query {
+  user(id: ID!): Web3User!
+}
+
 type Inscription {
   id: ID!
 
@@ -190,6 +190,86 @@ input InscriptionQuery {
 
 type Query {
   inscriptions(query: InscriptionQuery!): [Inscription!]!
+}
+
+enum FundingStatus {
+  FUNDING
+  FUNDED
+  GENESIS
+  REVEALED
+  EXPIRED
+}
+
+type InscriptionFunding {
+  id: ID!
+
+  fundingAmountBtc: String!
+  fundingAmountSats: Int!
+  fundingAddress: String!
+  destinationAddress: String!
+  network: BitcoinNetwork!
+  qrValue: String!
+  qrSrc: String!
+
+  status: FundingStatus!
+  fundingGenesisTxId: String
+  fundingGenesisTxUrl: String
+  fundingRevealTxId: String
+  fundingRevealTxUrl: String
+  fundingRefundTxId: String
+  fundingRefundTxUrl: String
+
+  overhead: Int!
+  padding: Int!
+  count: Int!
+  fee: Int!
+
+  inscriptionContent(index: Int!): InscriptionData!
+  inscriptionContents: [InscriptionData!]!
+}
+
+input InscriptionFundingQuery {
+  collectionId: ID
+  fundingStatus: FundingStatus!
+  next: String
+  limit: Int
+}
+
+type InscriptionFundingProblem {
+  code: String
+  message: String
+}
+
+type InscriptionFundingsResult {
+  fundings: [InscriptionFunding!]
+  problems: [InscriptionFundingProblem!]
+  next: String
+  count: Int
+}
+
+# input EstimateInscriptionFundingInput {
+#   size: Int!
+#   contentType: String!
+#   meta: [KeyValueInput!]
+# }
+
+# type EstimateInscriptionFundingResult {
+#   fundingAmountBtc: String!
+#   fundingAmountSats: Int!
+#   totalFeeBtc: String!
+#   totalFeeSats: Int!
+# }
+
+type Query {
+  inscriptionFunding(id: ID!): InscriptionFunding
+  inscriptionFundings(
+    query: InscriptionFundingQuery!
+  ): InscriptionFundingsResult!
+  # estimateInscriptionFundingSize(
+  #   destinationAddress: String
+  #   network: BitcoinNetwork
+  #   inscriptions: [EstimateInscriptionFundingInput!]!
+  # ): EstimateInscriptionFundingResult!
 }
 
 type InscriptionData {
@@ -281,86 +361,6 @@ type Mutation {
 
 type Query {
   signMultipartUpload(uploadId: String!, partNumber: Int!): String!
-}
-
-enum FundingStatus {
-  FUNDING
-  FUNDED
-  GENESIS
-  REVEALED
-  EXPIRED
-}
-
-type InscriptionFunding {
-  id: ID!
-
-  fundingAmountBtc: String!
-  fundingAmountSats: Int!
-  fundingAddress: String!
-  destinationAddress: String!
-  network: BitcoinNetwork!
-  qrValue: String!
-  qrSrc: String!
-
-  status: FundingStatus!
-  fundingGenesisTxId: String
-  fundingGenesisTxUrl: String
-  fundingRevealTxId: String
-  fundingRevealTxUrl: String
-  fundingRefundTxId: String
-  fundingRefundTxUrl: String
-
-  overhead: Int!
-  padding: Int!
-  count: Int!
-  fee: Int!
-
-  inscriptionContent(index: Int!): InscriptionData!
-  inscriptionContents: [InscriptionData!]!
-}
-
-input InscriptionFundingQuery {
-  collectionId: ID
-  fundingStatus: FundingStatus!
-  next: String
-  limit: Int
-}
-
-type InscriptionFundingProblem {
-  code: String
-  message: String
-}
-
-type InscriptionFundingsResult {
-  fundings: [InscriptionFunding!]
-  problems: [InscriptionFundingProblem!]
-  next: String
-  count: Int
-}
-
-# input EstimateInscriptionFundingInput {
-#   size: Int!
-#   contentType: String!
-#   meta: [KeyValueInput!]
-# }
-
-# type EstimateInscriptionFundingResult {
-#   fundingAmountBtc: String!
-#   fundingAmountSats: Int!
-#   totalFeeBtc: String!
-#   totalFeeSats: Int!
-# }
-
-type Query {
-  inscriptionFunding(id: ID!): InscriptionFunding
-  inscriptionFundings(
-    query: InscriptionFundingQuery!
-  ): InscriptionFundingsResult!
-  # estimateInscriptionFundingSize(
-  #   destinationAddress: String
-  #   network: BitcoinNetwork
-  #   inscriptions: [EstimateInscriptionFundingInput!]!
-  # ): EstimateInscriptionFundingResult!
 }
 
 type KeyValue {

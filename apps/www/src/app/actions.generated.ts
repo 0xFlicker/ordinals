@@ -131,7 +131,8 @@ export type AxolotlProblem = {
 export enum BitcoinNetwork {
   Mainnet = 'MAINNET',
   Regtest = 'REGTEST',
-  Testnet = 'TESTNET'
+  Testnet = 'TESTNET',
+  Testnet4 = 'TESTNET4'
 }
 
 export type BitcoinScriptItem = {
@@ -218,6 +219,18 @@ export enum FundingStatus {
   Revealed = 'REVEALED'
 }
 
+export type Inscription = {
+  __typename?: 'Inscription';
+  children: Array<Inscription>;
+  content: Scalars['String']['output'];
+  contentLength: Scalars['Int']['output'];
+  contentType: Scalars['String']['output'];
+  contentUrl: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  owner?: Maybe<Web3User>;
+  parents: Array<Inscription>;
+};
+
 export type InscriptionData = {
   __typename?: 'InscriptionData';
   base64Content?: Maybe<Scalars['String']['output']>;
@@ -296,6 +309,12 @@ export type InscriptionProblem = {
   code?: Maybe<Scalars['Int']['output']>;
   fileName: Scalars['String']['output'];
   message?: Maybe<Scalars['String']['output']>;
+};
+
+export type InscriptionQuery = {
+  address?: InputMaybe<Scalars['ID']['input']>;
+  handle?: InputMaybe<Scalars['String']['input']>;
+  userId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 export type InscriptionRequestInput = {
@@ -589,6 +608,7 @@ export type Query = {
   currentBitcoinFees: FeeEstimate;
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
+  inscriptions: Array<Inscription>;
   presale?: Maybe<PresaleResponse>;
   presales: PresalesResult;
   role?: Maybe<Role>;
@@ -639,6 +659,11 @@ export type QueryInscriptionFundingArgs = {
 
 export type QueryInscriptionFundingsArgs = {
   query: InscriptionFundingQuery;
+};
+
+
+export type QueryInscriptionsArgs = {
+  query: InscriptionQuery;
 };
 
 

@@ -274,7 +274,7 @@ export class Graphql extends Construct {
           CorsHttpMethod.POST,
           CorsHttpMethod.GET,
         ],
-        allowHeaders: ["*"],
+        allowHeaders: ["Content-Type", "Authorization"],
         allowCredentials: true,
         maxAge: Duration.days(1),
       },

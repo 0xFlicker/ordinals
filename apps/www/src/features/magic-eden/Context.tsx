@@ -89,7 +89,6 @@ function useMagicEdenContext(opts: {
         });
 
         const response = await btcProvider.connect(token);
-        console.log("response", response);
         const { addresses } = response;
 
         if (addresses && addresses.length > 0) {

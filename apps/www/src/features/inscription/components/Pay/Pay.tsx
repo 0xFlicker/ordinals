@@ -125,7 +125,6 @@ export const Pay: FC<{
         message: "Please connect your wallet to continue",
       })
         .then(({ paymentAddress }) => {
-          console.log("paymentAddress", paymentAddress);
           if (paymentAddress) {
             setDoSend(true);
           }

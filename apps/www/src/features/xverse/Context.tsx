@@ -73,9 +73,6 @@ function useXverseContext(opts: {
           state.ordinalsAddress &&
           authUserAddress.address === state.ordinalsAddress
         ) {
-          console.log(
-            "Found a token and the token addresses matches the ordinals address, setting verified address"
-          );
           dispatch(
             actionCreators.setVerifiedOrdinalsAddress(state.ordinalsAddress)
           );

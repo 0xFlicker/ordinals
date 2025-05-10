@@ -152,12 +152,6 @@ export const WalletConnectButton: FC<{
     }
   };
 
-  console.log({
-    ordinalsAddress,
-    evmAddress,
-    resolvedUser,
-  });
-
   const handleConnect = () => {
     // If user is provided in props, don't do anything on click
     if (propUser?.userId) {
