@@ -9,3 +9,20 @@ enum BlockchainNetwork {
   BITCOIN
   ETHEREUM
 }
+
+enum BitcoinNetworkStatus {
+  DEAD
+  SYNCING
+  SYNCED
+}
+
+type BitcoinNetworkStatusResponse {
+  status: BitcoinNetworkStatus
+  height: Int
+  bestBlockHash: String
+  progress: Float
+}
+
+type Query {
+  bitcoinNetworkStatus(network: BitcoinNetwork!): BitcoinNetworkStatusResponse
+}

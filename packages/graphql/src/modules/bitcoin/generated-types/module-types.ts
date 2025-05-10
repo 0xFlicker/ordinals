@@ -5,12 +5,14 @@ export namespace BitcoinModule {
   interface DefinedFields {
     BitcoinScriptItem: 'text' | 'base64';
     FeeEstimate: 'minimum' | 'fastest' | 'halfHour' | 'hour';
-    Query: 'currentBitcoinFees';
+    Query: 'currentBitcoinFees' | 'bitcoinNetworkStatus';
+    BitcoinNetworkStatusResponse: 'status' | 'height' | 'bestBlockHash' | 'progress';
   };
   
   interface DefinedEnumValues {
     BitcoinNetwork: 'MAINNET' | 'TESTNET' | 'TESTNET4' | 'REGTEST';
     BlockchainNetwork: 'BITCOIN' | 'ETHEREUM';
+    BitcoinNetworkStatus: 'DEAD' | 'SYNCING' | 'SYNCED';
   };
   
   export type BitcoinScriptItem = Pick<Types.BitcoinScriptItem, DefinedFields['BitcoinScriptItem']>;
@@ -18,15 +20,19 @@ export namespace BitcoinModule {
   export type Query = Pick<Types.Query, DefinedFields['Query']>;
   export type BitcoinNetwork = DefinedEnumValues['BitcoinNetwork'];
   export type BlockchainNetwork = DefinedEnumValues['BlockchainNetwork'];
+  export type BitcoinNetworkStatus = DefinedEnumValues['BitcoinNetworkStatus'];
+  export type BitcoinNetworkStatusResponse = Pick<Types.BitcoinNetworkStatusResponse, DefinedFields['BitcoinNetworkStatusResponse']>;
   
   export type BitcoinScriptItemResolvers = Pick<Types.BitcoinScriptItemResolvers, DefinedFields['BitcoinScriptItem'] | '__isTypeOf'>;
   export type FeeEstimateResolvers = Pick<Types.FeeEstimateResolvers, DefinedFields['FeeEstimate'] | '__isTypeOf'>;
   export type QueryResolvers = Pick<Types.QueryResolvers, DefinedFields['Query']>;
+  export type BitcoinNetworkStatusResponseResolvers = Pick<Types.BitcoinNetworkStatusResponseResolvers, DefinedFields['BitcoinNetworkStatusResponse'] | '__isTypeOf'>;
   
   export interface Resolvers {
     BitcoinScriptItem?: BitcoinScriptItemResolvers;
     FeeEstimate?: FeeEstimateResolvers;
     Query?: QueryResolvers;
+    BitcoinNetworkStatusResponse?: BitcoinNetworkStatusResponseResolvers;
   };
   
   export interface MiddlewareMap {
@@ -48,6 +54,14 @@ export namespace BitcoinModule {
     Query?: {
       '*'?: gm.Middleware[];
       currentBitcoinFees?: gm.Middleware[];
+      bitcoinNetworkStatus?: gm.Middleware[];
+    };
+    BitcoinNetworkStatusResponse?: {
+      '*'?: gm.Middleware[];
+      status?: gm.Middleware[];
+      height?: gm.Middleware[];
+      bestBlockHash?: gm.Middleware[];
+      progress?: gm.Middleware[];
     };
   };
 }

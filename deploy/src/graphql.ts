@@ -17,6 +17,7 @@ import { Envelope } from "./envelope.js";
 import { HttpApi } from "aws-cdk-lib/aws-apigatewayv2";
 import { Duration } from "aws-cdk-lib";
 import { CorsHttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
+import { BitcoinNetwork } from "./utils/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +54,7 @@ export interface GraphqlProps {
   readonly usersTable: dynamodb.Table;
   readonly fundingSecKeyEnvelope: Envelope;
   readonly parentInscriptionSecKeyEnvelope: Envelope;
+  readonly rpcLambdas: Record<BitcoinNetwork, lambda.Function | undefined>;
   readonly domainName: URL;
   readonly sopsLayer: lambda.LayerVersion;
 }
@@ -80,6 +82,7 @@ export class Graphql extends Construct {
       parentInscriptionSecKeyEnvelope,
       domainName,
       sopsLayer,
+      rpcLambdas,
     }: GraphqlProps,
   ) {
     super(scope, id);
@@ -157,6 +160,14 @@ export class Graphql extends Construct {
           PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID:
             parentInscriptionSecKeyEnvelope.key.keyId,
           FUNDING_SEC_KEY_ENVELOPE_KEY_ID: fundingSecKeyEnvelope.key.keyId,
+          ...Object.fromEntries(
+            Object.entries(rpcLambdas)
+              .filter(([, lambda]) => lambda !== undefined)
+              .map(([network, lambda]) => [
+                `${network.toUpperCase()}_RPC_LAMBDA_ARN`,
+                lambda?.functionArn,
+              ]),
+          ),
         },
         // attach SOPS binary layer and GraphQL secret layer
         layers: [sopsLayer, graphqlSecretLayer],
@@ -196,6 +207,10 @@ export class Graphql extends Construct {
         resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
       }),
     );
+
+    for (const network of Object.keys(rpcLambdas)) {
+      rpcLambdas[network as BitcoinNetwork]?.grantInvoke(graphqlLambda);
+    }
 
     // // Create a NodejsFunction for the S3 collection meta update lambda
     // const s3CollectionMetaUpdateLambda = new lambdaNodejs.NodejsFunction(

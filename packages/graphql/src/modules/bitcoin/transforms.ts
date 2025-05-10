@@ -12,6 +12,8 @@ export function toBitcoinNetworkName(
       return "testnet";
     case "REGTEST":
       return "regtest";
+    case "TESTNET4":
+      return "testnet4";
     default:
       throw new Error(`Unsupported network: ${bitcoinNetworkName}`);
   }
@@ -27,6 +29,8 @@ export function toGraphqlBitcoinNetworkName(
       return "TESTNET";
     case "regtest":
       return "REGTEST";
+    case "testnet4":
+      return "TESTNET4";
     default:
       throw new Error(`Unsupported network: ${bitcoinNetworkName}`);
   }

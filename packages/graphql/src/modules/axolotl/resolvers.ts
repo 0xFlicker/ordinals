@@ -249,6 +249,11 @@ export const resolvers: AxolotlModule.Resolvers = {
                 ? parseInt(collection.meta?.testnet_tip_amount)
                 : undefined,
             });
+          case "TESTNET4":
+            throw new AxolotlError(
+              "Testnet4 network not supported",
+              "BAD_CONFIG",
+            );
         }
       })();
 

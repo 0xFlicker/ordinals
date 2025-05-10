@@ -13,9 +13,9 @@ import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import { Envelope } from "./envelope.js";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as iam from "aws-cdk-lib/aws-iam";
+import { BitcoinNetwork } from "./utils/types.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-type BitcoinNetwork = "mainnet" | "testnet" | "testnet4" | "regtest";
 export interface IInscriptionFundingProps {
   readonly domainName: string;
   readonly fundingTable: dynamodb.Table;
@@ -252,7 +252,6 @@ export class InscriptionFunding extends Construct {
           BATCH_REMAINING_FUNDINGS_QUEUE_URL:
             this.batchRemainingFundingsQueue.queueUrl,
           INSCRIPTION_BUCKET: props.inscriptionBucket.bucketName,
-          // RPC_LAMBDA_ARN: props.rpcLambda.functionArn,
           ...Object.fromEntries(
             Object.entries(props.rpcLambdas)
               .filter(([, lambda]) => lambda !== undefined)

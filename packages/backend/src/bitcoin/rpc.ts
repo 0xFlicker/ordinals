@@ -89,3 +89,36 @@ export async function sendRawTransaction(
 ): Promise<string> {
   return invokeRpc<string>("sendrawtransaction", [txhex], network);
 }
+
+export async function getBlockchainInfo(network: BitcoinNetworkNames) {
+  return invokeRpc<{
+    chain: string;
+    blocks: number;
+    bestblockhash: string;
+    headers: number;
+    difficulty: number;
+    mediantime: number;
+    verificationprogress: number;
+    initialblockdownload: boolean;
+    chainwork: string;
+    pruned: boolean;
+    warnings: string;
+  }>("getblockchaininfo", [], network);
+}
+
+export async function estimateSmartFee(
+  {
+    conf_target,
+    estimate_mode,
+  }: {
+    conf_target: number;
+    estimate_mode?: "ECONOMICAL" | "CONSERVATIVE" | "UNSET";
+  },
+  network: BitcoinNetworkNames,
+) {
+  return invokeRpc<{
+    feerate: number;
+    errors: string[];
+    blocks: number;
+  }>("estimatesmartfee", [conf_target, estimate_mode], network);
+}

@@ -137,6 +137,19 @@ export type BitcoinNetwork =
   | 'TESTNET'
   | 'TESTNET4';
 
+export type BitcoinNetworkStatus =
+  | 'DEAD'
+  | 'SYNCED'
+  | 'SYNCING';
+
+export type BitcoinNetworkStatusResponse = {
+  __typename?: 'BitcoinNetworkStatusResponse';
+  bestBlockHash?: Maybe<Scalars['String']['output']>;
+  height?: Maybe<Scalars['Int']['output']>;
+  progress?: Maybe<Scalars['Float']['output']>;
+  status?: Maybe<BitcoinNetworkStatus>;
+};
+
 export type BitcoinScriptItem = {
   __typename?: 'BitcoinScriptItem';
   base64?: Maybe<Scalars['String']['output']>;
@@ -597,6 +610,7 @@ export type Query = {
   appInfo: AppInfo;
   axolotlAvailableOpenEditionFundingClaims: Array<AxolotlAvailableOpenEditionFunding>;
   axolotlEstimateFee: AxolotlFeeEstimate;
+  bitcoinNetworkStatus?: Maybe<BitcoinNetworkStatusResponse>;
   checkUserExistsForAddress: Scalars['Boolean']['output'];
   checkUserExistsForHandle: Scalars['Boolean']['output'];
   collection: Collection;
@@ -624,6 +638,11 @@ export type QueryAxolotlEstimateFeeArgs = {
   count?: InputMaybe<Scalars['Int']['input']>;
   feeLevel?: InputMaybe<FeeLevel>;
   feePerByte?: InputMaybe<Scalars['Int']['input']>;
+  network: BitcoinNetwork;
+};
+
+
+export type QueryBitcoinNetworkStatusArgs = {
   network: BitcoinNetwork;
 };
 
@@ -876,6 +895,8 @@ export type ResolversTypes = {
   AxolotlOpenEditionResponse: ResolverTypeWrapper<Omit<AxolotlOpenEditionResponse, 'data'> & { data?: Maybe<ResolversTypes['AxolotlFunding']> }>;
   AxolotlProblem: ResolverTypeWrapper<AxolotlProblem>;
   BitcoinNetwork: BitcoinNetwork;
+  BitcoinNetworkStatus: BitcoinNetworkStatus;
+  BitcoinNetworkStatusResponse: ResolverTypeWrapper<BitcoinNetworkStatusResponse>;
   BitcoinScriptItem: ResolverTypeWrapper<BitcoinScriptItem>;
   BlockchainNetwork: BlockchainNetwork;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']['output']>;
@@ -887,6 +908,7 @@ export type ResolversTypes = {
   CreateInscriptionResponse: ResolverTypeWrapper<Omit<CreateInscriptionResponse, 'data'> & { data?: Maybe<ResolversTypes['InscriptionFunding']> }>;
   FeeEstimate: ResolverTypeWrapper<FeeEstimate>;
   FeeLevel: FeeLevel;
+  Float: ResolverTypeWrapper<Scalars['Float']['output']>;
   FundingStatus: FundingStatus;
   ID: ResolverTypeWrapper<Scalars['ID']['output']>;
   Inscription: ResolverTypeWrapper<Omit<Inscription, 'children' | 'owner' | 'parents'> & { children: Array<ResolversTypes['Inscription']>, owner?: Maybe<ResolversTypes['Web3User']>, parents: Array<ResolversTypes['Inscription']> }>;
@@ -954,6 +976,7 @@ export type ResolversParentTypes = {
   AxolotlOpenEditionRequest: AxolotlOpenEditionRequest;
   AxolotlOpenEditionResponse: Omit<AxolotlOpenEditionResponse, 'data'> & { data?: Maybe<ResolversParentTypes['AxolotlFunding']> };
   AxolotlProblem: AxolotlProblem;
+  BitcoinNetworkStatusResponse: BitcoinNetworkStatusResponse;
   BitcoinScriptItem: BitcoinScriptItem;
   Boolean: Scalars['Boolean']['output'];
   Collection: CollectionModel;
@@ -963,6 +986,7 @@ export type ResolversParentTypes = {
   CreateInscriptionProblem: CreateInscriptionProblem;
   CreateInscriptionResponse: Omit<CreateInscriptionResponse, 'data'> & { data?: Maybe<ResolversParentTypes['InscriptionFunding']> };
   FeeEstimate: FeeEstimate;
+  Float: Scalars['Float']['output'];
   ID: Scalars['ID']['output'];
   Inscription: Omit<Inscription, 'children' | 'owner' | 'parents'> & { children: Array<ResolversParentTypes['Inscription']>, owner?: Maybe<ResolversParentTypes['Web3User']>, parents: Array<ResolversParentTypes['Inscription']> };
   InscriptionData: InscriptionData;
@@ -1082,6 +1106,14 @@ export type AxolotlOpenEditionResponseResolvers<ContextType = Context, ParentTyp
 export type AxolotlProblemResolvers<ContextType = Context, ParentType extends ResolversParentTypes['AxolotlProblem'] = ResolversParentTypes['AxolotlProblem']> = {
   code?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   message?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type BitcoinNetworkStatusResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['BitcoinNetworkStatusResponse'] = ResolversParentTypes['BitcoinNetworkStatusResponse']> = {
+  bestBlockHash?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  height?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  progress?: Resolver<Maybe<ResolversTypes['Float']>, ParentType, ContextType>;
+  status?: Resolver<Maybe<ResolversTypes['BitcoinNetworkStatus']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -1300,6 +1332,7 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   appInfo?: Resolver<ResolversTypes['AppInfo'], ParentType, ContextType>;
   axolotlAvailableOpenEditionFundingClaims?: Resolver<Array<ResolversTypes['AxolotlAvailableOpenEditionFunding']>, ParentType, ContextType, RequireFields<QueryAxolotlAvailableOpenEditionFundingClaimsArgs, 'request'>>;
   axolotlEstimateFee?: Resolver<ResolversTypes['AxolotlFeeEstimate'], ParentType, ContextType, RequireFields<QueryAxolotlEstimateFeeArgs, 'network'>>;
+  bitcoinNetworkStatus?: Resolver<Maybe<ResolversTypes['BitcoinNetworkStatusResponse']>, ParentType, ContextType, RequireFields<QueryBitcoinNetworkStatusArgs, 'network'>>;
   checkUserExistsForAddress?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<QueryCheckUserExistsForAddressArgs, 'address'>>;
   checkUserExistsForHandle?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<QueryCheckUserExistsForHandleArgs, 'handle'>>;
   collection?: Resolver<ResolversTypes['Collection'], ParentType, ContextType, RequireFields<QueryCollectionArgs, 'id'>>;
@@ -1390,6 +1423,7 @@ export type Resolvers<ContextType = Context> = {
   AxolotlFundingPage?: AxolotlFundingPageResolvers<ContextType>;
   AxolotlOpenEditionResponse?: AxolotlOpenEditionResponseResolvers<ContextType>;
   AxolotlProblem?: AxolotlProblemResolvers<ContextType>;
+  BitcoinNetworkStatusResponse?: BitcoinNetworkStatusResponseResolvers<ContextType>;
   BitcoinScriptItem?: BitcoinScriptItemResolvers<ContextType>;
   Collection?: CollectionResolvers<ContextType>;
   CollectionParentInscription?: CollectionParentInscriptionResolvers<ContextType>;
