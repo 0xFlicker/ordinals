@@ -57,6 +57,7 @@ export interface GraphqlProps {
   readonly fundingSecKeyEnvelope: Envelope;
   readonly parentInscriptionSecKeyEnvelope: Envelope;
   readonly domainName: URL;
+  readonly sopsLayer: lambda.LayerVersion;
 }
 
 export class Graphql extends Construct {
@@ -81,6 +82,7 @@ export class Graphql extends Construct {
       fundingSecKeyEnvelope,
       parentInscriptionSecKeyEnvelope,
       domainName,
+      sopsLayer,
     }: GraphqlProps,
   ) {
     super(scope, id);
@@ -140,6 +142,7 @@ export class Graphql extends Construct {
           FUNDING_SEC_KEY_ENVELOPE_KEY_ID: fundingSecKeyEnvelope.key.keyId,
           ...withSecretEnv(`${new URL(domainName).host}/.env.graphql`),
         },
+        layers: [sopsLayer],
       },
     );
 

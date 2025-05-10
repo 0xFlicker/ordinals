@@ -1,4 +1,8 @@
-export type BitcoinNetworkNames = "mainnet" | "testnet" | "regtest";
+export type BitcoinNetworkNames =
+  | "mainnet"
+  | "testnet"
+  | "regtest"
+  | "testnet4";
 
 export function toBitcoinNetworkName(name: string): BitcoinNetworkNames {
   switch (name.toLowerCase()) {
@@ -8,6 +12,8 @@ export function toBitcoinNetworkName(name: string): BitcoinNetworkNames {
       return "testnet";
     case "regtest":
       return "regtest";
+    case "testnet4":
+      return "testnet4";
     default:
       throw new Error(`Unknown Bitcoin network name: ${name}`);
   }

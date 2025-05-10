@@ -22,7 +22,7 @@ export async function fetchAllClaimables({
   claimsDao: ClaimsDao;
 }) {
   const [onChainClaimables, existingClaimables] = await Promise.all([
-    readContract(wagmi.config, {
+    readContract(wagmi.config(), {
       abi: iAllowanceAbi,
       chainId: axolotlAllowanceChainId as 1 | 11155111 | 8453,
       address: axolotlAllowanceContractAddress,

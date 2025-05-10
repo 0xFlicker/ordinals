@@ -421,6 +421,7 @@ type Query {
 enum BitcoinNetwork {
   MAINNET
   TESTNET
+  TESTNET4
   REGTEST
 }
 

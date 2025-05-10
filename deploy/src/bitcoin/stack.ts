@@ -3,13 +3,7 @@ import * as cdk from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as s3asset from "aws-cdk-lib/aws-s3-assets";
-import {
-  Bitcoin,
-  BitcoinExeStorage,
-  BitcoinStorage,
-  ElectrsExeStorage,
-  NodeExeStorage,
-} from "./bitcoin.js";
+import { Bitcoin, BitcoinStorage } from "./bitcoin.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { MariaDB } from "./mempool/mariadb.js";
@@ -21,33 +15,14 @@ interface BitcoinExeStackProps extends cdk.StackProps {
   localArchivePath: string;
 }
 
-export class BitcoinExeStack extends cdk.Stack {
-  constructor(
-    scope: Construct,
-    id: string,
-    { network, localArchivePath, ...props }: BitcoinExeStackProps,
-  ) {
-    super(scope, id, props);
-
-    const bitcoinExeStorage = new BitcoinExeStorage(this, "BitcoinExeStorage", {
-      localArchivePath,
-    });
-
-    new cdk.CfnOutput(this, "BitcoinExeBucket", {
-      value: bitcoinExeStorage.bitcoinExeAsset.s3BucketName,
-    });
-
-    new cdk.CfnOutput(this, "BitcoinExeKey", {
-      value: bitcoinExeStorage.bitcoinExeAsset.s3ObjectKey,
-    });
-  }
-}
-
 interface BitcoinProps extends cdk.StackProps {
   network: "test" | "testnet4" | "mainnet";
 }
 
 export class BitcoinStack extends cdk.Stack {
+  public readonly vpc: ec2.IVpc;
+  public readonly btcServiceGroup: ec2.ISecurityGroup;
+  public readonly btcClientGroup: ec2.ISecurityGroup;
   constructor(
     scope: Construct,
     id: string,
@@ -65,14 +40,22 @@ export class BitcoinStack extends cdk.Stack {
       "build-sharedbinarybucket5ed2c620-a532o2rrxyls",
     );
 
-    new Bitcoin(this, "Bitcoin", {
-      executableBucket: bucket,
-      blockchainDataBucket: bitcoinStorage.blockchainDataBucket,
-      network,
-      bitcoinKey: "bitcoin-core.tar.gz",
-      electrsKey: "electrs",
-      nodeKey: "node-v20.9.0-linux-arm64.tar.xz",
-    });
+    const { vpc, btcServiceGroup, btcClientGroup } = new Bitcoin(
+      this,
+      "Bitcoin",
+      {
+        executableBucket: bucket,
+        blockchainDataBucket: bitcoinStorage.blockchainDataBucket,
+        network,
+        bitcoinKey: "bitcoin-core.tar.gz",
+        electrsKey: "electrs",
+        nodeKey: "node-v20.9.0-linux-arm64.tar.xz",
+      },
+    );
+
+    this.vpc = vpc;
+    this.btcServiceGroup = btcServiceGroup;
+    this.btcClientGroup = btcClientGroup;
 
     new cdk.CfnOutput(this, "BlockchainDataBucket", {
       value: bitcoinStorage.blockchainDataBucket.bucketName,

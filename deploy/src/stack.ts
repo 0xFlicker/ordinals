@@ -12,14 +12,18 @@ import { InscriptionFunding } from "./inscription-funding.js";
 import { BitcoinRpcFunction } from "./rpc.js";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { SiteToSiteVpn } from "./site-to-site-vpn.js";
+import * as lambda from "aws-cdk-lib/aws-lambda";
 
 interface IProps extends cdk.StackProps {
   origin: string;
+  sopsLayer: lambda.LayerVersion;
+  vpc: ec2.IVpc;
+  btcClientGroup: ec2.ISecurityGroup;
 }
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: IProps) {
-    const { origin, ...rest } = props;
+    const { origin, sopsLayer, vpc, btcClientGroup, ...rest } = props;
     super(scope, id, rest);
 
     const { bucket: inscriptionBucket } = new Storage(this, "Storage", {
@@ -63,13 +67,13 @@ export class BackendStack extends cdk.Stack {
       domainName: new URL(origin).host,
     });
 
-    const rpcStack = new BitcoinRpcFunction(this, "RpcStack", {
+    const rpcStacks = new BitcoinRpcFunction(this, "RpcStack", {
       domainName: new URL(origin).host,
+      networks: ["mainnet", "testnet", "testnet4"],
+      sopsLayer,
+      vpc,
+      btcClientGroup,
     });
-
-    // new InscriptionsBus(this, "NftMetadataBus", {
-    //   lambdas: false,
-    // });
 
     const parentInscriptionSecKeyEnvelope = new Envelope(
       this,
@@ -95,9 +99,10 @@ export class BackendStack extends cdk.Stack {
       batchTable,
       parentInscriptionSecKeyEnvelope,
       inscriptionBucket,
-      rpcLambda: rpcStack.rpcLambda,
+      rpcLambdas: rpcStacks.rpcLambdas,
       transactionBucket,
       batchRevealTimeMinutes: process.env.DEPLOYMENT === "localstack" ? 1 : 15,
+      sopsLayer,
     });
 
     if (process.env.DEPLOYMENT !== "localstack") {
@@ -115,6 +120,7 @@ export class BackendStack extends cdk.Stack {
         fundingSecKeyEnvelope,
         parentInscriptionSecKeyEnvelope,
         uploadsTable,
+        sopsLayer,
       });
       const graphqlApiUrl = cdk.Fn.select(
         1,
@@ -132,7 +138,6 @@ export class BackendStack extends cdk.Stack {
       // });
 
       // Site-to-Site VPN: connect this VPC to a VPN gateway
-      const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
       const customerGatewayIp = this.node.tryGetContext("customerGatewayIp");
       const remoteCidrs = this.node.tryGetContext("remoteCidrs");
       if (customerGatewayIp && remoteCidrs) {

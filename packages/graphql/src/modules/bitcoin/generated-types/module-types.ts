@@ -9,7 +9,7 @@ export namespace BitcoinModule {
   };
   
   interface DefinedEnumValues {
-    BitcoinNetwork: 'MAINNET' | 'TESTNET' | 'REGTEST';
+    BitcoinNetwork: 'MAINNET' | 'TESTNET' | 'TESTNET4' | 'REGTEST';
     BlockchainNetwork: 'BITCOIN' | 'ETHEREUM';
   };
   

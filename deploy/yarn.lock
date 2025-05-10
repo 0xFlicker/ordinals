@@ -232,10 +232,10 @@ aws-cdk-lib@^2.185.0:
     table "^6.9.0"
     yaml "1.10.2"
 
-aws-cdk@^2.1005.0:
-  version "2.1005.0"
-  resolved "https://registry.npmjs.org/aws-cdk/-/aws-cdk-2.1005.0.tgz"
-  integrity sha512-4ejfGGrGCEl0pg1xcqkxK0lpBEZqNI48wtrXhk6dYOFYPYMZtqn1kdla29ONN+eO2unewkNF4nLP1lPYhlf9Pg==
+aws-cdk@2.1014.0:
+  version "2.1014.0"
+  resolved "https://registry.yarnpkg.com/aws-cdk/-/aws-cdk-2.1014.0.tgz#bd27af4060df15a05836a7ed3d19861e10740fd7"
+  integrity sha512-es101rtRAClix9BncNL54iW90MiOyRv4iCC5tv/firGDnidS6pPinuK0IIFt0RO6w0+3heRxWBXg8HY+f9877w==
   optionalDependencies:
     fsevents "2.3.2"
 
@@ -262,12 +262,12 @@ cdk-nextjs-standalone@^4.0.0-beta.25:
   resolved "https://registry.npmjs.org/cdk-nextjs-standalone/-/cdk-nextjs-standalone-4.0.0-beta.25.tgz"
   integrity sha512-N51xsl/r0wKgnDsLBKuSQ/cJTMle030GBsTsUylGjwIMC2WXMsejKcqEaMpGTP84Ncr38gbppaajnCGhXggCOg==
 
-cdk@^2.1005.0:
-  version "2.1005.0"
-  resolved "https://registry.npmjs.org/cdk/-/cdk-2.1005.0.tgz"
-  integrity sha512-G0M16zulF+9bd9TF99qrAe6M/b0plNzeEofwG2KIqSnobNNfmLNRqRQG11Z8EUV2KfsRPrlpN+iP9svO+xFv9Q==
+cdk@^2.1014.0:
+  version "2.1014.0"
+  resolved "https://registry.yarnpkg.com/cdk/-/cdk-2.1014.0.tgz#72b7ed16a117b08ea815c0cfd1c0d3b5d330ab0c"
+  integrity sha512-nqd+u0lsCpq6nCfLInpH87JXIUCaAA1PhAeZXyxwXg/a/IwtOVOJWwX3TZaJRDTm61q7YG9P6sJ6Be+L/lP5MQ==
   dependencies:
-    aws-cdk "^2.1005.0"
+    aws-cdk "2.1014.0"
 
 cli-progress@^3.12.0:
   version "3.12.0"

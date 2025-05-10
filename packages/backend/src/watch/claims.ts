@@ -237,7 +237,7 @@ export async function watchForAllowance({
 }) {
   const watches = observables.map(
     ({ chainId, contractAddress, startBlockHeight }) => {
-      return watchContractEvent(wagmi.config, {
+      return watchContractEvent(wagmi.config(), {
         address: contractAddress,
         eventName: "Claimed",
         abi: iAllowanceAbi,

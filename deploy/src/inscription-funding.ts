@@ -15,6 +15,7 @@ import { Envelope } from "./envelope.js";
 import * as s3 from "aws-cdk-lib/aws-s3";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+type BitcoinNetwork = "mainnet" | "testnet" | "testnet4" | "regtest";
 export interface IInscriptionFundingProps {
   readonly domainName: string;
   readonly fundingTable: dynamodb.Table;
@@ -26,9 +27,10 @@ export interface IInscriptionFundingProps {
   readonly openEditionClaimsTable: dynamodb.Table;
   readonly parentInscriptionSecKeyEnvelope: Envelope;
   readonly inscriptionBucket: s3.Bucket;
-  readonly rpcLambda: lambda.Function;
+  readonly rpcLambdas: Record<BitcoinNetwork, lambda.Function | undefined>;
   readonly batchRevealTimeMinutes: number;
   readonly transactionBucket: s3.Bucket;
+  readonly sopsLayer: lambda.LayerVersion;
 }
 
 export class InscriptionFunding extends Construct {
@@ -93,6 +95,7 @@ export class InscriptionFunding extends Construct {
         runtime: lambda.Runtime.NODEJS_20_X,
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
+        layers: [props.sopsLayer],
 
         bundling: {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
@@ -180,6 +183,7 @@ export class InscriptionFunding extends Construct {
         ),
         handler: "handler",
         runtime: lambda.Runtime.NODEJS_20_X,
+        layers: [props.sopsLayer],
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
         reservedConcurrentExecutions: 1,
@@ -207,7 +211,15 @@ export class InscriptionFunding extends Construct {
           BATCH_REMAINING_FUNDINGS_QUEUE_URL:
             this.batchRemainingFundingsQueue.queueUrl,
           INSCRIPTION_BUCKET: props.inscriptionBucket.bucketName,
-          RPC_LAMBDA_ARN: props.rpcLambda.functionArn,
+          // RPC_LAMBDA_ARN: props.rpcLambda.functionArn,
+          ...Object.fromEntries(
+            Object.entries(props.rpcLambdas)
+              .filter(([, lambda]) => lambda !== undefined)
+              .map(([network, lambda]) => [
+                `${network.toUpperCase()}_RPC_LAMBDA_ARN`,
+                lambda?.functionArn,
+              ]),
+          ),
           BATCH_REVEAL_TIME_MINUTES: props.batchRevealTimeMinutes.toString(),
           TRANSACTION_BUCKET: props.transactionBucket.bucketName,
         },
@@ -215,7 +227,11 @@ export class InscriptionFunding extends Construct {
     );
 
     // Grant permission to the lambda function to call the rpc lambda
-    props.rpcLambda.grantInvoke(this.batchRevealLambda);
+    for (const network of Object.keys(props.rpcLambdas)) {
+      props.rpcLambdas[network as BitcoinNetwork]?.grantInvoke(
+        this.batchRevealLambda,
+      );
+    }
 
     // Grant permissions to the Lambda function to read/write from the funding table
     props.fundingTable?.grantReadWriteData(this.batchRevealLambda);

@@ -134,7 +134,8 @@ export type AxolotlProblem = {
 export type BitcoinNetwork =
   | 'MAINNET'
   | 'REGTEST'
-  | 'TESTNET';
+  | 'TESTNET'
+  | 'TESTNET4';
 
 export type BitcoinScriptItem = {
   __typename?: 'BitcoinScriptItem';

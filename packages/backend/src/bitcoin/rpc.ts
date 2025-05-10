@@ -1,8 +1,14 @@
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
+import { BitcoinNetworkNames } from "@0xflick/ordinals-models";
 
 const lambdaClient = new LambdaClient();
 
-const RPC_FN_ARN = process.env.RPC_LAMBDA_ARN;
+const {
+  MAINNET_RPC_LAMBDA_ARN,
+  TESTNET_RPC_LAMBDA_ARN,
+  TESTNET4_RPC_LAMBDA_ARN,
+  REGTEST_RPC_LAMBDA_ARN,
+} = process.env;
 
 interface JsonRpcRequest {
   jsonrpc: "1.0";
@@ -21,9 +27,16 @@ interface JsonRpcResponse<R = unknown> {
  * Invokes the RPC Lambda with a JSON-RPC payload and returns the
  * `result` or throws if RPC error.
  */
-async function invokeRpc<R>(method: string, params: any[]): Promise<R> {
+async function invokeRpc<R>(
+  method: string,
+  params: any[],
+  network: BitcoinNetworkNames,
+): Promise<R> {
+  const RPC_FN_ARN = process.env[`${network.toUpperCase()}_RPC_LAMBDA_ARN`];
   if (!RPC_FN_ARN) {
-    throw new Error("RPC_LAMBDA_ARN env var is not set");
+    throw new Error(
+      `${network.toUpperCase()}_RPC_LAMBDA_ARN env var is not set`,
+    );
   }
 
   const payload: JsonRpcRequest = {
@@ -70,6 +83,9 @@ async function invokeRpc<R>(method: string, params: any[]): Promise<R> {
 /**
  * Broadcasts a raw transaction
  */
-export async function sendRawTransaction(txhex: string): Promise<string> {
-  return invokeRpc<string>("sendrawtransaction", [txhex]);
+export async function sendRawTransaction(
+  txhex: string,
+  network: BitcoinNetworkNames,
+): Promise<string> {
+  return invokeRpc<string>("sendrawtransaction", [txhex], network);
 }

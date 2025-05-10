@@ -2,6 +2,7 @@ import { base as wagmiBase } from "@wagmi/core/chains";
 import { lazySingleton } from "../lazy.js";
 import { TAdminChain } from "../types.js";
 import { zeroAddress } from "viem";
+
 export const baseEnsAdmin = lazySingleton(() => {
   if (!process.env.BASE_ENS_ADMIN) {
     console.warn("BASE_ENS_ADMIN not set");
@@ -28,5 +29,7 @@ export const baseWsRpcUrl = lazySingleton(() => {
 
 export const base: TAdminChain<typeof wagmiBase> = {
   ...wagmiBase,
-  ensAdmin: baseEnsAdmin.get(),
+  get ensAdmin() {
+    return baseEnsAdmin.get();
+  },
 };

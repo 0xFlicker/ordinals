@@ -63,7 +63,7 @@ export class ElectrsBuilder extends Construct {
     instance.userData.addCommands(
       "sudo yum update -y",
       // Install build dependencies
-      "sudo yum install -y git gcc gcc-c++ clang curl",
+      "sudo yum install -y git gcc gcc-c++ clang",
       // Install Rust toolchain
       "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
       "source $HOME/.cargo/env",

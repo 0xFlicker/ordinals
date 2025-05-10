@@ -79,7 +79,7 @@ async function submitBatchTransaction(
       },
       "Sending raw transaction",
     );
-    txid = await sendRawTransaction(hex);
+    txid = await sendRawTransaction(hex, network);
     await Promise.all([
       sendBatchSubmittedEvent(sqsClient, {
         batchId: id,

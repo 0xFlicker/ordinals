@@ -20,5 +20,7 @@ export const mainnetRpcUrl = lazySingleton(() => {
 
 export const mainnet: TAdminChain<typeof wagmiMainnet> = {
   ...wagmiMainnet,
-  ensAdmin: mainnetEnsAdmin.get(),
+  get ensAdmin() {
+    return mainnetEnsAdmin.get();
+  },
 };
