@@ -30,31 +30,51 @@ export class BitcoinStorage extends Construct {
 }
 
 interface BitcoinProps {
+  /** S3 bucket containing the Bitcoin/Electrs executables */
   executableBucket: s3.IBucket;
+  /** Target Bitcoin network */
   network: Network;
+  /** S3 bucket for blockchain data storage */
   blockchainDataBucket: s3.IBucket;
+  /** S3 key for Bitcoin Core archive */
   bitcoinKey: string;
+  /** S3 key for Electrs binary */
   electrsKey: string;
+  /** S3 key for Node binary archive */
   nodeKey: string;
+  /** Optional existing VPC to adopt instead of creating a new one */
+  existingVpc?: ec2.IVpc;
 }
 
-function createPublicVpc(scope: Construct, network: Network) {
-  // Define a VPC (required for ALB and EC2 instances)
-  const vpc = new ec2.Vpc(scope, `BitcoinVPC-${network}`, {
-    maxAzs: 3, // Default is all AZs in the region,
-    subnetConfiguration: [
-      {
-        cidrMask: 24,
-        name: "asterisk",
-        subnetType: ec2.SubnetType.PUBLIC,
-      },
-      {
-        cidrMask: 24,
-        name: "private",
-        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-      },
-    ],
-  });
+/**
+ * Create (or adopt) a public VPC along with Bitcoin-specific security groups.
+ * @param scope     the parent construct
+ * @param network   the Bitcoin network identifier
+ * @param existingVpc optional existing VPC to adopt; if provided, no new VPC is created
+ */
+function createPublicVpc(
+  scope: Construct,
+  network: Network,
+  existingVpc?: ec2.IVpc,
+) {
+  // Use existing VPC if supplied, otherwise create a new one
+  const vpc: ec2.IVpc =
+    existingVpc ??
+    new ec2.Vpc(scope, `BitcoinVPC-${network}`, {
+      maxAzs: 3,
+      subnetConfiguration: [
+        {
+          cidrMask: 24,
+          name: "asterisk",
+          subnetType: ec2.SubnetType.PUBLIC,
+        },
+        {
+          cidrMask: 24,
+          name: "private",
+          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+        },
+      ],
+    });
 
   const btcServiceGroup = new ec2.SecurityGroup(
     scope,
@@ -356,6 +376,7 @@ export class Bitcoin extends Construct {
       bitcoinKey,
       electrsKey,
       nodeKey,
+      existingVpc,
     }: BitcoinProps,
   ) {
     super(scope, id);
@@ -413,6 +434,7 @@ export class Bitcoin extends Construct {
     const { vpc, btcServiceGroup, btcClientGroup } = createPublicVpc(
       this,
       network,
+      existingVpc,
     );
     this.vpc = vpc;
     this.btcServiceGroup = btcServiceGroup;
@@ -654,11 +676,6 @@ export class Bitcoin extends Construct {
       retention: log.RetentionDays.TWO_WEEKS,
       logGroupName: `electrs-${network}-stderr-log`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    new cdk.CfnOutput(this, "BitcoinVpc", {
-      exportName: `BitcoinVpc-${network}`,
-      value: vpc.vpcId,
     });
 
     new cdk.CfnOutput(this, "BitcoinALB", {

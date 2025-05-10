@@ -15,8 +15,14 @@ interface BitcoinExeStackProps extends cdk.StackProps {
   localArchivePath: string;
 }
 
+/**
+ * Properties for BitcoinStack.
+ */
 interface BitcoinProps extends cdk.StackProps {
+  /** Bitcoin network to deploy */
   network: "test" | "testnet4" | "mainnet";
+  /** Optional VPC ID to adopt instead of creating a new one */
+  vpcId?: string;
 }
 
 export class BitcoinStack extends cdk.Stack {
@@ -26,7 +32,7 @@ export class BitcoinStack extends cdk.Stack {
   constructor(
     scope: Construct,
     id: string,
-    { network, ...props }: BitcoinProps,
+    { network, vpcId, ...props }: BitcoinProps,
   ) {
     super(scope, id, props);
 
@@ -40,6 +46,10 @@ export class BitcoinStack extends cdk.Stack {
       "build-sharedbinarybucket5ed2c620-a532o2rrxyls",
     );
 
+    // Adopt an existing VPC if vpcId is provided, otherwise create new VPC in construct
+    const existingVpc = vpcId
+      ? ec2.Vpc.fromLookup(this, "ImportedBitcoinVpc", { vpcId })
+      : undefined;
     const { vpc, btcServiceGroup, btcClientGroup } = new Bitcoin(
       this,
       "Bitcoin",
@@ -50,6 +60,7 @@ export class BitcoinStack extends cdk.Stack {
         bitcoinKey: "bitcoin-core.tar.gz",
         electrsKey: "electrs",
         nodeKey: "node-v20.9.0-linux-arm64.tar.xz",
+        existingVpc,
       },
     );
 

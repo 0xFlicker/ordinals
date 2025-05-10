@@ -60,8 +60,11 @@ const { sopsLayer } = new SopsLayerStack(app, "sops-layer", {
   binaryBucketName: sharedBucketName,
 });
 
+// Default VPC ID for Bitcoin stacks (adopt existing Testnet4 VPC)
+const defaultBitcoinVpcId = "vpc-0c53ba6a12b1e1b22";
 const { vpc, btcClientGroup } = new BitcoinStack(app, "bitcoin-testnet4", {
   network: "testnet4",
+  vpcId: defaultBitcoinVpcId,
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: "us-east-1",
@@ -75,7 +78,7 @@ new BackendStack(app, "ordinals", {
   },
   origin: process.env.ORIGIN || "https://bitflick.xyz",
   sopsLayer,
-  vpc,
+  vpcId: defaultBitcoinVpcId,
   btcClientGroup,
 });
 
@@ -86,12 +89,14 @@ new FrameStack(app, "frame", {
   },
   origin: process.env.ORIGIN || "https://bitflick.xyz",
   sopsLayer,
-  vpc,
+  vpcId: defaultBitcoinVpcId,
   btcClientGroup,
 });
 
 new BitcoinStack(app, "bitcoin-mainnet", {
   network: "mainnet",
+  // use the same Bitcoin VPC
+  vpcId: defaultBitcoinVpcId,
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: "us-east-1",
