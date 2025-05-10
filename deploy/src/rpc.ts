@@ -1,13 +1,10 @@
 import { Construct } from "constructs";
-import { parse } from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import * as s3a from "aws-cdk-lib/aws-s3-assets";
 import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
-import { textFromSecret } from "./utils/files.js";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 const __filename = fileURLToPath(import.meta.url);
@@ -20,7 +17,7 @@ export interface BitcoinRpcFunctionProps {
   readonly networks: BitcoinNetwork[];
   readonly sopsLayer: lambda.LayerVersion;
   readonly vpc?: ec2.IVpc;
-  readonly btcClientGroup?: ec2.ISecurityGroup;
+  readonly btcClientGroups?: ec2.ISecurityGroup[];
 }
 
 export class BitcoinRpcFunction extends Construct {
@@ -64,7 +61,7 @@ export class BitcoinRpcFunction extends Construct {
                 },
               }
             : {}),
-          securityGroups: props.btcClientGroup ? [props.btcClientGroup] : [],
+          securityGroups: props.btcClientGroups ? props.btcClientGroups : [],
           runtime: lambda.Runtime.NODEJS_20_X,
           architecture: lambda.Architecture.ARM_64,
           timeout: cdk.Duration.seconds(5),

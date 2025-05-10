@@ -103,6 +103,8 @@ new BackendStack(app, "ordinals", {
   },
   origin: process.env.ORIGIN || "https://bitflick.xyz",
   sopsLayer,
+  vpc,
+  btcClientGroups: [testnet4ClientGroup, mainnetClientGroup],
 });
 
 new FrameStack(app, "frame", {
@@ -112,6 +114,8 @@ new FrameStack(app, "frame", {
   },
   origin: process.env.ORIGIN || "https://bitflick.xyz",
   sopsLayer,
+  vpc,
+  btcClientGroups: [testnet4ClientGroup, mainnetClientGroup],
 });
 
 // Build and upload Bitcoin and Electrs binaries using a shared S3 bucket

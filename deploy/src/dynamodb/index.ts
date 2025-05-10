@@ -1,5 +1,6 @@
 import { Construct } from "constructs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as lambda from "aws-cdk-lib/aws-lambda";
 import { WalletTable } from "./wallet-table.js";
 import { UsersTable } from "./users-table.js";
 import { RbacTable } from "./rbac-table.js";
@@ -12,6 +13,7 @@ import { UploadsTable } from "./uploads-table.js";
 import { SocialFeedStack } from "./socials-table.js";
 export interface IProps {
   readonly domainName: string;
+  readonly sopsLayer: lambda.LayerVersion;
 }
 
 export class DynamoDB extends Construct {
@@ -43,6 +45,7 @@ export class DynamoDB extends Construct {
 
     const funding = new FundingTable(this, "Funding", {
       domainName: props.domainName,
+      sopsLayer: props.sopsLayer,
     });
     this.fundingTable = funding.table;
 

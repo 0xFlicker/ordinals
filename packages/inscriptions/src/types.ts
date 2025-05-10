@@ -36,4 +36,8 @@ export interface WritableInscription {
 }
 
 export type BitcoinScriptData = { base64: string } | string;
-export type BitcoinNetworkNames = "mainnet" | "testnet" | "regtest";
+export type BitcoinNetworkNames =
+  | "mainnet"
+  | "testnet"
+  | "regtest"
+  | "testnet4";

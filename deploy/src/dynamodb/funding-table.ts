@@ -5,10 +5,10 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { parseEnv } from "../utils/files.js";
 
 export interface FundingTableProps {
   readonly domainName: string;
+  readonly sopsLayer: lambda.LayerVersion;
 }
 
 export class FundingTable extends Construct {
@@ -20,16 +20,31 @@ export class FundingTable extends Construct {
 
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+    // Create secret layer for .env.graphql (dynamic based on domainName)
+    const secretsDir = path.join(__dirname, "../../../secrets", domainName);
+    const graphqlSecretLayer = new lambda.LayerVersion(
+      this,
+      "DdbFundingSecretLayer",
+      {
+        code: lambda.Code.fromAsset(secretsDir, {
+          exclude: ["*", "!.env.graphql"],
+        }),
+        compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
+        compatibleArchitectures: [lambda.Architecture.ARM_64],
+        description: "Layer containing the encrypted .env.graphql file",
+      },
+    );
     const dynamodbUpdateFundingLambda = new lambdaNodejs.NodejsFunction(
       this,
       "DynamodbUpdateFundingLambdaFunction",
       {
         entry: path.join(
           __dirname,
-          "../../../apps/functions/src/lambdas/dynamodb-update-funding.ts",
+          "../../../apps/functions/src/lambdas/dynamodb-update-funding/handler.ts",
         ),
         handler: "handler",
         runtime: lambda.Runtime.NODEJS_20_X,
+        architecture: lambda.Architecture.ARM_64,
         memorySize: 128,
         bundling: {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
@@ -44,8 +59,8 @@ export class FundingTable extends Construct {
         environment: {
           LOG_LEVEL: "debug",
           NODE_OPTIONS: "--enable-source-maps",
-          ...parseEnv(`${domainName}/.env.graphql`),
         },
+        layers: [props.sopsLayer, graphqlSecretLayer],
       },
     );
 

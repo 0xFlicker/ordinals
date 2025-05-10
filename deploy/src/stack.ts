@@ -25,12 +25,12 @@ interface IProps extends cdk.StackProps {
   /** Shared VPC for application resources */
   vpc?: ec2.IVpc;
   /** Security group permitting Bitcoin client access */
-  btcClientGroup?: ec2.ISecurityGroup;
+  btcClientGroups?: ec2.ISecurityGroup[];
 }
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: IProps) {
-    const { origin, sopsLayer, vpc, btcClientGroup, ...rest } = props;
+    const { origin, sopsLayer, vpc, btcClientGroups, ...rest } = props;
     super(scope, id, rest);
 
     const { bucket: inscriptionBucket } = new Storage(this, "Storage", {
@@ -72,6 +72,7 @@ export class BackendStack extends cdk.Stack {
       socialsTable,
     } = new DynamoDB(this, "DynamoDB", {
       domainName: new URL(origin).host,
+      sopsLayer,
     });
 
     const rpcStacks = new BitcoinRpcFunction(this, "RpcStack", {
@@ -79,7 +80,7 @@ export class BackendStack extends cdk.Stack {
       networks: ["mainnet", "testnet", "testnet4"],
       sopsLayer,
       vpc,
-      btcClientGroup,
+      btcClientGroups,
     });
 
     const parentInscriptionSecKeyEnvelope = new Envelope(

@@ -8,9 +8,8 @@ import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as sqs from "aws-cdk-lib/aws-sqs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { parseEnv } from "./utils/files.js";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
-import { SqsDlq, SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import { Envelope } from "./envelope.js";
 import * as s3 from "aws-cdk-lib/aws-s3";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -82,6 +81,36 @@ export class InscriptionFunding extends Construct {
       encryption: sqs.QueueEncryption.SQS_MANAGED,
     });
 
+    // Create layers for funding lambdas: SOPS binary, GraphQL and Electrum secrets
+    const secretsDir = path.join(
+      __dirname,
+      "../../../secrets",
+      props.domainName,
+    );
+    const graphqlSecretLayer = new lambda.LayerVersion(
+      this,
+      "FundingGraphqlSecretLayer",
+      {
+        code: lambda.Code.fromAsset(secretsDir, {
+          exclude: ["*", "!.env.graphql"],
+        }),
+        compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
+        compatibleArchitectures: [lambda.Architecture.ARM_64],
+        description: "Layer containing encrypted .env.graphql for Funding",
+      },
+    );
+    const electrumSecretLayer = new lambda.LayerVersion(
+      this,
+      "FundingElectrumSecretLayer",
+      {
+        code: lambda.Code.fromAsset(secretsDir, {
+          exclude: ["*", "!.env.electrum"],
+        }),
+        compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
+        compatibleArchitectures: [lambda.Architecture.ARM_64],
+        description: "Layer containing encrypted .env.electrum for Funding",
+      },
+    );
     // Create a NodejsFunction for the funding poller lambda
     this.fundingPollLambda = new lambdaNodejs.NodejsFunction(
       this,
@@ -89,14 +118,13 @@ export class InscriptionFunding extends Construct {
       {
         entry: path.join(
           __dirname,
-          "../../apps/functions/src/lambdas/funding-queue.ts",
+          "../../apps/functions/src/lambdas/funding-queue/handler.ts",
         ),
         handler: "handler",
         runtime: lambda.Runtime.NODEJS_20_X,
+        architecture: lambda.Architecture.ARM_64,
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
-        layers: [props.sopsLayer],
-
         bundling: {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,
@@ -121,9 +149,9 @@ export class InscriptionFunding extends Construct {
           FUNDED_QUEUE_URL: this.fundedQueue.queueUrl,
           INSUFFICIENT_FUNDS_QUEUE_URL: this.insufficientFundsQueue.queueUrl,
           GENESIS_QUEUE_URL: this.genesisQueue.queueUrl,
-          ...parseEnv(`${props.domainName}/.env.graphql`),
-          ...parseEnv(`${props.domainName}/.env.electrum`),
         },
+        // attach SOPS, GraphQL, and Electrum secret layers
+        layers: [props.sopsLayer, graphqlSecretLayer, electrumSecretLayer],
       },
     );
 
@@ -183,7 +211,7 @@ export class InscriptionFunding extends Construct {
         ),
         handler: "handler",
         runtime: lambda.Runtime.NODEJS_20_X,
-        layers: [props.sopsLayer],
+        architecture: lambda.Architecture.ARM_64,
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
         reservedConcurrentExecutions: 1,
@@ -197,6 +225,8 @@ export class InscriptionFunding extends Construct {
           target: "node20",
           platform: "node",
         },
+        // attach SOPS, GraphQL, and Electrum secret layers
+        layers: [props.sopsLayer, graphqlSecretLayer, electrumSecretLayer],
         environment: {
           LOG_LEVEL: "debug",
           NODE_OPTIONS: "--enable-source-maps",
@@ -204,8 +234,6 @@ export class InscriptionFunding extends Construct {
             funding: props.fundingTable?.tableName ?? "null",
             batch: props.batchTable?.tableName ?? "null",
           }),
-          ...parseEnv(`${props.domainName}/.env.graphql`),
-          ...parseEnv(`${props.domainName}/.env.electrum`),
           BATCH_SUCCESS_QUEUE_URL: this.batchSuccessQueue.queueUrl,
           BATCH_FAILURE_QUEUE_URL: this.batchFailureQueue.queueUrl,
           BATCH_REMAINING_FUNDINGS_QUEUE_URL:

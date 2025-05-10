@@ -2,19 +2,16 @@ import { Construct } from "constructs";
 import { parse } from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import { readFileSync } from "fs";
 
 import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
-import * as s3n from "aws-cdk-lib/aws-s3-notifications";
 import * as apigw2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as route53 from "aws-cdk-lib/aws-route53";
 
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
-import { textFromSecret } from "./utils/files.js";
 import { Envelope } from "./envelope.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,10 +34,6 @@ interface ConfigEnv {
   FUNDING_STREAM_REGION: string;
   PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID: string;
   FUNDING_SEC_KEY_ENVELOPE_KEY_ID: string;
-}
-
-function withSecretEnv(secretsFile: string) {
-  return parse(textFromSecret(secretsFile));
 }
 
 export interface GraphqlProps {
@@ -89,6 +82,25 @@ export class Graphql extends Construct {
 
     // GraphQL schema is packaged with the Lambda and loaded at runtime
 
+    // Create layers for GraphQL: SOPS binary and encrypted env file
+    const secretsDir = path.join(
+      __dirname,
+      "../../../secrets",
+      new URL(domainName).host,
+    );
+    // Secret asset for .env.graphql
+    const graphqlSecretLayer = new lambda.LayerVersion(
+      this,
+      "GraphqlSecretLayer",
+      {
+        code: lambda.Code.fromAsset(secretsDir, {
+          exclude: ["*", "!.env.graphql"],
+        }),
+        compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
+        compatibleArchitectures: [lambda.Architecture.ARM_64],
+        description: "Layer containing the encrypted .env.graphql file",
+      },
+    );
     // Create a NodejsFunction for the GraphQL lambda
     const graphqlLambda = new lambdaNodejs.NodejsFunction(
       this,
@@ -96,10 +108,11 @@ export class Graphql extends Construct {
       {
         entry: path.join(
           __dirname,
-          "../../apps/functions/src/lambdas/graphql.ts",
+          "../../apps/functions/src/lambdas/graphql/handler.ts",
         ),
         handler: "handler",
         runtime: lambda.Runtime.NODEJS_20_X,
+        architecture: lambda.Architecture.ARM_64,
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
         bundling: {
@@ -140,9 +153,9 @@ export class Graphql extends Construct {
           PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID:
             parentInscriptionSecKeyEnvelope.key.keyId,
           FUNDING_SEC_KEY_ENVELOPE_KEY_ID: fundingSecKeyEnvelope.key.keyId,
-          ...withSecretEnv(`${new URL(domainName).host}/.env.graphql`),
         },
-        layers: [sopsLayer],
+        // attach SOPS binary layer and GraphQL secret layer
+        layers: [sopsLayer, graphqlSecretLayer],
       },
     );
 
