@@ -19,7 +19,7 @@ export interface BitcoinRpcFunctionProps {
   readonly domainName: string;
   readonly networks: BitcoinNetwork[];
   readonly sopsLayer: lambda.LayerVersion;
-  readonly vpc: ec2.IVpc;
+  readonly vpc?: ec2.IVpc;
   readonly btcClientGroup: ec2.ISecurityGroup;
 }
 
