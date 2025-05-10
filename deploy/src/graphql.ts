@@ -14,6 +14,9 @@ import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { Envelope } from "./envelope.js";
+import { HttpApi } from "aws-cdk-lib/aws-apigatewayv2";
+import { Duration } from "aws-cdk-lib";
+import { CorsHttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -257,15 +260,23 @@ export class Graphql extends Construct {
     // fundingSecKeyEnvelope.key.grantEncryptDecrypt(s3CollectionMetaUpdateLambda);
 
     // Create an HTTP API for the GraphQL lambda
-    const httpApi = new apigw2.HttpApi(this, "GraphqlApi", {
+    const routeDomain = domainName.hostname;
+    const allowedOrigins = [
+      "http://localhost:3000", // for local dev
+      `https://www.${domainName.hostname}`, // your production frontend
+    ];
+
+    const httpApi = new HttpApi(this, "GraphqlApi", {
       corsPreflight: {
-        allowHeaders: ["*"],
+        allowOrigins: allowedOrigins,
         allowMethods: [
-          apigw2.CorsHttpMethod.OPTIONS,
-          apigw2.CorsHttpMethod.POST,
+          CorsHttpMethod.OPTIONS,
+          CorsHttpMethod.POST,
+          CorsHttpMethod.GET,
         ],
-        allowOrigins: ["*"],
-        maxAge: cdk.Duration.days(1),
+        allowHeaders: ["*"],
+        allowCredentials: true,
+        maxAge: Duration.days(1),
       },
     });
 
@@ -316,7 +327,6 @@ export class Graphql extends Construct {
       value: httpApi.url ?? "null",
     });
     // Create a DNS record for the GraphQL API under the api.<domain> subdomain
-    const routeDomain = domainName.hostname;
     const hostedZone = route53.HostedZone.fromLookup(
       this,
       "GraphqlHostedZone",
