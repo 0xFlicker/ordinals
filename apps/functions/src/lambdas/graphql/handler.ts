@@ -10,5 +10,6 @@ const { stdout, stderr, status } = spawnSync(
 if (status !== 0) throw new Error(stderr);
 Object.assign(process.env, parse(stdout));
 
-// Delegate to your real handler
-export { handler } from "./inner";
+const { handler: innerHandler } = await import("./inner");
+
+export const handler = innerHandler;

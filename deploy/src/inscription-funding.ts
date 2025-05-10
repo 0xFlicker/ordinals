@@ -12,6 +12,7 @@ import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 import { Envelope } from "./envelope.js";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as iam from "aws-cdk-lib/aws-iam";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 type BitcoinNetwork = "mainnet" | "testnet" | "testnet4" | "regtest";
@@ -82,11 +83,7 @@ export class InscriptionFunding extends Construct {
     });
 
     // Create layers for funding lambdas: SOPS binary, GraphQL and Electrum secrets
-    const secretsDir = path.join(
-      __dirname,
-      "../../../secrets",
-      props.domainName,
-    );
+    const secretsDir = path.join(__dirname, "../../secrets", props.domainName);
     const graphqlSecretLayer = new lambda.LayerVersion(
       this,
       "FundingGraphqlSecretLayer",
@@ -153,6 +150,22 @@ export class InscriptionFunding extends Construct {
         // attach SOPS, GraphQL, and Electrum secret layers
         layers: [props.sopsLayer, graphqlSecretLayer, electrumSecretLayer],
       },
+    );
+
+    this.fundingPollLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["kms:Decrypt"],
+        resources: [
+          "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
+        ],
+      }),
+    );
+
+    this.fundingPollLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["sts:AssumeRole"],
+        resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
+      }),
     );
 
     // Grant permissions to the Lambda function to read/write from the funding table
@@ -260,6 +273,22 @@ export class InscriptionFunding extends Construct {
         this.batchRevealLambda,
       );
     }
+
+    this.batchRevealLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["kms:Decrypt"],
+        resources: [
+          "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
+        ],
+      }),
+    );
+
+    this.batchRevealLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["sts:AssumeRole"],
+        resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
+      }),
+    );
 
     // Grant permissions to the Lambda function to read/write from the funding table
     props.fundingTable?.grantReadWriteData(this.batchRevealLambda);

@@ -15,5 +15,6 @@ if (electrumEnv.status !== 0) throw new Error(electrumEnv.stderr);
 // Parse and merge both env files
 Object.assign(process.env, parse(graphqlEnv.stdout), parse(electrumEnv.stdout));
 
-// Delegate to your real handler
-export { handler } from "./inner";
+const { handler: innerHandler } = await import("./inner");
+
+export const handler = innerHandler;

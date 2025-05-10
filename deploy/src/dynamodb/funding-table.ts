@@ -5,7 +5,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import path from "path";
 import { fileURLToPath } from "url";
-
+import * as iam from "aws-cdk-lib/aws-iam";
 export interface FundingTableProps {
   readonly domainName: string;
   readonly sopsLayer: lambda.LayerVersion;
@@ -62,6 +62,22 @@ export class FundingTable extends Construct {
         },
         layers: [props.sopsLayer, graphqlSecretLayer],
       },
+    );
+
+    dynamodbUpdateFundingLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["kms:Decrypt"],
+        resources: [
+          "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
+        ],
+      }),
+    );
+
+    dynamodbUpdateFundingLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["sts:AssumeRole"],
+        resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
+      }),
     );
 
     this.table = new dynamodb.Table(this, id, {

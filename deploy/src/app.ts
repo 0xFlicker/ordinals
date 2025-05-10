@@ -13,6 +13,7 @@ import { AuroraServerlessV2Stack } from "./bitcoin/aurora.js";
 import { SopsLayerStack } from "./layers.js";
 import { SharedBinaryBucketStack } from "./shared-bucket.js";
 import { CodeBuildStack } from "./codebuild.js";
+import { TerraformStateStack } from "./terraform.js";
 // Aspect to apply a 14-day retention policy to all CloudWatch Log Groups
 import { Aspects, IAspect } from "aws-cdk-lib";
 import { CfnLogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
@@ -30,6 +31,14 @@ class LogRetentionAspect implements IAspect {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = new cdk.App();
+
+// Provision S3 bucket and DynamoDB table for Terraform remote state
+new TerraformStateStack(app, "TerraformStateStack", {
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION || "us-east-1",
+  },
+});
 
 // Create a shared binary bucket in us-east-1 for ARM artifacts
 const sharedBucketStack = new SharedBinaryBucketStack(

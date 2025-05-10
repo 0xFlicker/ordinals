@@ -10,7 +10,8 @@ import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as apigw2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as route53 from "aws-cdk-lib/aws-route53";
-
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { Envelope } from "./envelope.js";
 
@@ -85,7 +86,7 @@ export class Graphql extends Construct {
     // Create layers for GraphQL: SOPS binary and encrypted env file
     const secretsDir = path.join(
       __dirname,
-      "../../../secrets",
+      "../../secrets",
       new URL(domainName).host,
     );
     // Secret asset for .env.graphql
@@ -176,6 +177,22 @@ export class Graphql extends Construct {
 
     parentInscriptionSecKeyEnvelope.key.grantEncryptDecrypt(graphqlLambda);
     fundingSecKeyEnvelope.key.grantEncryptDecrypt(graphqlLambda);
+
+    graphqlLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["kms:Decrypt"],
+        resources: [
+          "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
+        ],
+      }),
+    );
+
+    graphqlLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["sts:AssumeRole"],
+        resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
+      }),
+    );
 
     // // Create a NodejsFunction for the S3 collection meta update lambda
     // const s3CollectionMetaUpdateLambda = new lambdaNodejs.NodejsFunction(
@@ -316,6 +333,31 @@ export class Graphql extends Construct {
       zone: hostedZone,
       recordName: "api",
       domainName: apiHost,
+    });
+
+    // Create ACM certificate for custom domain api.<bitflick.xyz>
+    const cert = new acm.Certificate(this, "ApiCertificate", {
+      domainName: `api.${routeDomain}`,
+      validation: acm.CertificateValidation.fromDns(hostedZone),
+    });
+
+    // Attach custom domain to HTTP API and map the default stage
+    const apiDomain = new apigw2.DomainName(this, "ApiCustomDomain", {
+      domainName: `api.${routeDomain}`,
+      certificate: cert,
+      endpointType: apigw2.EndpointType.REGIONAL,
+    });
+    new apigw2.ApiMapping(this, "GraphqlApiMapping", {
+      api: httpApi,
+      domainName: apiDomain,
+      // Map the default stage of the HTTP API
+      stage: httpApi.defaultStage,
+    });
+
+    new cdk.CfnOutput(this, "ApiGatewayCustomDomainTarget", {
+      description:
+        "Target domain name to configure in Cloudflare CNAME for api.bitflick.xyz",
+      value: apiDomain.regionalDomainName,
     });
   }
 }
