@@ -14,21 +14,24 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { SiteToSiteVpn } from "./site-to-site-vpn.js";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 
+/**
+ * Common props for stacks that require a VPC and Bitcoin client security group.
+ */
 interface IProps extends cdk.StackProps {
+  /** Application origin URL */
   origin: string;
+  /** SOPS layer for secrets decryption */
   sopsLayer: lambda.LayerVersion;
-  vpcId?: string;
+  /** Shared VPC for application resources */
+  vpc: ec2.IVpc;
+  /** Security group permitting Bitcoin client access */
   btcClientGroup: ec2.ISecurityGroup;
 }
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: IProps) {
-    const { origin, sopsLayer, vpcId, btcClientGroup, ...rest } = props;
+    const { origin, sopsLayer, vpc, btcClientGroup, ...rest } = props;
     super(scope, id, rest);
-
-    const vpc = vpcId
-      ? ec2.Vpc.fromLookup(this, "BitcoinVpc", { vpcId })
-      : undefined;
 
     const { bucket: inscriptionBucket } = new Storage(this, "Storage", {
       name: "inscriptions",

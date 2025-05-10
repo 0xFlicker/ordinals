@@ -6,6 +6,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import path from "path";
 import { fileURLToPath } from "url";
 import { BackendStack, FrameStack } from "./stack.js";
+import { VpcStack } from "./vpc-stack.js";
 import { BitcoinStack, MariaDbStack } from "./bitcoin/stack.js";
 import { BuildStack } from "./bitcoin/build-stack.js";
 import { AuroraServerlessV2Stack } from "./bitcoin/aurora.js";
@@ -60,11 +61,18 @@ const { sopsLayer } = new SopsLayerStack(app, "sops-layer", {
   binaryBucketName: sharedBucketName,
 });
 
-// Default VPC ID for Bitcoin stacks (adopt existing Testnet4 VPC)
-const defaultBitcoinVpcId = "vpc-0c53ba6a12b1e1b22";
-const { vpc, btcClientGroup } = new BitcoinStack(app, "bitcoin-testnet4", {
+// Create (or import) a shared VPC for all Bitcoin and backend stacks
+const vpcStack = new VpcStack(app, "app-vpc", {
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: "us-east-1",
+  },
+});
+const vpc = vpcStack.vpc;
+// Deploy Bitcoin Testnet4 stack into the shared VPC
+const { btcClientGroup } = new BitcoinStack(app, "bitcoin-testnet4", {
   network: "testnet4",
-  vpcId: defaultBitcoinVpcId,
+  vpc,
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: "us-east-1",
@@ -78,7 +86,7 @@ new BackendStack(app, "ordinals", {
   },
   origin: process.env.ORIGIN || "https://bitflick.xyz",
   sopsLayer,
-  vpcId: defaultBitcoinVpcId,
+  vpc,
   btcClientGroup,
 });
 
@@ -89,14 +97,14 @@ new FrameStack(app, "frame", {
   },
   origin: process.env.ORIGIN || "https://bitflick.xyz",
   sopsLayer,
-  vpcId: defaultBitcoinVpcId,
+  vpc,
   btcClientGroup,
 });
 
 new BitcoinStack(app, "bitcoin-mainnet", {
   network: "mainnet",
-  // use the same Bitcoin VPC
-  vpcId: defaultBitcoinVpcId,
+  // deploy Mainnet stack into the shared VPC
+  vpc,
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: "us-east-1",
