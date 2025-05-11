@@ -127,10 +127,10 @@ export async function GET() {
   return new ImageResponse(
     (
       <Info
-        minimum={fees.currentBitcoinFees.minimum}
-        fastest={fees.currentBitcoinFees.fastest}
-        halfHour={fees.currentBitcoinFees.halfHour}
-        hour={fees.currentBitcoinFees.hour}
+        minimum={fees.currentBitcoinFees.data?.minimum}
+        fastest={fees.currentBitcoinFees.data?.fastest}
+        halfHour={fees.currentBitcoinFees.data?.halfHour}
+        hour={fees.currentBitcoinFees.data?.hour}
       />
     ),
     {
