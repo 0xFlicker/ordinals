@@ -14,6 +14,7 @@ import { Envelope } from "./envelope.js";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { BitcoinNetwork } from "./utils/types.js";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface IInscriptionFundingProps {
@@ -31,6 +32,8 @@ export interface IInscriptionFundingProps {
   readonly batchRevealTimeMinutes: number;
   readonly transactionBucket: s3.Bucket;
   readonly sopsLayer: lambda.LayerVersion;
+  readonly vpc?: ec2.IVpc;
+  readonly networks?: BitcoinNetwork[];
 }
 
 export class InscriptionFunding extends Construct {
@@ -122,6 +125,12 @@ export class InscriptionFunding extends Construct {
         architecture: lambda.Architecture.ARM_64,
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
+        ...(props.vpc && {
+          vpc: props.vpc,
+          vpcSubnets: {
+            subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+          },
+        }),
         bundling: {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,
@@ -228,6 +237,12 @@ export class InscriptionFunding extends Construct {
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
         reservedConcurrentExecutions: 1,
+        ...(props.vpc && {
+          vpc: props.vpc,
+          vpcSubnets: {
+            subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+          },
+        }),
         bundling: {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,

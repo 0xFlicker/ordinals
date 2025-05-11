@@ -17,29 +17,20 @@ import * as targets from "aws-cdk-lib/aws-events-targets";
 // handlebars templating removed; configs inline
 import path from "path";
 import { fileURLToPath } from "url";
+import { BitcoinNetwork } from "../utils/types.js";
+import {
+  networkToBitcoinFlags,
+  networkToElectrsPort,
+  networkToRpcPort,
+} from "../utils/transforms.js";
+import { networkToElectrsNetwork } from "../utils/transforms.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-type Network = "test" | "testnet4" | "mainnet";
-
-export class BitcoinStorage extends Construct {
-  readonly blockchainDataBucket: s3.IBucket;
-  constructor(scope: Construct, id: string) {
-    super(scope, id);
-
-    this.blockchainDataBucket = new s3.Bucket(this, "DataBucket", {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-  }
-}
 
 interface BitcoinProps {
   /** S3 bucket containing the Bitcoin/Electrs executables */
   executableBucket: s3.IBucket;
   /** Target Bitcoin network */
-  network: Network;
-  /** S3 bucket for blockchain data storage */
-  blockchainDataBucket: s3.IBucket;
+  network: BitcoinNetwork;
   /** S3 key for Bitcoin Core archive */
   bitcoinKey: string;
   /** S3 key for Electrs binary */
@@ -58,7 +49,7 @@ interface BitcoinProps {
  */
 function createPublicVpc(
   scope: Construct,
-  network: Network,
+  network: BitcoinNetwork,
   existingVpc?: ec2.IVpc,
 ) {
   // Use existing VPC if supplied, otherwise create a new one
@@ -88,56 +79,12 @@ function createPublicVpc(
       description: "Btc security group.",
     },
   );
-
-  const btcClientGroup = new ec2.SecurityGroup(
-    scope,
-    `SecurityGroup-${network}-client`,
-    {
-      vpc,
-      description: "Btc client security group.",
-    },
-  );
-  if (network === "test") {
-    btcServiceGroup.addIngressRule(
-      ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(18333),
-      "allow p2p public",
-    );
-    btcServiceGroup.addIngressRule(
-      ec2.Peer.securityGroupId(btcClientGroup.securityGroupId),
-      ec2.Port.tcp(60001),
-      "allow electrum client",
-    );
-  } else if (network === "testnet4") {
-    btcServiceGroup.addIngressRule(
-      ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(48333),
-      "allow p2p public",
-    );
-    btcClientGroup.addIngressRule(
-      ec2.Peer.securityGroupId(btcServiceGroup.securityGroupId),
-      ec2.Port.tcp(60002),
-      "allow electrum client",
-    );
-  } else if (network === "mainnet") {
-    btcServiceGroup.addIngressRule(
-      ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(8333),
-      "allow p2p public",
-    );
-    btcClientGroup.addIngressRule(
-      ec2.Peer.securityGroupId(btcServiceGroup.securityGroupId),
-      ec2.Port.tcp(50001),
-      "allow electrum client",
-    );
-  }
-  return { vpc, btcServiceGroup, btcClientGroup };
+  return { vpc, btcServiceGroup };
 }
 
 function createBtcUserData({
   executableBucket,
   bitcoinKey,
-  blockchainDataBucket,
   electrsKey,
   network,
   nodeKey,
@@ -145,9 +92,8 @@ function createBtcUserData({
 }: {
   executableBucket: s3.IBucket;
   bitcoinKey: string;
-  blockchainDataBucket: s3.IBucket;
   electrsKey: string;
-  network: Network;
+  network: BitcoinNetwork;
   nodeKey: string;
   vpc: ec2.IVpc;
 }) {
@@ -163,8 +109,7 @@ function createBtcUserData({
   const dataDir = `/home/ec2-user/.bitcoin_${network}`;
   userData.addCommands(`mkdir -p ${dataDir}`);
   // Create or restore data volume and mount it
-  const dataVolumeSize =
-    network === "mainnet" ? 600 : network === "testnet4" ? 200 : 50;
+  const dataVolumeSize = network === "mainnet" ? 700 : 200;
   userData.addCommands(
     "# fetch IMDSv2 token",
     "TOKEN=$(curl -sf -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds:21600')",
@@ -182,6 +127,8 @@ fi`,
     "aws ec2 wait volume-available --volume-ids $VOL_ID",
     'INSTANCE_ID=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)',
     "aws ec2 attach-volume --volume-id $VOL_ID --device /dev/xvdb --instance-id $INSTANCE_ID",
+    // Ensure data volume is deleted when the instance terminates to avoid orphaned volumes
+    `aws ec2 modify-instance-attribute --instance-id $INSTANCE_ID --block-device-mappings '[{"DeviceName":"/dev/xvdb","Ebs":{"DeleteOnTermination":true}}]'`,
     "# only seed role tags for DLM",
     'INSTANCE_LC=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-life-cycle 2>/dev/null || echo on-demand)',
     'if [ "$INSTANCE_LC" != "spot" ]; then',
@@ -263,7 +210,7 @@ fi`,
   );
   // Write bitcoin.conf with network section and RPC settings directly into dataDir
   const confLines = [
-    `[${network}]`,
+    network !== "mainnet" ? `[${network}]` : "",
     `txindex=1`,
     `prune=0`,
     `server=1`,
@@ -295,11 +242,8 @@ function createLaunchTemplate({
   role: iam.IRole;
   securityGroup: ec2.ISecurityGroup;
   spotOptions?: cdk.aws_ec2.LaunchTemplateSpotOptions;
-  network: Network;
+  network: BitcoinNetwork;
 }) {
-  // Determine data volume size based on network
-  const dataVolumeSize =
-    network === "mainnet" ? 600 : network === "testnet4" ? 200 : 50;
   return new ec2.LaunchTemplate(context, "LaunchTemplate", {
     userData,
     role,
@@ -321,36 +265,6 @@ function createLaunchTemplate({
   });
 }
 
-function networkToBitcoinFlags(network: Network) {
-  switch (network) {
-    case "test":
-      return "-testnet";
-    case "testnet4":
-      return "-testnet4";
-    case "mainnet":
-      return "";
-  }
-}
-
-function networkToElectrsNetwork(network: Network) {
-  switch (network) {
-    case "test":
-      return "testnet";
-    default:
-      return network;
-  }
-}
-
-function networkToElectrsPort(network: Network) {
-  switch (network) {
-    case "test":
-      return 60001;
-    case "testnet4":
-      return 60002;
-    case "mainnet":
-      return 50001;
-  }
-}
 export class Bitcoin extends Construct {
   readonly vpc: ec2.IVpc;
   readonly btcServiceGroup: ec2.ISecurityGroup;
@@ -360,7 +274,6 @@ export class Bitcoin extends Construct {
     id: string,
     {
       network,
-      blockchainDataBucket,
       executableBucket,
       bitcoinKey,
       electrsKey,
@@ -410,7 +323,7 @@ export class Bitcoin extends Construct {
       documentType: "Session",
     });
 
-    const role = new iam.Role(this, `ec2Role-${network}`, {
+    const role = new iam.Role(this, `Role`, {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
     });
 
@@ -430,72 +343,89 @@ export class Bitcoin extends Construct {
           "ec2:AttachVolume",
           "ec2:DescribeVolumes",
           "ec2:CreateTags",
+          // Allow setting delete-on-termination for attached data volumes
+          "ec2:ModifyInstanceAttribute",
           "ssm:GetParameter",
         ],
         resources: ["*"],
       }),
     );
 
-    const { vpc, btcServiceGroup, btcClientGroup } = createPublicVpc(
+    const { vpc, btcServiceGroup } = createPublicVpc(
       this,
       network,
       existingVpc,
     );
     this.vpc = vpc;
     this.btcServiceGroup = btcServiceGroup;
-    this.btcClientGroup = btcClientGroup;
 
     // Create an Application Load Balancer
-    const albSecurityGroup = new ec2.SecurityGroup(
-      this,
-      `BitcoinALBSecurityGroup-${network}`,
-      {
-        vpc,
-        description: "Bitcoin ALB security group.",
-      },
-    );
-    const alb = new elbv2.ApplicationLoadBalancer(
-      this,
-      `BitcoinALB-${network}`,
-      {
-        vpc,
-        internetFacing: false,
-        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      },
-    );
-    alb.addSecurityGroup(albSecurityGroup);
+    const albSecurityGroup = new ec2.SecurityGroup(this, "ALB-SecurityGroup", {
+      vpc,
+      description: "Bitcoin ALB security group.",
+    });
 
-    btcServiceGroup.addIngressRule(
-      ec2.Peer.securityGroupId(albSecurityGroup.securityGroupId),
-      ec2.Port.tcp(8080),
-      "allow health check",
+    const alb = new elbv2.ApplicationLoadBalancer(this, "ALB", {
+      vpc,
+      internetFacing: false,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroup: albSecurityGroup,
+      loadBalancerName: `bitcoin-${network}`,
+    });
+
+    const nlbSecurityGroup = new ec2.SecurityGroup(this, "NLB-SecurityGroup", {
+      vpc,
+      description: "Bitcoin NLB security group.",
+    });
+
+    // Allow VPC to connect to ALB
+    albSecurityGroup.addIngressRule(
+      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Port.tcp(networkToRpcPort(network)),
+      "allow RPC from VPC",
     );
-    // allow bitcoind RPC from the ALB
-    const rpcPort =
-      network === "test" ? 18332 : network === "testnet4" ? 48332 : 8332;
+    albSecurityGroup.addEgressRule(
+      ec2.Peer.securityGroupId(btcServiceGroup.securityGroupId),
+      ec2.Port.tcp(networkToRpcPort(network)),
+      "allow RPC to bitcoind",
+    );
+    // Allow VPC to connect to NLB
+    nlbSecurityGroup.addIngressRule(
+      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Port.tcp(networkToElectrsPort(network)),
+      "allow electrum from VPC",
+    );
+    nlbSecurityGroup.addEgressRule(
+      ec2.Peer.securityGroupId(btcServiceGroup.securityGroupId),
+      ec2.Port.tcp(networkToElectrsPort(network)),
+      "allow electrum to electrs",
+    );
+
+    // Allow ALB to connect to bitcoind
     btcServiceGroup.addIngressRule(
       ec2.Peer.securityGroupId(albSecurityGroup.securityGroupId),
-      ec2.Port.tcp(rpcPort),
-      "allow RPC from ALB",
+      ec2.Port.tcp(networkToRpcPort(network)),
+      "allow p2p vpc",
+    );
+    // Allow NLB to connect to electrs
+    btcServiceGroup.addIngressRule(
+      ec2.Peer.securityGroupId(nlbSecurityGroup.securityGroupId),
+      ec2.Port.tcp(networkToElectrsPort(network)),
+      "allow electrum vpc",
     );
 
     const nlb = new elbv2.NetworkLoadBalancer(this, "NLB", {
       vpc,
       internetFacing: false,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [nlbSecurityGroup],
+      loadBalancerName: `electrum-${network}`,
     });
-    // allow electrs TCP traffic from VPC (NLB preserves client IP)
-    btcServiceGroup.addIngressRule(
-      ec2.Peer.ipv4(vpc.vpcCidrBlock),
-      ec2.Port.tcp(networkToElectrsPort(network)),
-      "allow electrs from VPC subnets",
-    );
 
     executableBucket.grantRead(role);
-    blockchainDataBucket.grantReadWrite(role);
 
     // SOPS-encrypted RPC auth secret asset
-    const secretAsset = new s3a.Asset(this, "BitcoinRpcSecret", {
+    const secretAsset = new s3a.Asset(this, "Secret", {
       path: path.join(__dirname, "../../../secrets/bitflick.xyz/.env.bitcoin"),
     });
     secretAsset.grantRead(role);
@@ -519,7 +449,6 @@ export class Bitcoin extends Construct {
     const userData = createBtcUserData({
       executableBucket,
       bitcoinKey,
-      blockchainDataBucket,
       electrsKey,
       network,
       nodeKey,
@@ -527,8 +456,8 @@ export class Bitcoin extends Construct {
     });
 
     // Add a listener to the ALB
-    const rpcListener = alb.addListener(`Listener-${network}`, {
-      port: network === "test" ? 18332 : network === "testnet4" ? 48332 : 8332,
+    const rpcListener = alb.addListener("Listener", {
+      port: networkToRpcPort(network),
       protocol: elbv2.ApplicationProtocol.HTTP,
       open: true,
     });
@@ -661,7 +590,7 @@ export class Bitcoin extends Construct {
     snapshotRule.addTarget(new targets.LambdaFunction(updateLatestSnapshotFn));
     // IAM role and lifecycle policy: automated snapshots via DLM
     // IAM role for DLM (Data Lifecycle Manager)
-    const dlmServiceRole = new iam.Role(this, `DlmServiceRole-${network}`, {
+    const dlmServiceRole = new iam.Role(this, "DlmServiceRole", {
       assumedBy: new iam.ServicePrincipal("dlm.amazonaws.com"),
     });
     // Inline policy granting necessary EC2 and tagging permissions for snapshot lifecycle
@@ -682,7 +611,7 @@ export class Bitcoin extends Construct {
         resources: ["*"],
       }),
     );
-    new dlm.CfnLifecyclePolicy(this, `SnapshotPolicy-${network}`, {
+    new dlm.CfnLifecyclePolicy(this, "SnapshotPolicy", {
       // Human-readable description is required by CFN
       description: `DLM policy for Bitcoin data ${network}`,
       executionRoleArn: dlmServiceRole.roleArn,
@@ -716,15 +645,13 @@ export class Bitcoin extends Construct {
     });
 
     // Health-check directly against bitcoind RPC (treat 200 or 401 as healthy)
-    rpcListener.addTargets(`BitcoinTarget-${network}`, {
-      port: network === "test" ? 18332 : network === "testnet4" ? 48332 : 8332,
+    rpcListener.addTargets("target", {
+      port: networkToRpcPort(network),
       targets: [asg],
       protocol: elbv2.ApplicationProtocol.HTTP,
       healthCheck: {
         enabled: true,
-        port: `${
-          network === "test" ? 18332 : network === "testnet4" ? 48332 : 8332
-        }`,
+        port: `${networkToRpcPort(network)}`,
         path: "/",
         healthyHttpCodes: "200,401",
         interval: cdk.Duration.seconds(30),
@@ -770,10 +697,6 @@ export class Bitcoin extends Construct {
       value: nlb.loadBalancerDnsName,
     });
 
-    new cdk.CfnOutput(this, "BtcClientGroup", {
-      exportName: `BtcClientGroup-${network}`,
-      value: btcClientGroup.securityGroupId,
-    });
     new cdk.CfnOutput(this, "BtcServiceGroup", {
       exportName: `BtcServiceGroup-${network}`,
       value: btcServiceGroup.securityGroupId,

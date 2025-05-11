@@ -7,6 +7,7 @@ import { BitcoinNetworkType } from "sats-connect";
 import { AddressPurpose } from "sats-connect";
 import { Hero } from "./Hero";
 import Box from "@mui/material/Box";
+import { Status } from "@/features/bitflick/Status";
 
 export const metadata: Metadata = {
   title: "Bitflick",
@@ -48,7 +49,14 @@ export default async function Page() {
         }}
       >
         <Hero />
-        <Client appRight={<WalletConnectButton />} />
+        <Client
+          appRight={
+            <>
+              <Status />
+              <WalletConnectButton />
+            </>
+          }
+        />
       </Box>
     </MultiChainProvider>
   );

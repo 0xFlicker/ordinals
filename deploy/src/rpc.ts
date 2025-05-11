@@ -7,6 +7,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
+import { networkToRpcPort } from "./utils/transforms.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -14,10 +15,9 @@ type BitcoinNetwork = "mainnet" | "testnet" | "testnet4" | "regtest";
 
 export interface BitcoinRpcFunctionProps {
   readonly domainName: string;
-  readonly networks: BitcoinNetwork[];
   readonly sopsLayer: lambda.LayerVersion;
   readonly vpc?: ec2.IVpc;
-  readonly btcClientGroups?: ec2.ISecurityGroup[];
+  readonly networks?: BitcoinNetwork[];
 }
 
 export class BitcoinRpcFunction extends Construct {
@@ -48,20 +48,28 @@ export class BitcoinRpcFunction extends Construct {
       description: "Layer containing the SOPS-encrypted RPC auth secret",
     });
 
-    for (const network of props.networks) {
+    const onlyAlbSecurityGroup = props.vpc
+      ? new ec2.SecurityGroup(this, "OnlyAlbSecurityGroup", {
+          vpc: props.vpc,
+          description: "Security group for only ALB",
+          allowAllOutbound: false,
+        })
+      : undefined;
+
+    for (const network of props.networks ?? []) {
       const rpcLambda = new lambdaNodejs.NodejsFunction(
         this,
         `JsonRpc-${network}`,
         {
-          ...(props.vpc
+          ...(props.vpc && onlyAlbSecurityGroup
             ? {
                 vpc: props.vpc,
                 vpcSubnets: {
                   subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
                 },
+                securityGroups: [onlyAlbSecurityGroup],
               }
             : {}),
-          securityGroups: props.btcClientGroups ? props.btcClientGroups : [],
           runtime: lambda.Runtime.NODEJS_20_X,
           architecture: lambda.Architecture.ARM_64,
           timeout: cdk.Duration.seconds(5),
@@ -91,6 +99,20 @@ export class BitcoinRpcFunction extends Construct {
           },
         },
       );
+      if (props.vpc && onlyAlbSecurityGroup) {
+        // jsonrpc
+        onlyAlbSecurityGroup.addEgressRule(
+          ec2.Peer.ipv4(props.vpc.vpcCidrBlock),
+          ec2.Port.tcp(networkToRpcPort(network)),
+          "allow RPC to VPC",
+        );
+        // dns
+        onlyAlbSecurityGroup.addEgressRule(
+          ec2.Peer.anyIpv4(),
+          ec2.Port.udp(53),
+          "allow DNS to VPC",
+        );
+      }
       // Add KMS and STS policies to role
       rpcLambda.addToRolePolicy(
         new iam.PolicyStatement({

@@ -13,6 +13,7 @@ import { BitcoinRpcFunction } from "./rpc.js";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { SiteToSiteVpn } from "./site-to-site-vpn.js";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import { BitcoinNetwork } from "./utils/types.js";
 
 /**
  * Common props for stacks that require a VPC and Bitcoin client security group.
@@ -25,12 +26,12 @@ interface IProps extends cdk.StackProps {
   /** Shared VPC for application resources */
   vpc?: ec2.IVpc;
   /** Security group permitting Bitcoin client access */
-  btcClientGroups?: ec2.ISecurityGroup[];
+  networks?: BitcoinNetwork[];
 }
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: IProps) {
-    const { origin, sopsLayer, vpc, btcClientGroups, ...rest } = props;
+    const { origin, sopsLayer, vpc, networks, ...rest } = props;
     super(scope, id, rest);
 
     const { bucket: inscriptionBucket } = new Storage(this, "Storage", {
@@ -77,10 +78,9 @@ export class BackendStack extends cdk.Stack {
 
     const rpcStacks = new BitcoinRpcFunction(this, "RpcStack", {
       domainName: new URL(origin).host,
-      networks: ["mainnet", "testnet", "testnet4"],
+      networks,
       sopsLayer,
       vpc,
-      btcClientGroups,
     });
 
     const parentInscriptionSecKeyEnvelope = new Envelope(
@@ -111,6 +111,8 @@ export class BackendStack extends cdk.Stack {
       transactionBucket,
       batchRevealTimeMinutes: process.env.DEPLOYMENT === "localstack" ? 1 : 15,
       sopsLayer,
+      vpc,
+      networks,
     });
 
     if (process.env.DEPLOYMENT !== "localstack") {
@@ -129,6 +131,7 @@ export class BackendStack extends cdk.Stack {
         parentInscriptionSecKeyEnvelope,
         uploadsTable,
         sopsLayer,
+        rpcLambdas: rpcStacks.rpcLambdas,
       });
       const graphqlApiUrl = cdk.Fn.select(
         1,

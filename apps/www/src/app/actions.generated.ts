@@ -135,6 +135,20 @@ export enum BitcoinNetwork {
   Testnet4 = 'TESTNET4'
 }
 
+export enum BitcoinNetworkStatus {
+  Dead = 'DEAD',
+  Synced = 'SYNCED',
+  Syncing = 'SYNCING'
+}
+
+export type BitcoinNetworkStatusResponse = {
+  __typename?: 'BitcoinNetworkStatusResponse';
+  bestBlockHash?: Maybe<Scalars['String']['output']>;
+  height?: Maybe<Scalars['Int']['output']>;
+  progress?: Maybe<Scalars['Float']['output']>;
+  status?: Maybe<BitcoinNetworkStatus>;
+};
+
 export type BitcoinScriptItem = {
   __typename?: 'BitcoinScriptItem';
   base64?: Maybe<Scalars['String']['output']>;
@@ -601,6 +615,7 @@ export type Query = {
   appInfo: AppInfo;
   axolotlAvailableOpenEditionFundingClaims: Array<AxolotlAvailableOpenEditionFunding>;
   axolotlEstimateFee: AxolotlFeeEstimate;
+  bitcoinNetworkStatus?: Maybe<BitcoinNetworkStatusResponse>;
   checkUserExistsForAddress: Scalars['Boolean']['output'];
   checkUserExistsForHandle: Scalars['Boolean']['output'];
   collection: Collection;
@@ -628,6 +643,11 @@ export type QueryAxolotlEstimateFeeArgs = {
   count?: InputMaybe<Scalars['Int']['input']>;
   feeLevel?: InputMaybe<FeeLevel>;
   feePerByte?: InputMaybe<Scalars['Int']['input']>;
+  network: BitcoinNetwork;
+};
+
+
+export type QueryBitcoinNetworkStatusArgs = {
   network: BitcoinNetwork;
 };
 

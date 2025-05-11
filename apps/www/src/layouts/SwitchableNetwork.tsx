@@ -3,7 +3,7 @@ import { AppBar } from "@/components/AppBar";
 import { FC, PropsWithChildren } from "react";
 
 import { WalletConnectButton } from "@/features/wallet-standard/components/WalletConnectButton";
-
+import { Status } from "@/features/bitflick/Status";
 export const SwitchableNetwork: FC<
   PropsWithChildren<{
     title?: string;
@@ -15,7 +15,12 @@ export const SwitchableNetwork: FC<
     <>
       <AppBar
         left={title}
-        right={<WalletConnectButton user={user} />}
+        right={
+          <>
+            <Status />
+            <WalletConnectButton user={user} />
+          </>
+        }
         sx={{
           ...(hidden
             ? {

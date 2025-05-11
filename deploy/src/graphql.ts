@@ -18,7 +18,7 @@ import { HttpApi } from "aws-cdk-lib/aws-apigatewayv2";
 import { Duration } from "aws-cdk-lib";
 import { CorsHttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
 import { BitcoinNetwork } from "./utils/types.js";
-
+import * as ec2 from "aws-cdk-lib/aws-ec2";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 interface TableNames {
@@ -57,6 +57,8 @@ export interface GraphqlProps {
   readonly rpcLambdas: Record<BitcoinNetwork, lambda.Function | undefined>;
   readonly domainName: URL;
   readonly sopsLayer: lambda.LayerVersion;
+  readonly vpc?: ec2.IVpc;
+  readonly btcClientGroups?: ec2.ISecurityGroup[];
 }
 
 export class Graphql extends Construct {
@@ -83,6 +85,8 @@ export class Graphql extends Construct {
       domainName,
       sopsLayer,
       rpcLambdas,
+      vpc,
+      btcClientGroups,
     }: GraphqlProps,
   ) {
     super(scope, id);
@@ -122,6 +126,13 @@ export class Graphql extends Construct {
         architecture: lambda.Architecture.ARM_64,
         timeout: cdk.Duration.seconds(30),
         memorySize: 512,
+        ...(vpc && {
+          vpc,
+          vpcSubnets: {
+            subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+          },
+          securityGroups: btcClientGroups,
+        }),
         bundling: {
           externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
           sourceMap: true,
@@ -212,69 +223,6 @@ export class Graphql extends Construct {
       rpcLambdas[network as BitcoinNetwork]?.grantInvoke(graphqlLambda);
     }
 
-    // // Create a NodejsFunction for the S3 collection meta update lambda
-    // const s3CollectionMetaUpdateLambda = new lambdaNodejs.NodejsFunction(
-    //   this,
-    //   "S3CollectionMetaUpdateHandler",
-    //   {
-    //     entry: path.join(
-    //       __dirname,
-    //       "../../apps/functions/src/lambdas/s3-collection-meta-update.ts",
-    //     ),
-    //     handler: "handler",
-    //     runtime: lambda.Runtime.NODEJS_20_X,
-    //     timeout: cdk.Duration.seconds(30),
-    //     memorySize: 512,
-    //     bundling: {
-    //       externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
-    //       sourceMap: true,
-    //       inject: [path.join(__dirname, "./esbuild/cjs-shim.ts")],
-    //       format: lambdaNodejs.OutputFormat.ESM,
-    //       target: "node20",
-    //       platform: "node",
-    //     },
-    //     environment: {
-    //       LOG_LEVEL: "debug",
-    //       NODE_OPTIONS: "--enable-source-maps",
-    //       TABLE_NAMES: JSON.stringify({
-    //         rbac: rbacTable.tableName,
-    //         userNonce: userNonceTable.tableName,
-    //         funding: fundingTable.tableName,
-    //         claims: claimsTable.tableName,
-    //         openEditionClaims: openEditionClaimsTable.tableName,
-    //         wallet: walletTable.tableName,
-    //         users: usersTable.tableName,
-    //       }),
-    //       INSCRIPTION_BUCKET: inscriptionBucket.bucketName,
-    //       UPLOAD_BUCKET: uploadBucket.bucketName,
-    //       FUNDING_TABLE_STREAM_ARN: fundingTable.tableStreamArn ?? "null",
-    //       FUNDING_STREAM_REGION: "us-east-1",
-    //       PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID:
-    //         parentInscriptionSecKeyEnvelope.key.keyId,
-    //       FUNDING_SEC_KEY_ENVELOPE_KEY_ID: fundingSecKeyEnvelope.key.keyId,
-    //     },
-    //   },
-    // );
-
-    // this.s3CollectionMetaUpdateLambda = s3CollectionMetaUpdateLambda;
-
-    // Grant permissions to the S3 collection meta update lambda
-    // rbacTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
-    // userNonceTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
-    // fundingTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
-    // claimsTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
-    // openEditionClaimsTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
-    // walletTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
-    // usersTable.grantReadWriteData(s3CollectionMetaUpdateLambda);
-    // inscriptionBucket.grantReadWrite(s3CollectionMetaUpdateLambda);
-    // uploadBucket.grantReadWrite(s3CollectionMetaUpdateLambda);
-
-    // parentInscriptionSecKeyEnvelope.key.grantEncryptDecrypt(
-    //   s3CollectionMetaUpdateLambda,
-    // );
-    // fundingSecKeyEnvelope.key.grantEncryptDecrypt(s3CollectionMetaUpdateLambda);
-
-    // Create an HTTP API for the GraphQL lambda
     const routeDomain = domainName.hostname;
     const allowedOrigins = [
       "http://localhost:3000", // for local dev
@@ -329,12 +277,6 @@ export class Graphql extends Construct {
         }),
       ),
     });
-
-    // Add the S3 collection meta update lambda as a notification target for the inscription bucket
-    // inscriptionBucket.addEventNotification(
-    //   s3.EventType.OBJECT_CREATED,
-    //   new s3n.LambdaDestination(s3CollectionMetaUpdateLambda),
-    // );
 
     // Output the HTTP API URL
     new cdk.CfnOutput(this, "GraphqlApiUrl", {
