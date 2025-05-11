@@ -653,7 +653,7 @@ export class Bitcoin extends Construct {
         enabled: true,
         port: `${networkToRpcPort(network)}`,
         path: "/",
-        healthyHttpCodes: "200,401",
+        healthyHttpCodes: "200,401,405",
         interval: cdk.Duration.seconds(30),
         timeout: cdk.Duration.seconds(10),
         healthyThresholdCount: 3,
