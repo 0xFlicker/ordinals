@@ -1,6 +1,6 @@
 import { InscriptionsModule } from "./generated-types/module-types";
 
-export const InscriptionsResolvers: InscriptionsModule.Resolvers = {
+export const resolvers: InscriptionsModule.Resolvers = {
   Query: {
     inscriptions: async (_, { query }, { fundingDao, userDao }) => {
       let userId = query.userId;
@@ -18,6 +18,7 @@ export const InscriptionsResolvers: InscriptionsModule.Resolvers = {
       const inscriptions = await fundingDao.getAllInscriptionsByCreatorUserId(
         userId,
       );
+      throw new Error("Not implemented");
     },
   },
 };

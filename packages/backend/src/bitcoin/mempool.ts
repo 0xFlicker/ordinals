@@ -3,14 +3,23 @@ import { BitcoinNetworkNames } from "@0xflick/inscriptions";
 import Queue from "p-queue";
 import { MempoolConfig } from "@mempool/mempool.js/lib/interfaces/index.js";
 import {
-  electrumHostname,
-  electrumPort,
-  electrumTls,
+  mainnetElectrumHostname,
   mainnetMempoolAuth,
   mainnetMempoolUrl,
   regtestMempoolUrl,
   testnetMempoolAuth,
   testnetMempoolUrl,
+  mainnetElectrumPort,
+  testnetElectrumPort,
+  testnetElectrumHostname,
+  testnet4ElectrumPort,
+  testnet4ElectrumHostname,
+  regtestElectrumPort,
+  regtestElectrumHostname,
+  testnetElectrumProtocol,
+  testnet4ElectrumProtocol,
+  mainnetElectrumProtocol,
+  regtestElectrumProtocol,
 } from "../index.js";
 import { createLogger } from "../index.js";
 import { lazySingleton } from "@0xflick/ordinals-models";
@@ -114,13 +123,16 @@ export class NoVoutFound extends Error {
 const checkTxo = async ({
   scriptHash,
   findValue,
+  network,
 }: {
   scriptHash: string;
   findValue?: number;
+  network: BitcoinNetworkNames;
 }) => {
   const { txid, vout, amount } = await pullElectrumTransactionsForAddress({
     scriptHash,
     findValue,
+    network,
   });
   return {
     txid,
@@ -129,26 +141,67 @@ const checkTxo = async ({
   };
 };
 
-export const electrumClientFactory = lazySingleton(() => {
+export const mainnetElectrumClientFactory = lazySingleton(() => {
   return createElectrumClient({
-    tls: electrumTls.get(),
-    hostname: electrumHostname.get(),
-    port: electrumPort.get(),
+    tls: mainnetElectrumProtocol.get(),
+    hostname: mainnetElectrumHostname.get(),
+    port: mainnetElectrumPort.get(),
   });
 });
+
+export const testnetElectrumClientFactory = lazySingleton(() => {
+  return createElectrumClient({
+    tls: testnetElectrumProtocol.get(),
+    hostname: testnetElectrumHostname.get(),
+    port: testnetElectrumPort.get(),
+  });
+});
+
+export const testnet4ElectrumClientFactory = lazySingleton(() => {
+  return createElectrumClient({
+    tls: testnet4ElectrumProtocol.get(),
+    hostname: testnet4ElectrumHostname.get(),
+    port: testnet4ElectrumPort.get(),
+  });
+});
+
+export const regtestElectrumClientFactory = lazySingleton(() => {
+  return createElectrumClient({
+    tls: regtestElectrumProtocol.get(),
+    hostname: regtestElectrumHostname.get(),
+    port: regtestElectrumPort.get(),
+  });
+});
+
+export const electrumClientForNetwork = (network: BitcoinNetworkNames) => {
+  switch (network) {
+    case "mainnet":
+      return mainnetElectrumClientFactory.get();
+    case "testnet":
+      return testnetElectrumClientFactory.get();
+    case "testnet4":
+      return testnet4ElectrumClientFactory.get();
+    case "regtest":
+      return regtestElectrumClientFactory.get();
+    default:
+      throw new Error(`Unknown Bitcoin network: ${network}`);
+  }
+};
 
 export async function pullElectrumTransactionsForAddress({
   address,
   scriptHash,
   findValue,
+  network,
 }: {
   address?: string;
   scriptHash: string;
   findValue?: number;
+  network: BitcoinNetworkNames;
 }) {
   const txs = await electrumGetAddressTransactions({
     scriptHash,
-    client: await electrumClientFactory.get(),
+    client: await electrumClientForNetwork(network),
   });
   for (const tx of txs) {
     for (let i = 0; i < tx.vout.length; i++) {
@@ -171,12 +224,16 @@ export async function pullElectrumTransactionsForAddress({
 export const enqueueCheckTxo = ({
   scriptHash,
   findValue,
+  network,
 }: {
   scriptHash: string;
+  network: BitcoinNetworkNames;
   mempoolBitcoinClient?: MempoolClient["bitcoin"];
   findValue?: number;
 }) => {
-  return processingQueue.add(() => checkTxo({ scriptHash, findValue }));
+  return processingQueue.add(() =>
+    checkTxo({ scriptHash, findValue, network }),
+  );
 };
 
 export const submitTx = async ({

@@ -8,16 +8,22 @@ export type FeeEstimateQueryVariables = Types.Exact<{
 }>;
 
 
-export type FeeEstimateQuery = { __typename?: 'Query', currentBitcoinFees: { __typename?: 'FeeEstimate', minimum: number, fastest: number, halfHour: number, hour: number } };
+export type FeeEstimateQuery = { __typename?: 'Query', currentBitcoinFees: { __typename?: 'FeeEstimateResponse', problems: Array<{ __typename?: 'BitcoinNetworkProblem', message?: string | null, severity?: Types.BitcoinNetworkProblemSeverity | null }>, data: { __typename?: 'FeeEstimate', minimum: number, fastest: number, halfHour: number, hour: number } } };
 
 
 export const FeeEstimateDocument = gql`
     query FeeEstimate($network: BitcoinNetwork!) {
   currentBitcoinFees(network: $network) {
-    minimum
-    fastest
-    halfHour
-    hour
+    problems {
+      message
+      severity
+    }
+    data {
+      minimum
+      fastest
+      halfHour
+      hour
+    }
   }
 }
     `;

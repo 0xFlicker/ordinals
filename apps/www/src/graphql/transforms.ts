@@ -11,6 +11,8 @@ export const toGraphqlBitcoinNetwork = (
       return BitcoinNetwork.Testnet;
     case BitcoinNetworkType.Regtest:
       return BitcoinNetwork.Regtest;
+    case BitcoinNetworkType.Testnet4:
+      return BitcoinNetwork.Testnet4;
     default:
       throw new Error(`Invalid Bitcoin network: ${network}`);
   }
@@ -26,6 +28,8 @@ export const fromGraphqlBitcoinNetwork = (
       return BitcoinNetworkType.Testnet;
     case BitcoinNetwork.Regtest:
       return BitcoinNetworkType.Regtest;
+    case BitcoinNetwork.Testnet4:
+      return BitcoinNetworkType.Testnet4;
     default:
       throw new Error(`Invalid Bitcoin network: ${network}`);
   }

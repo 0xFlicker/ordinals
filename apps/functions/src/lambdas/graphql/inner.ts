@@ -33,7 +33,7 @@ function setCookie(
     "set-cookie",
     serializeSessionCookie({
       value: token,
-      path: "/api/",
+      path: "/graphql/",
       cookieName: "session",
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
     }),
@@ -86,7 +86,7 @@ const server = new ApolloServer({
           "set-cookie",
           expireSessionCookie({
             cookieName: sessionFromNamespace(namespace),
-            path: "/api/",
+            path: "/graphql/",
           }),
         );
       },

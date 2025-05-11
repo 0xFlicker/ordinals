@@ -2,7 +2,7 @@ import { createConfig, http, webSocket, fallback } from "@wagmi/core";
 import { sepolia, sepoliaRpcUrl } from "./sepolia.js";
 import { base, baseRpcUrl, baseWsRpcUrl } from "./base.js";
 import { mainnet, mainnetRpcUrl } from "./mainnet.js";
-import { lazySingleton } from "lazy.js";
+import { lazySingleton } from "../lazy.js";
 
 export const chains = {
   [mainnet.id]: mainnet,

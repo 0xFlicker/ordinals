@@ -5,6 +5,11 @@ type FeeEstimate {
   hour: Int!
 }
 
+type FeeEstimateResponse {
+  problems: [BitcoinNetworkProblem!]
+  data: FeeEstimate
+}
+
 type Query {
-  currentBitcoinFees(network: BitcoinNetwork!): FeeEstimate!
+  currentBitcoinFees(network: BitcoinNetwork!): FeeEstimateResponse!
 }

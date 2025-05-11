@@ -137,6 +137,8 @@ export function networkNamesToNetworkEnum(
       return Network.testnet;
     case "regtest":
       return Network.regtest;
+    case "testnet4":
+      return Network.testnet;
     default:
       throw new Error("Invalid network");
   }
@@ -148,6 +150,12 @@ export function networkNamesToTapScriptName(
   switch (network) {
     case "mainnet":
       return "main";
+    case "testnet":
+      return "testnet";
+    case "regtest":
+      return "regtest";
+    case "testnet4":
+      return "testnet";
     default:
       return network;
   }

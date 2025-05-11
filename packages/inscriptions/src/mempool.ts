@@ -10,6 +10,8 @@ export function urlForNetworkName(network: BitcoinNetworkNames) {
       return "https://mempool.space/testnet";
     case "regtest":
       return "http://localhost:4080";
+    case "testnet4":
+      return "https://mempool.space/testnet4";
   }
 }
 

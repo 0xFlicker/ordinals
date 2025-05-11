@@ -37,7 +37,7 @@ import { useAuth } from "@/features/auth";
 export const Inscribe: FC<{}> = () => {
   const router = useRouter();
   const [ordinalsAddress, setOrdinalsAddress] = useState<string>("");
-  const [network, setNetwork] = useState<string>("regtest");
+  const [network, setNetwork] = useState<string>("mainnet");
   const [inscribeError, setInscribeError] = useState<InscribeError | null>(
     null
   );
@@ -84,7 +84,7 @@ export const Inscribe: FC<{}> = () => {
   }, [connectBtcAsync, discoveredAddress, isConnected, setOrdinalsAddress]);
 
   const { handleCreate, paymentRequest } = useInscribe({
-    network: BitcoinNetwork.Regtest,
+    network: BitcoinNetwork.Mainnet,
     destinationAddress: ordinalsAddress,
     feeLevel: feeMode === "preset" ? feeLevel : undefined,
     feePerByte: feeMode === "custom" ? customFeeRate : undefined,
@@ -190,8 +190,7 @@ export const Inscribe: FC<{}> = () => {
                   MenuProps={selectMenuProps}
                 >
                   <MenuItem value="mainnet">Mainnet</MenuItem>
-                  <MenuItem value="testnet">Testnet</MenuItem>
-                  <MenuItem value="regtest">Regtest</MenuItem>
+                  <MenuItem value="testnet4">Testnet</MenuItem>
                 </Select>
                 {(networkSelectOpen || feeLevelSelectOpen) && (
                   <Box
@@ -267,7 +266,7 @@ export const Inscribe: FC<{}> = () => {
                             Glacial (
                             {feeEstimateLoading
                               ? "..."
-                              : feeEstimate?.currentBitcoinFees.minimum ||
+                              : feeEstimate?.currentBitcoinFees.data.minimum ||
                                 "N/A"}{" "}
                             sats/vB)
                           </MenuItem>
@@ -275,7 +274,7 @@ export const Inscribe: FC<{}> = () => {
                             Low (
                             {feeEstimateLoading
                               ? "..."
-                              : feeEstimate?.currentBitcoinFees.hour ||
+                              : feeEstimate?.currentBitcoinFees.data.hour ||
                                 "N/A"}{" "}
                             sats/vB)
                           </MenuItem>
@@ -283,7 +282,7 @@ export const Inscribe: FC<{}> = () => {
                             Medium (
                             {feeEstimateLoading
                               ? "..."
-                              : feeEstimate?.currentBitcoinFees.halfHour ||
+                              : feeEstimate?.currentBitcoinFees.data.halfHour ||
                                 "N/A"}{" "}
                             sats/vB)
                           </MenuItem>
@@ -291,7 +290,7 @@ export const Inscribe: FC<{}> = () => {
                             High (
                             {feeEstimateLoading
                               ? "..."
-                              : feeEstimate?.currentBitcoinFees.fastest ||
+                              : feeEstimate?.currentBitcoinFees.data.fastest ||
                                 "N/A"}{" "}
                             sats/vB)
                           </MenuItem>

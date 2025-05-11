@@ -8,16 +8,22 @@ export type BitcoinNetworkStatusQueryVariables = Types.Exact<{
 }>;
 
 
-export type BitcoinNetworkStatusQuery = { __typename?: 'Query', bitcoinNetworkStatus?: { __typename?: 'BitcoinNetworkStatusResponse', status?: Types.BitcoinNetworkStatus | null, height?: number | null, bestBlockHash?: string | null, progress?: number | null } | null };
+export type BitcoinNetworkStatusQuery = { __typename?: 'Query', bitcoinNetworkStatus?: { __typename?: 'BitcoinNetworkStatusResponse', data?: { __typename?: 'BitcoinNetworkStatusData', status?: Types.BitcoinNetworkStatus | null, height?: number | null, bestBlockHash?: string | null, progress?: number | null } | null, problems?: Array<{ __typename?: 'BitcoinNetworkProblem', message?: string | null, severity?: Types.BitcoinNetworkProblemSeverity | null }> | null } | null };
 
 
 export const BitcoinNetworkStatusDocument = gql`
     query BitcoinNetworkStatus($network: BitcoinNetwork!) {
   bitcoinNetworkStatus(network: $network) {
-    status
-    height
-    bestBlockHash
-    progress
+    data {
+      status
+      height
+      bestBlockHash
+      progress
+    }
+    problems {
+      message
+      severity
+    }
   }
 }
     `;

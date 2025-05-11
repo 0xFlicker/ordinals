@@ -15,7 +15,7 @@ export default async function InscribePage() {
       initialUser={user}
     >
       <SwitchableNetwork title="Inscribe" user={user ?? undefined}>
-        <Container maxWidth="md">
+        <Container maxWidth="md" sx={{ pt: 8 }}>
           <Inscribe />
         </Container>
       </SwitchableNetwork>

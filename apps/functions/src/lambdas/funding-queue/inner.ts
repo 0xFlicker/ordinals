@@ -4,14 +4,10 @@ import {
   FundingDao,
   InsufficientFundsEvent,
   createLogger,
-  createMempoolBitcoinClient,
   createDynamoDbFundingDao,
   createSqsClient,
-  enqueueCheckTxo,
-  getDb,
   insufficientFundsQueueUrl,
   fundedQueueUrl,
-  tableNames,
   pullElectrumTransactionsForAddress,
 } from "@0xflick/ordinals-backend";
 import { type Handler } from "aws-lambda";
@@ -59,6 +55,7 @@ function createCheckFundingStream({
     pullElectrumTransactionsForAddress({
       scriptHash,
       findValue: fundingAmountSat,
+      network,
     }),
   ).pipe(
     map((response) => {

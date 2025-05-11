@@ -130,18 +130,35 @@ export enum BitcoinNetwork {
   Testnet4 = 'TESTNET4'
 }
 
+export type BitcoinNetworkProblem = {
+  __typename?: 'BitcoinNetworkProblem';
+  message?: Maybe<Scalars['String']['output']>;
+  severity?: Maybe<BitcoinNetworkProblemSeverity>;
+};
+
+export enum BitcoinNetworkProblemSeverity {
+  Error = 'ERROR',
+  Warning = 'WARNING'
+}
+
 export enum BitcoinNetworkStatus {
   Dead = 'DEAD',
   Synced = 'SYNCED',
   Syncing = 'SYNCING'
 }
 
-export type BitcoinNetworkStatusResponse = {
-  __typename?: 'BitcoinNetworkStatusResponse';
+export type BitcoinNetworkStatusData = {
+  __typename?: 'BitcoinNetworkStatusData';
   bestBlockHash?: Maybe<Scalars['String']['output']>;
   height?: Maybe<Scalars['Int']['output']>;
   progress?: Maybe<Scalars['Float']['output']>;
   status?: Maybe<BitcoinNetworkStatus>;
+};
+
+export type BitcoinNetworkStatusResponse = {
+  __typename?: 'BitcoinNetworkStatusResponse';
+  data?: Maybe<BitcoinNetworkStatusData>;
+  problems?: Maybe<Array<BitcoinNetworkProblem>>;
 };
 
 export type BitcoinScriptItem = {
@@ -211,6 +228,12 @@ export type FeeEstimate = {
   halfHour: Scalars['Int']['output'];
   hour: Scalars['Int']['output'];
   minimum: Scalars['Int']['output'];
+};
+
+export type FeeEstimateResponse = {
+  __typename?: 'FeeEstimateResponse';
+  data: FeeEstimate;
+  problems: Array<BitcoinNetworkProblem>;
 };
 
 export enum FeeLevel {
@@ -615,7 +638,7 @@ export type Query = {
   checkUserExistsForHandle: Scalars['Boolean']['output'];
   collection: Collection;
   collections: Array<Collection>;
-  currentBitcoinFees: FeeEstimate;
+  currentBitcoinFees: FeeEstimateResponse;
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
   inscriptions: Array<Inscription>;

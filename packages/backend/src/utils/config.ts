@@ -126,20 +126,74 @@ export const batchRemainingFundingsQueueUrl = lazySingleton(() => {
   return process.env.BATCH_REMAINING_FUNDINGS_QUEUE_URL;
 });
 
-export const electrumTls = lazySingleton(() => {
-  return process.env.ELECTRUM_TLS === "true";
+export const mainnetElectrumHostname = lazySingleton(() => {
+  if (!process.env.MAINNET_ELECTRUM_HOSTNAME) {
+    throw new Error("MAINNET_ELECTRUM_HOSTNAME is not set");
+  }
+  return process.env.MAINNET_ELECTRUM_HOSTNAME;
 });
 
-export const electrumHostname = lazySingleton(() => {
-  if (!process.env.ELECTRUM_HOSTNAME) {
-    throw new Error("ELECTRUM_HOSTNAME is not set");
+export const mainnetElectrumPort = lazySingleton(() => {
+  if (!process.env.MAINNET_ELECTRUM_PORT) {
+    throw new Error("MAINNET_ELECTRUM_PORT is not set");
   }
-  return process.env.ELECTRUM_HOSTNAME;
+  return parseInt(process.env.MAINNET_ELECTRUM_PORT);
 });
 
-export const electrumPort = lazySingleton(() => {
-  if (!process.env.ELECTRUM_PORT) {
-    throw new Error("ELECTRUM_PORT is not set");
+export const mainnetElectrumProtocol = lazySingleton(() => {
+  return process.env.MAINNET_ELECTRUM_PROTOCOL === "tls";
+});
+
+export const testnetElectrumHostname = lazySingleton(() => {
+  if (!process.env.TESTNET_ELECTRUM_HOSTNAME) {
+    throw new Error("TESTNET_ELECTRUM_HOSTNAME is not set");
   }
-  return parseInt(process.env.ELECTRUM_PORT);
+  return process.env.TESTNET_ELECTRUM_HOSTNAME;
+});
+
+export const testnetElectrumPort = lazySingleton(() => {
+  if (!process.env.TESTNET_ELECTRUM_PORT) {
+    throw new Error("TESTNET_ELECTRUM_PORT is not set");
+  }
+  return parseInt(process.env.TESTNET_ELECTRUM_PORT);
+});
+
+export const testnetElectrumProtocol = lazySingleton(() => {
+  return process.env.TESTNET_ELECTRUM_PROTOCOL === "tls";
+});
+
+export const testnet4ElectrumHostname = lazySingleton(() => {
+  if (!process.env.TESTNET4_ELECTRUM_HOSTNAME) {
+    throw new Error("TESTNET4_ELECTRUM_HOSTNAME is not set");
+  }
+  return process.env.TESTNET4_ELECTRUM_HOSTNAME;
+});
+
+export const testnet4ElectrumPort = lazySingleton(() => {
+  if (!process.env.TESTNET4_ELECTRUM_PORT) {
+    throw new Error("TESTNET4_ELECTRUM_PORT is not set");
+  }
+  return parseInt(process.env.TESTNET4_ELECTRUM_PORT);
+});
+
+export const testnet4ElectrumProtocol = lazySingleton(() => {
+  return process.env.TESTNET4_ELECTRUM_PROTOCOL === "tls";
+});
+
+export const regtestElectrumHostname = lazySingleton(() => {
+  if (!process.env.REGTEST_ELECTRUM_HOSTNAME) {
+    throw new Error("REGTEST_ELECTRUM_HOSTNAME is not set");
+  }
+  return process.env.REGTEST_ELECTRUM_HOSTNAME;
+});
+
+export const regtestElectrumPort = lazySingleton(() => {
+  if (!process.env.REGTEST_ELECTRUM_PORT) {
+    throw new Error("REGTEST_ELECTRUM_PORT is not set");
+  }
+  return parseInt(process.env.REGTEST_ELECTRUM_PORT);
+});
+
+export const regtestElectrumProtocol = lazySingleton(() => {
+  return process.env.REGTEST_ELECTRUM_PROTOCOL === "tls";
 });

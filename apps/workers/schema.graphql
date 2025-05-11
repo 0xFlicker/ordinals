@@ -168,30 +168,6 @@ type Mutation {
   role(id: ID!): Role!
 }
 
-type Inscription {
-  id: ID!
-
-  owner: Web3User
-
-  content: String!
-  contentUrl: String!
-  contentLength: Int!
-  contentType: String!
-
-  parents: [Inscription!]!
-  children: [Inscription!]!
-}
-
-input InscriptionQuery {
-  userId: ID
-  address: ID
-  handle: String
-}
-
-type Query {
-  inscriptions(query: InscriptionQuery!): [Inscription!]!
-}
-
 type InscriptionData {
   textContent: String
   base64Content: String
@@ -281,6 +257,30 @@ type Mutation {
 
 type Query {
   signMultipartUpload(uploadId: String!, partNumber: Int!): String!
+}
+
+type Inscription {
+  id: ID!
+
+  owner: Web3User
+
+  content: String!
+  contentUrl: String!
+  contentLength: Int!
+  contentType: String!
+
+  parents: [Inscription!]!
+  children: [Inscription!]!
+}
+
+input InscriptionQuery {
+  userId: ID
+  address: ID
+  handle: String
+}
+
+type Query {
+  inscriptions(query: InscriptionQuery!): [Inscription!]!
 }
 
 enum FundingStatus {
@@ -436,11 +436,26 @@ enum BitcoinNetworkStatus {
   SYNCED
 }
 
-type BitcoinNetworkStatusResponse {
+enum BitcoinNetworkProblemSeverity {
+  ERROR
+  WARNING
+}
+
+type BitcoinNetworkProblem {
+  message: String
+  severity: BitcoinNetworkProblemSeverity
+}
+
+type BitcoinNetworkStatusData {
   status: BitcoinNetworkStatus
   height: Int
   bestBlockHash: String
   progress: Float
+}
+
+type BitcoinNetworkStatusResponse {
+  data: BitcoinNetworkStatusData
+  problems: [BitcoinNetworkProblem!]
 }
 
 type Query {
@@ -454,13 +469,95 @@ type FeeEstimate {
   hour: Int!
 }
 
+type FeeEstimateResponse {
+  problems: [BitcoinNetworkProblem!]
+  data: FeeEstimate
+}
+
 type Query {
-  currentBitcoinFees(network: BitcoinNetwork!): FeeEstimate!
+  currentBitcoinFees(network: BitcoinNetwork!): FeeEstimateResponse!
 }
 
 type BitcoinScriptItem {
   text: String
   base64: String
+}
+
+type AppInfo {
+  name: String!
+  pubKey: String!
+}
+
+type AuthProblem {
+  message: String!
+}
+
+input SignUpAnonymouslyRequest {
+  token: String!
+  handle: String!
+}
+
+type SignUpAnonymouslyResponse {
+  user: Web3User
+  problems: [AuthProblem!]
+}
+
+enum Web3Namespace {
+  SIWE
+  SIWB
+}
+
+enum SiweResponseType {
+  NEW_USER
+  EXISTING_USER
+  LINKED_USER_REQUEST
+}
+
+type SiwbData {
+  token: String!
+  user: Web3User
+  type: SiweResponseType!
+}
+
+type SiwbResponse {
+  data: SiwbData
+  problems: [AuthProblem!]
+}
+
+type SiweData {
+  token: String!
+  user: Web3User
+  type: SiweResponseType!
+}
+
+type SiweResponse {
+  data: SiweData
+  problems: [AuthProblem!]
+}
+
+type SignInBitcoinResponse {
+  user: Web3User
+  problems: [AuthProblem!]
+}
+
+type Query {
+  appInfo: AppInfo!
+  self: Web3User
+  checkUserExistsForAddress(address: ID!): Boolean!
+  checkUserExistsForHandle(handle: String!): Boolean!
+}
+
+type Mutation {
+  signUpAnonymously(
+    request: SignUpAnonymouslyRequest!
+  ): SignUpAnonymouslyResponse!
+  siwe(address: ID!, jwe: String!): SiweResponse!
+  siwb(address: ID!, jwe: String!): SiwbResponse!
+
+  signInBitcoin(address: ID!, jwe: String!): SignInBitcoinResponse!
+
+  signOutEthereum: Boolean!
+  signOutBitcoin: Boolean!
 }
 
 input AxolotlClaimRequest {
@@ -567,81 +664,4 @@ type Query {
     feePerByte: Int
     count: Int
   ): AxolotlFeeEstimate!
-}
-
-type AppInfo {
-  name: String!
-  pubKey: String!
-}
-
-type AuthProblem {
-  message: String!
-}
-
-input SignUpAnonymouslyRequest {
-  token: String!
-  handle: String!
-}
-
-type SignUpAnonymouslyResponse {
-  user: Web3User
-  problems: [AuthProblem!]
-}
-
-enum Web3Namespace {
-  SIWE
-  SIWB
-}
-
-enum SiweResponseType {
-  NEW_USER
-  EXISTING_USER
-  LINKED_USER_REQUEST
-}
-
-type SiwbData {
-  token: String!
-  user: Web3User
-  type: SiweResponseType!
-}
-
-type SiwbResponse {
-  data: SiwbData
-  problems: [AuthProblem!]
-}
-
-type SiweData {
-  token: String!
-  user: Web3User
-  type: SiweResponseType!
-}
-
-type SiweResponse {
-  data: SiweData
-  problems: [AuthProblem!]
-}
-
-type SignInBitcoinResponse {
-  user: Web3User
-  problems: [AuthProblem!]
-}
-
-type Query {
-  appInfo: AppInfo!
-  self: Web3User
-  checkUserExistsForAddress(address: ID!): Boolean!
-  checkUserExistsForHandle(handle: String!): Boolean!
-}
-
-type Mutation {
-  signUpAnonymously(
-    request: SignUpAnonymouslyRequest!
-  ): SignUpAnonymouslyResponse!
-  siwe(address: ID!, jwe: String!): SiweResponse!
-  siwb(address: ID!, jwe: String!): SiwbResponse!
-
-  signInBitcoin(address: ID!, jwe: String!): SignInBitcoinResponse!
-
-  signOutEthereum: Boolean!
-  signOutBitcoin: Boolean!
 }

@@ -12,7 +12,6 @@ const port = Number.isInteger(Number(process.env.ELECTRUM_PORT))
 const host = process.env.ELECTRUM_HOST || "bitcoin.aranguren.org";
 const protocol = process.env.ELECTRUM_PROTOCOL || "tls";
 
-console.log(`Connecting to ${host}:${port} over ${protocol}`);
 const client = new ElectrumClient(
   port,
   host,

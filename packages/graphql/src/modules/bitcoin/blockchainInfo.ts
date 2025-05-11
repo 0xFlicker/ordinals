@@ -1,6 +1,6 @@
 import { getBlockchainInfo } from "@0xflick/ordinals-backend";
-import { BitcoinNetwork } from "generated-types/graphql";
-import { toBitcoinNetworkName } from "./transforms";
+import { BitcoinNetwork } from "../../generated-types/graphql.js";
+import { toBitcoinNetworkName } from "./transforms.js";
 
 export const bitcoinNetworkStatus = async ({
   network,

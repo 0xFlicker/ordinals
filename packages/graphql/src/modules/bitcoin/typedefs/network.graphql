@@ -16,11 +16,26 @@ enum BitcoinNetworkStatus {
   SYNCED
 }
 
-type BitcoinNetworkStatusResponse {
+enum BitcoinNetworkProblemSeverity {
+  ERROR
+  WARNING
+}
+
+type BitcoinNetworkProblem {
+  message: String
+  severity: BitcoinNetworkProblemSeverity
+}
+
+type BitcoinNetworkStatusData {
   status: BitcoinNetworkStatus
   height: Int
   bestBlockHash: String
   progress: Float
+}
+
+type BitcoinNetworkStatusResponse {
+  data: BitcoinNetworkStatusData
+  problems: [BitcoinNetworkProblem!]
 }
 
 type Query {

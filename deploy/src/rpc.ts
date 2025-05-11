@@ -52,7 +52,7 @@ export class BitcoinRpcFunction extends Construct {
       ? new ec2.SecurityGroup(this, "OnlyAlbSecurityGroup", {
           vpc: props.vpc,
           description: "Security group for only ALB",
-          allowAllOutbound: false,
+          allowAllOutbound: true,
         })
       : undefined;
 
@@ -99,20 +99,6 @@ export class BitcoinRpcFunction extends Construct {
           },
         },
       );
-      if (props.vpc && onlyAlbSecurityGroup) {
-        // jsonrpc
-        onlyAlbSecurityGroup.addEgressRule(
-          ec2.Peer.ipv4(props.vpc.vpcCidrBlock),
-          ec2.Port.tcp(networkToRpcPort(network)),
-          "allow RPC to VPC",
-        );
-        // dns
-        onlyAlbSecurityGroup.addEgressRule(
-          ec2.Peer.anyIpv4(),
-          ec2.Port.udp(53),
-          "allow DNS to VPC",
-        );
-      }
       // Add KMS and STS policies to role
       rpcLambda.addToRolePolicy(
         new iam.PolicyStatement({
