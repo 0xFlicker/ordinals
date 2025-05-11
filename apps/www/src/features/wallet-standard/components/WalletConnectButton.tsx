@@ -148,7 +148,7 @@ export const WalletConnectButton: FC<{
     } else if (isConnected) {
       return "Login";
     } else {
-      return intent === "login" ? "Connect & Login" : "Connect";
+      return intent === "login" ? "Login" : "Connect";
     }
   };
 
