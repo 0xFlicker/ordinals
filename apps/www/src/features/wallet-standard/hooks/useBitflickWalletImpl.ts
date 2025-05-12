@@ -473,7 +473,13 @@ export const useBitflickWalletImpl = ({
   );
 
   const loginBtcAsync = useCallback(
-    async (address: string) => {
+    async ({
+      address,
+      network,
+    }: {
+      address: string;
+      network?: BitcoinNetworkType;
+    }) => {
       // spin up our "sign" op
       if (!operationManager.startOperation("sign")) {
         throw new Error("Sign operation already in progress");
@@ -502,7 +508,7 @@ export const useBitflickWalletImpl = ({
               address,
               messageToSign,
               network: {
-                type: BitcoinNetworkType.Mainnet,
+                type: network ?? BitcoinNetworkType.Mainnet,
               },
             });
             break;
@@ -584,10 +590,14 @@ export const useBitflickWalletImpl = ({
       address,
       btc,
       evm,
+      evmOptions,
     }: {
       address?: string;
       btc?: boolean;
       evm?: boolean;
+      evmOptions?: {
+        network?: BitcoinNetworkType;
+      };
     } = {}): Promise<{
       user:
         | (IUserWithAddresses &
@@ -619,7 +629,10 @@ export const useBitflickWalletImpl = ({
         if (!address) {
           throw new Error("No address provided");
         }
-        return await loginBtcAsync(address);
+        return await loginBtcAsync({
+          address,
+          network: evmOptions?.network,
+        });
       } else if (evm || state.activeEvmProvider) {
         address = address ?? state.evmAccounts[0]?.address;
         if (!address) {

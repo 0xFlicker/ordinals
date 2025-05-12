@@ -37,7 +37,9 @@ import { useAuth } from "@/features/auth";
 export const Inscribe: FC<{}> = () => {
   const router = useRouter();
   const [ordinalsAddress, setOrdinalsAddress] = useState<string>("");
-  const [network, setNetwork] = useState<string>("mainnet");
+  const [network, setNetwork] = useState<BitcoinNetworkType>(
+    BitcoinNetworkType.Mainnet
+  );
   const [inscribeError, setInscribeError] = useState<InscribeError | null>(
     null
   );
@@ -102,7 +104,10 @@ export const Inscribe: FC<{}> = () => {
         if (!isConnected) {
           const result = await connectBtcAsync();
           if (result && result.addresses.length > 0) {
-            await loginBtcAsync(result.addresses[0].address);
+            await loginBtcAsync({
+              address: result.addresses[0].address,
+              network,
+            });
           }
         }
 
@@ -115,7 +120,7 @@ export const Inscribe: FC<{}> = () => {
         }
       }
     },
-    [isConnected, handleCreate, connectBtcAsync, loginBtcAsync]
+    [isConnected, handleCreate, connectBtcAsync, loginBtcAsync, network]
   );
 
   const handleCustomFeeChange = (
@@ -182,15 +187,21 @@ export const Inscribe: FC<{}> = () => {
                 </Typography>
                 <Select
                   value={network}
-                  onChange={(e) => setNetwork(e.target.value)}
+                  onChange={(e) =>
+                    setNetwork(e.target.value as BitcoinNetworkType)
+                  }
                   fullWidth
                   sx={{ mb: 2 }}
                   onOpen={() => setNetworkSelectOpen(true)}
                   onClose={() => setNetworkSelectOpen(false)}
                   MenuProps={selectMenuProps}
                 >
-                  <MenuItem value="mainnet">Mainnet</MenuItem>
-                  <MenuItem value="testnet4">Testnet</MenuItem>
+                  <MenuItem value={BitcoinNetworkType.Mainnet}>
+                    Mainnet
+                  </MenuItem>
+                  <MenuItem value={BitcoinNetworkType.Testnet4}>
+                    Testnet4
+                  </MenuItem>
                 </Select>
                 {(networkSelectOpen || feeLevelSelectOpen) && (
                   <Box
@@ -266,7 +277,7 @@ export const Inscribe: FC<{}> = () => {
                             Glacial (
                             {feeEstimateLoading
                               ? "..."
-                              : feeEstimate?.currentBitcoinFees.data.minimum ||
+                              : feeEstimate?.currentBitcoinFees.data?.minimum ||
                                 "N/A"}{" "}
                             sats/vB)
                           </MenuItem>
@@ -274,7 +285,7 @@ export const Inscribe: FC<{}> = () => {
                             Low (
                             {feeEstimateLoading
                               ? "..."
-                              : feeEstimate?.currentBitcoinFees.data.hour ||
+                              : feeEstimate?.currentBitcoinFees.data?.hour ||
                                 "N/A"}{" "}
                             sats/vB)
                           </MenuItem>
@@ -282,15 +293,15 @@ export const Inscribe: FC<{}> = () => {
                             Medium (
                             {feeEstimateLoading
                               ? "..."
-                              : feeEstimate?.currentBitcoinFees.data.halfHour ||
-                                "N/A"}{" "}
+                              : feeEstimate?.currentBitcoinFees.data
+                                  ?.halfHour || "N/A"}{" "}
                             sats/vB)
                           </MenuItem>
                           <MenuItem value={FeeLevel.High}>
                             High (
                             {feeEstimateLoading
                               ? "..."
-                              : feeEstimate?.currentBitcoinFees.data.fastest ||
+                              : feeEstimate?.currentBitcoinFees.data?.fastest ||
                                 "N/A"}{" "}
                             sats/vB)
                           </MenuItem>

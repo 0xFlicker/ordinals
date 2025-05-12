@@ -118,7 +118,7 @@ export async function estimateSmartFee(
 ) {
   return invokeRpc<{
     feerate: number;
-    errors: string[];
+    errors?: string[];
     blocks: number;
   }>("estimatesmartfee", [conf_target, estimate_mode], network);
 }

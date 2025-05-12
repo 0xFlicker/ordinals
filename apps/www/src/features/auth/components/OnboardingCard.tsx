@@ -134,7 +134,7 @@ export const OnboardingCard: FC<OnboardingCardProps> = ({
           type: "SIGN",
           address,
         });
-        const loginResponse = await loginBtcAsync(address);
+        const loginResponse = await loginBtcAsync({ address });
         if (loginResponse.user && loginResponse.type === "EXISTING_USER") {
           onComplete?.(loginResponse.user);
           setStage({ type: "DONE" });

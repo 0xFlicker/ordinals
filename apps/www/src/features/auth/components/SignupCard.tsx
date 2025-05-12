@@ -164,7 +164,9 @@ export const SignupCard: FC<{
     switch (signupState) {
       case "CONNECT":
         if (isConnected) {
-          const response = await loginBtcAsync(btcAccounts[0].address);
+          const response = await loginBtcAsync({
+            address: btcAccounts[0].address,
+          });
           if (response.user) {
             onSignup?.(response.user);
           } else if (response.token) {
@@ -178,7 +180,9 @@ export const SignupCard: FC<{
         break;
       case "SIGN":
         if (btcAccounts.length > 0) {
-          const response = await loginBtcAsync(btcAccounts[0].address);
+          const response = await loginBtcAsync({
+            address: btcAccounts[0].address,
+          });
           if (!response) {
             setNeedsBitcoinSelection(true);
           } else if ("user" in response && response.user) {
