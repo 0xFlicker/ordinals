@@ -12,7 +12,7 @@ import { BuildStack } from "./bitcoin/build-stack.js";
 import { AuroraServerlessV2Stack } from "./bitcoin/aurora.js";
 import { SopsLayerStack } from "./layers.js";
 import { SharedBinaryBucketStack } from "./shared-bucket.js";
-import { CodeBuildStack } from "./codebuild.js";
+import { CodeBuildStack } from "./codebuild/stack.js";
 import { TerraformStateStack } from "./terraform.js";
 // Aspect to apply a 14-day retention policy to all CloudWatch Log Groups
 import { Aspects, IAspect } from "aws-cdk-lib";
@@ -53,13 +53,12 @@ const sharedBucketStack = new SharedBinaryBucketStack(
 );
 const sharedBucketName = sharedBucketStack.bucket.bucketName;
 // Build the SOPS ARM binary into the shared bucket
-new CodeBuildStack(app, "sops-codebuild", {
+const { sopsBuildStack, ordBuildStack } = new CodeBuildStack(app, "codebuild", {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: "us-east-1",
   },
   binaryBucketName: sharedBucketName,
-  sopsVersion: "3.10.2",
 });
 // Create SOPS layer stack using the shared bucket artifact
 const { sopsLayer } = new SopsLayerStack(app, "sops-layer", {
@@ -68,6 +67,7 @@ const { sopsLayer } = new SopsLayerStack(app, "sops-layer", {
     region: "us-east-1",
   },
   binaryBucketName: sharedBucketName,
+  sopsKey: sopsBuildStack.sopsKey,
 });
 
 // Create (or import) a shared VPC for all Bitcoin and backend stacks

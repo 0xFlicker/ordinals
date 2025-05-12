@@ -4,22 +4,22 @@ import * as codebuild from "aws-cdk-lib/aws-codebuild";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as iam from "aws-cdk-lib/aws-iam";
 
-export interface CodeBuildStackProps extends cdk.StackProps {
+export interface CodeBuildStackProps {
   /** The S3 bucket name where built binaries are stored */
   readonly binaryBucketName: string;
   /** The SOPS version to build, e.g. '3.10.2' */
-  readonly sopsVersion: string;
+  readonly ordVersion: string;
 }
 
 /**
  * Stack that sets up CodeBuild to compile ARM SOPS and upload to S3.
  */
-export class CodeBuildStack extends cdk.Stack {
+export class OrdBuildStack extends Construct {
   public readonly project: codebuild.Project;
-  public readonly sopsKey: string;
+  public readonly ordKey: string;
 
   constructor(scope: Construct, id: string, props: CodeBuildStackProps) {
-    super(scope, id, props);
+    super(scope, id);
 
     // Reference the shared binary bucket
     const bucket = s3.Bucket.fromBucketName(
@@ -28,12 +28,15 @@ export class CodeBuildStack extends cdk.Stack {
       props.binaryBucketName,
     );
 
+    const gitRef = props.ordVersion;
+    const repoUrl = "https://github.com/ordinals/ord.git";
+
     // Define the object key for the built SOPS artifact
-    this.sopsKey = `sops/sops-${props.sopsVersion}-arm64.zip`;
+    this.ordKey = `ord/ord-${props.ordVersion}-arm64.zip`;
 
     // CodeBuild project to build SOPS for ARM64
-    this.project = new codebuild.Project(this, "BuildSopsProject", {
-      projectName: "BuildSopsArm64",
+    this.project = new codebuild.Project(this, "BuildOrd", {
+      projectName: "build-ord-arm64",
       environment: {
         buildImage: codebuild.LinuxArmBuildImage.AMAZON_LINUX_2023_STANDARD_3_0,
         privileged: false,
@@ -45,9 +48,9 @@ export class CodeBuildStack extends cdk.Stack {
         version: "0.2",
         env: {
           variables: {
-            VERSION: props.sopsVersion,
+            VERSION: props.ordVersion,
             BUCKET: props.binaryBucketName,
-            KEY: this.sopsKey,
+            KEY: this.ordKey,
           },
         },
         phases: {
@@ -58,15 +61,25 @@ export class CodeBuildStack extends cdk.Stack {
           build: {
             // Install the ARM64 SOPS RPM directly
             commands: [
-              "yum install -y https://github.com/getsops/sops/releases/download/v$VERSION/sops-$VERSION-1.aarch64.rpm",
+              "sudo yum update -y",
+              // Install build dependencies
+              "sudo yum install -y git gcc gcc-c++ clang",
+              // Install Rust toolchain
+              "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
+              "source $HOME/.cargo/env",
+              // Clone and checkout specified git reference
+              `git clone ${repoUrl}`,
+              "cd ord",
+              `git checkout ${gitRef}`,
+              "cargo build --release",
               // Prepare layer directory
               "mkdir -p layer/bin",
               // Copy SOPS binary into layer/bin
-              "cp /usr/bin/sops layer/bin/sops",
+              "cp ./target/release/ord layer/bin/ord",
               // Package the layer: include bin/ folder into a zip in /tmp
-              "cd layer && zip -r /tmp/sops.zip bin",
+              "cd layer && zip -r /tmp/ord.zip bin",
               // Upload to shared S3 bucket
-              "aws s3 cp /tmp/sops.zip s3://$BUCKET/$KEY",
+              "aws s3 cp /tmp/ord.zip s3://$BUCKET/$KEY",
             ],
           },
         },
@@ -77,9 +90,9 @@ export class CodeBuildStack extends cdk.Stack {
     bucket.grantReadWrite(this.project.role!);
 
     // Export the SOPS object key for consumption by other stacks
-    new cdk.CfnOutput(this, "SopsBinaryKey", {
-      value: this.sopsKey,
-      exportName: "SopsBinaryKey",
+    new cdk.CfnOutput(this, "OrdBinaryKey", {
+      value: this.ordKey,
+      exportName: "CodeBuild-OrdBinaryKey",
     });
   }
 }

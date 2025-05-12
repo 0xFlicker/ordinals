@@ -3,3 +3,8 @@ cdk.out
 cdk.context.json
 # docker will dump this here
 db
+.ssh
+.terraform
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.lock.hcl

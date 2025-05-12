@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 interface SopsLayerProps extends cdk.StackProps {
   binaryBucketName: string;
+  sopsKey: string;
 }
 
 /**
@@ -27,9 +28,8 @@ export class SopsLayerStack extends cdk.Stack {
       "SharedBinaryBucket",
       binaryBucketName,
     );
-    const sopsKey = Fn.importValue("SopsBinaryKey");
     this.sopsLayer = new lambda.LayerVersion(this, "SopsLayer", {
-      code: lambda.Code.fromBucket(bucket, sopsKey),
+      code: lambda.Code.fromBucket(bucket, props.sopsKey),
       compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
       compatibleArchitectures: [lambda.Architecture.ARM_64],
       description: "Layer containing the SOPS binary (ARM64, Node20)",
