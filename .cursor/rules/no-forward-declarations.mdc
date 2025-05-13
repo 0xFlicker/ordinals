@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Refuse to use untyped forward declarations to resolve react hook dependency linter errors.

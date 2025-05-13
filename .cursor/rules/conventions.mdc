@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Code comments are always directed towards future code readers and NEVER to prompt.
+Lack of requirements for writing code is a RED FLAG that MUST be clearly called out.
+If the requirements or implementation of a work product are unclear or require hallunication of an implementation (for example in cases where an external API is not known) then the correct thing to do is write NON FUNCTIONING ERROR THROWING CODE over "hiding" uncertainity via an assumed implementation.
+DO NOT HALLUCINATE CODE. When it doubt, STOP and ask for clarification or specification.
