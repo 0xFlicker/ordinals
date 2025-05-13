@@ -35,7 +35,7 @@ export class PipelineStack extends cdk.Stack {
         ),
         commands: [
           // Install Node.js 22 for monorepo compatibility
-          "curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -",
+          "curl -fsSL https://deb.nodesource.com/setup_22.x | bash -",
           "yum install -y nodejs",
           // Install Yarn CLI
           "npm install -g yarn",
