@@ -1,7 +1,11 @@
-import * as cdk from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-import { CodePipeline, CodePipelineSource, ShellStep } from 'aws-cdk-lib/pipelines';
-import { AppStage } from './app-stage.js';
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
+import {
+  CodePipeline,
+  CodePipelineSource,
+  ShellStep,
+} from "aws-cdk-lib/pipelines";
+import { AppStage } from "./app-stage.js";
 
 export interface PipelineStackProps extends cdk.StackProps {
   /** ARN of the CodeStar Connection to GitHub */
@@ -21,31 +25,38 @@ export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: PipelineStackProps) {
     super(scope, id, props);
 
-    const pipeline = new CodePipeline(this, 'Pipeline', {
+    const pipeline = new CodePipeline(this, "Pipeline", {
       pipelineName: `${id}-pipeline`,
-      synth: new ShellStep('Synth', {
+      synth: new ShellStep("Synth", {
         input: CodePipelineSource.connection(
           `${props.repoOwner}/${props.repoName}`,
           props.branch,
-          { connectionArn: props.connectionArn }
+          { connectionArn: props.connectionArn },
         ),
         commands: [
-          'npm install -g yarn',
-          'yarn install --frozen-lockfile',
-          'cd deploy',
-          'yarn install --frozen-lockfile',
-          'npx cdk synth --quiet',
+          // Install Node.js 22 for monorepo compatibility
+          "curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -",
+          "yum install -y nodejs",
+          // Install Yarn CLI
+          "npm install -g yarn",
+          // Install root workspace dependencies
+          "yarn install --frozen-lockfile",
+          // Install deploy-specific dependencies
+          "cd deploy",
+          "yarn install --frozen-lockfile",
+          // Synthesize CloudAssembly
+          "npx cdk synth --quiet",
         ],
-        primaryOutputDirectory: 'deploy/cdk.out',
+        primaryOutputDirectory: "deploy/cdk.out",
       }),
     });
 
-        // Deployment stage: runs the full CDK AppStage in this account/region
-        // The AppStage must be scoped to the root CDK App (not nested within this stack)
-        const rootApp = this.node.root as cdk.App;
-        const prodStage = new AppStage(rootApp, 'Prod', {
-          env: props.env,
-        });
-        pipeline.addStage(prodStage);
+    // Deployment stage: runs the full CDK AppStage in this account/region
+    // The AppStage must be scoped to the root CDK App (not nested within this stack)
+    const rootApp = this.node.root as cdk.App;
+    const prodStage = new AppStage(rootApp, "Prod", {
+      env: props.env,
+    });
+    pipeline.addStage(prodStage);
   }
 }
