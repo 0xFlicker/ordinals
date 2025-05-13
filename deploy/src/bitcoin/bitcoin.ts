@@ -109,7 +109,7 @@ function createBtcUserData({
   const dataDir = `/home/ec2-user/.bitcoin_${network}`;
   userData.addCommands(`mkdir -p ${dataDir}`);
   // Create or restore data volume and mount it
-  const dataVolumeSize = network === "mainnet" ? 700 : 200;
+  const dataVolumeSize = network === "mainnet" ? 1000 : 200;
   userData.addCommands(
     "# fetch IMDSv2 token",
     "TOKEN=$(curl -sf -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds:21600')",
@@ -495,20 +495,14 @@ export class Bitcoin extends Construct {
         launchTemplateOverrides: [
           {
             instanceType: ec2.InstanceType.of(
-              ec2.InstanceClass.M7G,
-              ec2.InstanceSize.LARGE,
-            ),
-          },
-          {
-            instanceType: ec2.InstanceType.of(
-              ec2.InstanceClass.M6G,
-              ec2.InstanceSize.LARGE,
+              ec2.InstanceClass.T4G,
+              ec2.InstanceSize.SMALL,
             ),
           },
           {
             instanceType: ec2.InstanceType.of(
               ec2.InstanceClass.T4G,
-              ec2.InstanceSize.LARGE,
+              ec2.InstanceSize.MEDIUM,
             ),
           },
           {
@@ -520,12 +514,6 @@ export class Bitcoin extends Construct {
           {
             instanceType: ec2.InstanceType.of(
               ec2.InstanceClass.M6G,
-              ec2.InstanceSize.MEDIUM,
-            ),
-          },
-          {
-            instanceType: ec2.InstanceType.of(
-              ec2.InstanceClass.T4G,
               ec2.InstanceSize.MEDIUM,
             ),
           },

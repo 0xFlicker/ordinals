@@ -231,9 +231,14 @@ const resolvers: InscriptionRequestModule.Resolvers = {
       };
     },
     uploadInscription: async (_, { input }, context, info) => {
+      logger.info({ input }, "Uploading inscription");
       const { requireMutation } = context;
       requireMutation(info);
+
       await verifyAuthorizedUser(context);
+
+      logger.info("Verified authorized user");
+
       const { files } = input;
       let wasError = false;
       const problems: InscriptionProblem[] = [];
@@ -278,6 +283,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
                 }),
             ),
         );
+        logger.info({ uploads, wasError }, "Got upload URLs");
         if (wasError) {
           return {
             data: null,
@@ -295,6 +301,7 @@ const resolvers: InscriptionRequestModule.Resolvers = {
           },
         };
       } catch (error: unknown) {
+        logger.error(error, "Error uploading inscription");
         if (error instanceof Error) {
           return {
             data: null,

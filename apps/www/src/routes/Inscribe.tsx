@@ -79,11 +79,13 @@ export const Inscribe: FC<{}> = () => {
       setOrdinalsAddress(discoveredAddress);
       return;
     }
-    const result = await connectBtcAsync();
+    const result = await connectBtcAsync({
+      network,
+    });
     if (result && result.addresses.length > 0) {
       setOrdinalsAddress(result.addresses[0].address);
     }
-  }, [connectBtcAsync, discoveredAddress, isConnected, setOrdinalsAddress]);
+  }, [connectBtcAsync, discoveredAddress, isConnected, network]);
 
   const { handleCreate, paymentRequest } = useInscribe({
     network: BitcoinNetwork.Mainnet,
@@ -102,7 +104,9 @@ export const Inscribe: FC<{}> = () => {
     async (files: File[]) => {
       try {
         if (!isConnected) {
-          const result = await connectBtcAsync();
+          const result = await connectBtcAsync({
+            network,
+          });
           if (result && result.addresses.length > 0) {
             await loginBtcAsync({
               address: result.addresses[0].address,

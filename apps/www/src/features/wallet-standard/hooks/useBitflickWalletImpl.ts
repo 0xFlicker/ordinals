@@ -2,7 +2,7 @@ import { useXverseConnect } from "@/features/xverse/hooks/useXverseConnect";
 import { v4 as uuidv4 } from "uuid";
 import { magicEdenIcon, useMagicEden } from "@/features/magic-eden/Context";
 import { AddressPurpose, BitcoinNetworkType } from "sats-connect";
-import { useCallback, useEffect, useMemo, Dispatch } from "react";
+import { useCallback, useEffect, useMemo, Dispatch, useState } from "react";
 import {
   BtcWalletProvider,
   EvmAccount,
@@ -207,6 +207,9 @@ export const useBitflickWalletImpl = ({
 
   // Auth things
   const { userId, handle, signInWithSiwb, signInWithSiwe } = useAuth();
+  const [requestedBitcoinNetwork, setRequestedBitcoinNetwork] = useState<
+    BitcoinNetworkType | undefined
+  >(undefined);
 
   useEffect(() => {
     if (userId && handle) {
@@ -273,12 +276,19 @@ export const useBitflickWalletImpl = ({
   }, [state.activeEvmProvider, state.hasLoggedIn, state.isConnected]);
 
   const connectBtcAsync = useCallback(
-    async (
-      provider?: BtcWalletProvider
-    ): Promise<{
+    async ({
+      provider,
+      network,
+    }: {
+      provider?: BtcWalletProvider;
+      network?: BitcoinNetworkType;
+    }): Promise<{
       provider: BtcWalletProvider;
       addresses: BtcAccount[];
     }> => {
+      if (network) {
+        setRequestedBitcoinNetwork(network);
+      }
       provider = provider ?? state.activeBtcProvider;
       if (!provider && !needsBitcoinSelection) {
         // If we need to show a modal, create a promise that will resolve when the user completes the action
@@ -402,9 +412,11 @@ export const useBitflickWalletImpl = ({
   );
 
   const connectEvmAsync = useCallback(
-    async (
-      provider?: EvmWalletProvider
-    ): Promise<{
+    async ({
+      provider,
+    }: {
+      provider?: EvmWalletProvider;
+    }): Promise<{
       provider: EvmWalletProvider;
       accounts: EvmAccount[];
     }> => {
@@ -480,6 +492,9 @@ export const useBitflickWalletImpl = ({
       address: string;
       network?: BitcoinNetworkType;
     }) => {
+      if (!network) {
+        network = requestedBitcoinNetwork;
+      }
       // spin up our "sign" op
       if (!operationManager.startOperation("sign")) {
         throw new Error("Sign operation already in progress");
@@ -532,6 +547,7 @@ export const useBitflickWalletImpl = ({
         dispatch(actions.setIsLoggingIn(false));
         dispatch(actions.setNeedsLogin(false));
         operationManager.endOperation("sign");
+        setRequestedBitcoinNetwork(undefined);
       }
     },
     [
@@ -541,11 +557,12 @@ export const useBitflickWalletImpl = ({
       magicEden,
       state.activeBtcProvider?.type,
       xverse,
+      requestedBitcoinNetwork,
     ]
   );
 
   const loginEvmAsync = useCallback(
-    async (address?: string) => {
+    async ({ address }: { address?: string }) => {
       if (!state.activeEvmProvider) throw new Error("No EVM provider");
       address = address ?? state.evmAccounts[0]?.address;
       if (!address) throw new Error("No EVM address");
@@ -590,12 +607,12 @@ export const useBitflickWalletImpl = ({
       address,
       btc,
       evm,
-      evmOptions,
+      btcOptions,
     }: {
       address?: string;
       btc?: boolean;
       evm?: boolean;
-      evmOptions?: {
+      btcOptions?: {
         network?: BitcoinNetworkType;
       };
     } = {}): Promise<{
@@ -609,6 +626,9 @@ export const useBitflickWalletImpl = ({
       token: string;
       type: SiweResponseType;
     }> => {
+      if (btcOptions?.network) {
+        setRequestedBitcoinNetwork(btcOptions.network);
+      }
       let modalNeeded = false;
       if (btc && !state.flags.needsBitcoinSelection) {
         dispatch(actions.setNeedsBitcoinSelection(true));
@@ -631,14 +651,14 @@ export const useBitflickWalletImpl = ({
         }
         return await loginBtcAsync({
           address,
-          network: evmOptions?.network,
+          network: btcOptions?.network ?? requestedBitcoinNetwork,
         });
       } else if (evm || state.activeEvmProvider) {
         address = address ?? state.evmAccounts[0]?.address;
         if (!address) {
           throw new Error("No address provided");
         }
-        return await loginEvmAsync(address);
+        return await loginEvmAsync({ address });
       }
 
       return new Promise((resolve, reject) => {
@@ -654,11 +674,18 @@ export const useBitflickWalletImpl = ({
       state.evmAccounts,
       dispatch,
       loginBtcAsync,
+      requestedBitcoinNetwork,
       loginEvmAsync,
     ]
   );
 
-  const connectAsync: (opts?: { btc?: boolean; evm?: boolean }) => Promise<
+  const connectAsync: (opts?: {
+    btc?: boolean;
+    btcOptions?: {
+      network?: BitcoinNetworkType;
+    };
+    evm?: boolean;
+  }) => Promise<
     | {
         provider: EvmWalletProvider;
         accounts: EvmAccount[];
@@ -668,7 +695,21 @@ export const useBitflickWalletImpl = ({
         addresses: BtcAccount[];
       }
   > = useCallback(
-    async ({ btc, evm }: { btc?: boolean; evm?: boolean } = {}) => {
+    async ({
+      btc,
+      btcOptions,
+      evm,
+    }: {
+      btc?: boolean;
+      btcOptions?: {
+        network?: BitcoinNetworkType;
+      };
+      evm?: boolean;
+    } = {}) => {
+      if (btcOptions?.network) {
+        setRequestedBitcoinNetwork(btcOptions.network);
+      }
+      const bitcoinNetwork = btcOptions?.network ?? requestedBitcoinNetwork;
       const operationId = "connect";
 
       // Try to start the operation
@@ -682,19 +723,29 @@ export const useBitflickWalletImpl = ({
       try {
         // If BTC is specified, use connectBtcAsync
         if (btc) {
-          return await connectBtcAsync(state.activeBtcProvider);
+          return await connectBtcAsync({
+            provider: state.activeBtcProvider,
+            network: bitcoinNetwork,
+          });
         }
 
         // If EVM is specified, use connectEvmAsync
         if (evm) {
-          return await connectEvmAsync(state.activeEvmProvider);
+          return await connectEvmAsync({
+            provider: state.activeEvmProvider,
+          });
         }
 
         // If no specific type is specified, use the active provider
         if (state.activeBtcProvider) {
-          return await connectBtcAsync(state.activeBtcProvider);
+          return await connectBtcAsync({
+            provider: state.activeBtcProvider,
+            network: bitcoinNetwork,
+          });
         } else if (state.activeEvmProvider) {
-          return await connectEvmAsync(state.activeEvmProvider);
+          return await connectEvmAsync({
+            provider: state.activeEvmProvider,
+          });
         }
 
         // If no provider is active, show the selection modal for both
@@ -718,6 +769,7 @@ export const useBitflickWalletImpl = ({
       state.activeBtcProvider,
       state.activeEvmProvider,
       connectBtcAsync,
+      requestedBitcoinNetwork,
       connectEvmAsync,
       dispatch,
     ]
@@ -851,18 +903,23 @@ export const useBitflickWalletImpl = ({
     (activeBtcProvider: BtcWalletProvider, connect?: boolean) => {
       dispatch(actions.setActiveBtcProvider(activeBtcProvider));
       if (connect) {
-        return connectBtcAsync(activeBtcProvider);
+        return connectBtcAsync({
+          provider: activeBtcProvider,
+          network: requestedBitcoinNetwork,
+        });
       }
       return Promise.resolve(void 0);
     },
-    [dispatch, connectBtcAsync]
+    [dispatch, connectBtcAsync, requestedBitcoinNetwork]
   );
 
   const setActiveEvmProvider = useCallback(
     (activeEvmProvider: EvmWalletProvider, connect?: boolean) => {
       dispatch(actions.setActiveEvmProvider(activeEvmProvider));
       if (connect) {
-        return connectEvmAsync(activeEvmProvider);
+        return connectEvmAsync({
+          provider: activeEvmProvider,
+        });
       }
       return Promise.resolve(void 0);
     },

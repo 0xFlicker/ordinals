@@ -116,7 +116,7 @@ export const OnboardingCard: FC<OnboardingCardProps> = ({
   // actions
   const handleConnect = useCallback(async () => {
     try {
-      const response = await connectAsync();
+      const response = await connectAsync({ btc: true });
       // setStage({ type: "SIGN", address: response.provider.chainType === "btc" && "addresses" in response ? response.addresses[0].address : response.accounts[0].address });
       if (response.provider.chainType === "btc" && "addresses" in response) {
         const address = response.addresses[0].address;
@@ -164,7 +164,7 @@ export const OnboardingCard: FC<OnboardingCardProps> = ({
           type: "SIGN",
           address,
         });
-        const loginResponse = await loginEvmAsync(address);
+        const loginResponse = await loginEvmAsync({ address });
         if (loginResponse.user && loginResponse.type === "EXISTING_USER") {
           onComplete?.(loginResponse.user);
           setStage({ type: "DONE" });
