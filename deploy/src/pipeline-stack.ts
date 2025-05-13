@@ -37,8 +37,17 @@ export class PipelineStack extends cdk.Stack {
           // Install Node.js 22 for monorepo compatibility
           "curl -fsSL https://deb.nodesource.com/setup_22.x | bash -",
           "apt-get install -y nodejs",
+          // Find where Node.js 22 is installed
+          "which node",
+          "ls -la /usr/bin/node*",
+          // Force use of Node.js 22 by updating alternatives
+          "update-alternatives --install /usr/bin/node node /usr/bin/nodejs 1000",
+          "update-alternatives --set node /usr/bin/nodejs",
+          "update-alternatives --install /usr/bin/npm npm /usr/bin/npm 1000",
+          "hash -r",
           // Verify Node.js version
           "node -v",
+          "npm -v",
           // Install Yarn CLI
           "npm install -g yarn",
           // Install root workspace dependencies
