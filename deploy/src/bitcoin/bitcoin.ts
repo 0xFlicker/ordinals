@@ -121,7 +121,7 @@ function createBtcUserData({
   echo 'No seed snapshot, creating new volume';
   VOL_ID=$(aws ec2 create-volume --availability-zone $AZ --size ${dataVolumeSize} --volume-type gp3 --tag-specifications 'ResourceType=volume,Tags=[{Key=Service,Value=bitcoin-data},{Key=Chain,Value=${network}}]' --query VolumeId --output text)
 else
-  echo 'Restoring from snapshot $SNAP_ID';
+  echo "Restoring from snapshot $SNAP_ID";
   VOL_ID=$(aws ec2 create-volume --availability-zone $AZ --snapshot-id $SNAP_ID --volume-type gp3 --tag-specifications 'ResourceType=volume,Tags=[{Key=Service,Value=bitcoin-data},{Key=Chain,Value=${network}}]' --query VolumeId --output text)
 fi`,
     "aws ec2 wait volume-available --volume-ids $VOL_ID",
@@ -614,8 +614,8 @@ export class Bitcoin extends Construct {
         schedules: [
           {
             name: "BitcoinDataSnapshotSchedule",
-            createRule: { interval: 6, intervalUnit: "HOURS" },
-            retainRule: { count: 24 },
+            createRule: { interval: 24, intervalUnit: "HOURS" },
+            retainRule: { count: 3 },
             fastRestoreRule: {
               availabilityZones: vpc.publicSubnets.map(
                 (s) => s.availabilityZone!,

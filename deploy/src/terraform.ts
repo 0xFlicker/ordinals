@@ -25,9 +25,7 @@ export class TerraformStateStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
-      lifecycleRules: [
-        { noncurrentVersionExpiration: cdk.Duration.days(30) }
-      ],
+      lifecycleRules: [{ noncurrentVersionExpiration: cdk.Duration.days(30) }],
     });
 
     // Table for Terraform state locking

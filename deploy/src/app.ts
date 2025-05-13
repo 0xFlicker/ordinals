@@ -1,23 +1,14 @@
 #!/usr/bin/env node
 
 import * as cdk from "aws-cdk-lib";
-import * as s3 from "aws-cdk-lib/aws-s3";
-import * as lambda from "aws-cdk-lib/aws-lambda";
 import path from "path";
 import { fileURLToPath } from "url";
-import { BackendStack, FrameStack } from "./stack.js";
-import { VpcStack } from "./vpc-stack.js";
-import { BitcoinStack, MariaDbStack } from "./bitcoin/stack.js";
-import { BuildStack } from "./bitcoin/build-stack.js";
-import { AuroraServerlessV2Stack } from "./bitcoin/aurora.js";
-import { SopsLayerStack } from "./layers.js";
-import { SharedBinaryBucketStack } from "./shared-bucket.js";
-import { CodeBuildStack } from "./codebuild/stack.js";
-import { TerraformStateStack } from "./terraform.js";
+import { AppStage } from "./app-stage.js";
 // Aspect to apply a 14-day retention policy to all CloudWatch Log Groups
 import { Aspects, IAspect } from "aws-cdk-lib";
 import { CfnLogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { IConstruct } from "constructs";
+import { PipelineStack } from "./pipeline-stack.js";
 
 class LogRetentionAspect implements IAspect {
   constructor(private readonly retentionInDays: number) {}
@@ -32,121 +23,28 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = new cdk.App();
 
-// Provision S3 bucket and DynamoDB table for Terraform remote state
-new TerraformStateStack(app, "TerraformStateStack", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION || "us-east-1",
-  },
-});
-
-// Create a shared binary bucket in us-east-1 for ARM artifacts
-const sharedBucketStack = new SharedBinaryBucketStack(
-  app,
-  "shared-binary-bucket",
-  {
-    env: {
-      account: process.env.CDK_DEFAULT_ACCOUNT,
-      region: "us-east-1",
-    },
-  },
-);
-const sharedBucketName = sharedBucketStack.bucket.bucketName;
-// Build the SOPS ARM binary into the shared bucket
-const { sopsBuildStack, ordBuildStack } = new CodeBuildStack(app, "codebuild", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
-  },
-  binaryBucketName: sharedBucketName,
-});
-// Create SOPS layer stack using the shared bucket artifact
-const { sopsLayer } = new SopsLayerStack(app, "sops-layer", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
-  },
-  binaryBucketName: sharedBucketName,
-  sopsKey: sopsBuildStack.sopsKey,
-});
-
-// Create (or import) a shared VPC for all Bitcoin and backend stacks
-const vpcStack = new VpcStack(app, "app-vpc", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
-  },
-});
-const vpc = vpcStack.vpc;
-// Deploy Bitcoin Testnet4 stack into the shared VPC
-new BitcoinStack(app, "testnet4", {
-  network: "testnet4",
-  vpc,
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
-  },
-});
-
-new BitcoinStack(app, "mainnet", {
-  network: "mainnet",
-  vpc,
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
-  },
-});
-
-new BackendStack(app, "ordinals", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
-  },
-  origin: process.env.ORIGIN || "https://bitflick.xyz",
-  sopsLayer,
-  vpc,
-  networks: ["testnet4", "mainnet"],
-  // networkAndSecurityGroups: [
-  //   ["testnet4", testnet4ClientGroup],
-  //   ["mainnet", mainnetClientGroup],
-  // ],
-});
-
-new FrameStack(app, "frame", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
-  },
-  origin: process.env.ORIGIN || "https://bitflick.xyz",
-  sopsLayer,
-  vpc,
-  // networkAndSecurityGroups: [
-  //   ["testnet4", testnet4ClientGroup],
-  //   ["mainnet", mainnetClientGroup],
-  // ],
-});
-
-// Build and upload Bitcoin and Electrs binaries using a shared S3 bucket
-new BuildStack(app, "build", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-west-2",
-  },
-});
-
-// new AuroraServerlessV2Stack(app, "aurora-mysql", {
-//   env: {
-//     account: process.env.CDK_DEFAULT_ACCOUNT,
-//     region: "us-west-2",
-//   },
-// });
-
-new MariaDbStack(app, "mariadb", {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-west-2",
-  },
-});
 
 // Apply 14-day retention to all CloudWatch Log Groups
 Aspects.of(app).add(new LogRetentionAspect(RetentionDays.TWO_WEEKS));
+
+// Decide between AWS-native CodePipeline or manual CDK deploy via AppStage
+const connectionArn = app.node.tryGetContext("codePipelineConnectionArn");
+if (connectionArn) {
+  new PipelineStack(app, "PipelineStack", {
+    env: {
+      account: process.env.CDK_DEFAULT_ACCOUNT,
+      region: process.env.CDK_DEFAULT_REGION || "us-east-1",
+    },
+    connectionArn,
+    repoOwner: "0xFlicker",
+    repoName: "ordinals",
+    branch: "main",
+  });
+} else {
+  new AppStage(app, "Prod", {
+    env: {
+      account: process.env.CDK_DEFAULT_ACCOUNT,
+      region: process.env.CDK_DEFAULT_REGION || "us-east-1",
+    },
+  });
+}

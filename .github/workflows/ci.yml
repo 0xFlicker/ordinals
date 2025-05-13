@@ -1,152 +1,72 @@
-name: CI
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+name: Continuous Integration
 
-permissions:
-  checks: write
-  contents: read
-  pull-requests: write
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**/*.ts'
+      - '**/*.js'
+      - '**/*.json'
+      - 'deploy/**'
+      - 'apps/**'
+      - 'packages/**'
+      - 'tests/**'
+      - 'turbo.json'
+      - 'package.json'
+      - 'tsconfig.json'
 
 jobs:
-  test:
+  ci:
+    name: Run Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          buildkitd-flags: --debug
-          driver-opts: |
-            image=moby/buildkit:latest
-
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Build and cache Docker images
-        uses: docker/build-push-action@v5
-        with:
-          context: ./packages/test/docker/bitcoind
-          push: false
-          load: true
-          tags: bitcoind:test
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-
-      - name: Build and cache electrs
-        uses: docker/build-push-action@v5
-        with:
-          context: ./packages/test/docker/electrs
-          push: false
-          load: true
-          tags: electrs:test
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-          build-args: |
-            CARGO_BUILD_JOBS=4
-            RUSTFLAGS="-C target-cpu=native"
-          platforms: linux/amd64
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
+      - uses: actions/checkout@v4
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "22.x"
-
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: Cache yarn dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ${{ steps.yarn-cache-dir-path.outputs.dir }}
-            node_modules
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Install dependencies
+          node-version: '20'
+      - name: Install Dependencies
         run: yarn install --frozen-lockfile
+      - name: Run Tests
+        run: yarn test
 
-      - name: Run tests
+  cdk-synth:
+    name: CDK Synth
+    needs: ci
+    runs-on: ubuntu-latest
+    env:
+      CDK_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Install Root Dependencies
+        run: yarn install --frozen-lockfile
+      - name: Install Deploy Dependencies
         run: |
-          npx turbo test:coverage -- --reporters=default --reporters=jest-junit || echo "TEST_EXECUTION_FAILED=true" >> $GITHUB_ENV
-        continue-on-error: true
+          cd deploy
+          yarn install --frozen-lockfile
+      - name: CDK Synth
+        working-directory: deploy
+        run: yarn run cdk synth --quiet
 
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
+  tf-validate:
+    name: Terraform Validate
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
         with:
-          name: test-results
-          path: |
-            packages/rbac/junit.xml
-            packages/inscriptions/junit.xml
-            packages/test/junit.xml
-          retention-days: 30
-
-      - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-reports
-          path: |
-            packages/rbac/coverage/
-            packages/inscriptions/coverage/
-            packages/test/coverage/
-          retention-days: 30
-
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          files: |
-            packages/rbac/junit.xml
-            packages/inscriptions/junit.xml
-            packages/test/junit.xml
-          comment_mode: always
-          check_name: "Test Results"
-          comment_title: "Test Results"
-          fail_on: "test failures"
-          compare_to_earlier_commit: true
-
-      - name: Check test results
-        if: always()
+          terraform_version: '1.6.0'
+      - name: Validate Cloudflare Terraform
+        working-directory: deploy/terraform/cloudfront
+        env:
+          TF_VAR_api_origin: "example.com"
         run: |
-          # Initialize variables
-          has_failures=false
-          failure_messages=()
-
-          # Check for test execution failures
-          if [ "$TEST_EXECUTION_FAILED" = "true" ]; then
-            has_failures=true
-            failure_messages+=("Test execution failed")
-          fi
-
-          # Find and check all junit.xml files
-          while IFS= read -r file; do
-            if grep -q "failures=\"[1-9]" "$file"; then
-              has_failures=true
-              failure_messages+=("Tests failed in $(dirname "$file")")
-            fi
-          done < <(find . -name "junit.xml")
-
-          # Report all failures if any were found
-          if [ "$has_failures" = true ]; then
-            echo "Test failures detected:"
-            printf '%s\n' "${failure_messages[@]}"
-            exit 1
-          else
-            echo "All tests passed successfully"
-          fi
+          terraform init -backend=false
+          terraform validate
