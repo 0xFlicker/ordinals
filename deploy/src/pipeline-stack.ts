@@ -42,13 +42,15 @@ export class PipelineStack extends cdk.Stack {
         "yum install -y gcc-c++ cairo-devel pango-devel libjpeg-turbo-devel giflib-devel",
         "n 22",
         "node -v",
+      ],
+      commands: [
         // Install Yarn and dependencies
         "npm install -g yarn",
         "yarn install --frozen-lockfile",
         "cd deploy",
         "yarn install --frozen-lockfile",
+        "npx cdk synth --quiet",
       ],
-      commands: ["cd deploy", "npx cdk synth --quiet"],
     });
 
     const pipeline = new CodePipeline(this, "Pipeline", {
