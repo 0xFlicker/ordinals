@@ -5,6 +5,7 @@ import {
   CodePipelineSource,
   CodeBuildStep,
 } from "aws-cdk-lib/pipelines";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as codebuild from "aws-cdk-lib/aws-codebuild";
 import { AppStage } from "./app-stage.js";
 
@@ -57,6 +58,9 @@ export class PipelineStack extends cdk.Stack {
       pipelineName: `${id}-pipeline`,
       synth: synthStep,
       pipelineType: cdk.aws_codepipeline.PipelineType.V2,
+      selfMutation: true, // Allow pipeline to update itself
+      dockerEnabledForSynth: true, // Enable Docker for synth if needed
+      dockerEnabledForSelfMutation: true, // Enable Docker for self-mutation if needed
     });
 
     // Deployment stage: runs the full CDK AppStage in this account/region
@@ -65,6 +69,28 @@ export class PipelineStack extends cdk.Stack {
     const prodStage = new AppStage(rootApp, "Prod", {
       env: props.env,
     });
-    pipeline.addStage(prodStage);
+    
+    // Add administrative permissions to the pipeline's deployment role
+    const deploymentRole = new cdk.aws_iam.Role(this, 'DeploymentRole', {
+      assumedBy: new cdk.aws_iam.ServicePrincipal('codebuild.amazonaws.com'),
+      managedPolicies: [
+        cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess')
+      ]
+    });
+    
+    pipeline.addStage(prodStage, {
+      pre: [
+        new CodeBuildStep('UpdatePermissions', {
+          commands: ['echo "Setting up deployment permissions"'],
+          rolePolicyStatements: [
+            new cdk.aws_iam.PolicyStatement({
+              actions: ['sts:AssumeRole'],
+              resources: ['*'],
+              effect: cdk.aws_iam.Effect.ALLOW,
+            }),
+          ],
+        }),
+      ],
+    });
   }
 }
