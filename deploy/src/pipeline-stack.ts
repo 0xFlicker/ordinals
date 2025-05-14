@@ -38,7 +38,8 @@ export class PipelineStack extends cdk.Stack {
       buildEnvironment: {
         buildImage: codebuild.LinuxArmBuildImage.AMAZON_LINUX_2023_STANDARD_3_0,
       },
-      commands: [
+      installCommands: [
+        "yum install -y gcc-c++ cairo-devel pango-devel libjpeg-turbo-devel giflib-devel",
         "n 22",
         "node -v",
         // Install Yarn and dependencies
@@ -46,8 +47,8 @@ export class PipelineStack extends cdk.Stack {
         "yarn install --frozen-lockfile",
         "cd deploy",
         "yarn install --frozen-lockfile",
-        "npx cdk synth --quiet",
       ],
+      commands: ["cd deploy", "npx cdk synth --quiet"],
     });
 
     const pipeline = new CodePipeline(this, "Pipeline", {

@@ -12,6 +12,7 @@
     "deploy:local:agreement": "LOCAL_DEPLOY_YES=1 bash ./scripts/deploy-local.sh",
     "deploy": "DEPLOYMENT=aws AWS_REGION=us-east-1 cdk deploy",
     "monitor-sqs": "node --loader ts-node/esm ./src/local-monitor-sqs.ts",
+    "deploy:pipeline": "yarn cdk deploy PipelineStack --context codePipelineConnectionArn=arn:aws:codestar-connections:us-east-1:590183800463:connection/c97b91ab-c407-42f4-969d-ad48aa4e3c02",
     "deploy:local:docker": "cd ../docker && docker compose -f docker-compose.yml up -d",
     "deploy:local:docker:down": "cd ../docker && docker compose -f docker-compose.yml down -v",
     "deploy:local:docker:relaunch": "yarn deploy:local:docker:down && yarn deploy:local:bootstrap && yarn deploy:local:agreement",
