@@ -3,8 +3,9 @@ import { Construct } from "constructs";
 import {
   CodePipeline,
   CodePipelineSource,
-  ShellStep,
+  CodeBuildStep,
 } from "aws-cdk-lib/pipelines";
+import * as codebuild from "aws-cdk-lib/aws-codebuild";
 import { AppStage } from "./app-stage.js";
 
 export interface PipelineStackProps extends cdk.StackProps {
@@ -25,37 +26,34 @@ export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: PipelineStackProps) {
     super(scope, id, props);
 
+    const source = CodePipelineSource.connection(
+      `${props.repoOwner}/${props.repoName}`,
+      props.branch,
+      { connectionArn: props.connectionArn },
+    );
+
+    const synthStep = new CodeBuildStep("Synth", {
+      input: source,
+      primaryOutputDirectory: "deploy/cdk.out",
+      buildEnvironment: {
+        buildImage: codebuild.LinuxArmBuildImage.AMAZON_LINUX_2023_STANDARD_3_0,
+      },
+      commands: [
+        "n 22",
+        "node -v",
+        // Install Yarn and dependencies
+        "npm install -g yarn",
+        "yarn install --frozen-lockfile",
+        "cd deploy",
+        "yarn install --frozen-lockfile",
+        "npx cdk synth --quiet",
+      ],
+    });
+
     const pipeline = new CodePipeline(this, "Pipeline", {
       pipelineName: `${id}-pipeline`,
-      synth: new ShellStep("Synth", {
-        input: CodePipelineSource.connection(
-          `${props.repoOwner}/${props.repoName}`,
-          props.branch,
-          { connectionArn: props.connectionArn },
-        ),
-        commands: [
-          // Install NVM to manage Node.js versions
-          "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash",
-          // Load NVM
-          "export NVM_DIR=\"$HOME/.nvm\"",
-          "[ -s \"$NVM_DIR/nvm.sh\" ] && \\. \"$NVM_DIR/nvm.sh\"",
-          // Install and use Node.js 22
-          "nvm install 22",
-          "nvm use 22",
-          // Verify Node.js version
-          "node -v",
-          // Install Yarn CLI
-          "npm install -g yarn",
-          // Install root workspace dependencies
-          "yarn install --frozen-lockfile",
-          // Install deploy-specific dependencies
-          "cd deploy",
-          "yarn install --frozen-lockfile",
-          // Synthesize CloudAssembly
-          "npx cdk synth --quiet",
-        ],
-        primaryOutputDirectory: "deploy/cdk.out",
-      }),
+      synth: synthStep,
+      pipelineType: cdk.aws_codepipeline.PipelineType.V2,
     });
 
     // Deployment stage: runs the full CDK AppStage in this account/region

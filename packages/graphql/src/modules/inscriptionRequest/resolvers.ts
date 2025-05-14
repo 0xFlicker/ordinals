@@ -30,7 +30,7 @@ import {
   defaultAdminStrategyAll,
   isActionOnResource,
 } from "@0xflick/ordinals-rbac-models";
-import { Address } from "@cmdcode/tapscript";
+
 const logger = createLogger({
   name: "inscription-request-resolvers",
 });

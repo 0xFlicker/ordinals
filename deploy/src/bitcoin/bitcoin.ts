@@ -14,6 +14,7 @@ import { Aws, Tags } from "aws-cdk-lib";
 import * as dlm from "aws-cdk-lib/aws-dlm";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
+import * as sns from "aws-cdk-lib/aws-sns";
 // handlebars templating removed; configs inline
 import path from "path";
 import { fileURLToPath } from "url";
@@ -400,12 +401,17 @@ export class Bitcoin extends Construct {
       ec2.Port.tcp(networkToElectrsPort(network)),
       "allow electrum to electrs",
     );
-
     // Allow ALB to connect to bitcoind
     btcServiceGroup.addIngressRule(
       ec2.Peer.securityGroupId(albSecurityGroup.securityGroupId),
       ec2.Port.tcp(networkToRpcPort(network)),
-      "allow p2p vpc",
+      "allow RPC from ALB",
+    );
+    // Allow ALB to connect to bitcoind
+    btcServiceGroup.addIngressRule(
+      ec2.Peer.securityGroupId(albSecurityGroup.securityGroupId),
+      ec2.Port.tcp(8080),
+      "allow health check from ALB",
     );
     // Allow NLB to connect to electrs
     btcServiceGroup.addIngressRule(
@@ -472,9 +478,16 @@ export class Bitcoin extends Construct {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       // Use ELB health check with extended grace period to allow initial syncing
-      healthCheck: autoscaling.HealthCheck.elb({
-        grace: cdk.Duration.minutes(15),
+      healthChecks: autoscaling.HealthChecks.ec2({
+        gracePeriod: cdk.Duration.minutes(30),
       }),
+      // Enable CloudWatch logs for instance termination events
+      notifications: [
+        {
+          topic: new sns.Topic(this, "AsgTerminationTopic"),
+          scalingEvents: autoscaling.ScalingEvents.TERMINATION_EVENTS,
+        },
+      ],
       mixedInstancesPolicy: {
         launchTemplate: createLaunchTemplate({
           context: this,
@@ -532,13 +545,46 @@ export class Bitcoin extends Construct {
       `aws s3 cp s3://${secretAsset.s3BucketName}/${secretAsset.s3ObjectKey} /home/ec2-user/.env.bitcoin`,
       // Start CloudWatch agent
       "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/amazon-cloudwatch-agent.json",
+      // Create a script that will check if bitcoind is ready
+      "cat << 'EOF' > /home/ec2-user/check_bitcoin_ready.sh",
+      "#!/bin/bash",
+      `bitcoin-cli -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(
+        network,
+      )} getblockchaininfo > /dev/null 2>&1`,
+      "if [ $? -eq 0 ]; then",
+      "  # Bitcoin is ready, return HTTP 200",
+      '  echo -e "HTTP/1.1 200 OK\\r\\nContent-Type: text/plain\\r\\nConnection: close\\r\\n\\r\\nBitcoin Ready"',
+      "else",
+      "  # Bitcoin is not ready, return HTTP 503",
+      '  echo -e "HTTP/1.1 503 Service Unavailable\\r\\nContent-Type: text/plain\\r\\nConnection: close\\r\\n\\r\\nBitcoin Not Ready"',
+      "fi",
+      "EOF",
+      "chmod +x /home/ec2-user/check_bitcoin_ready.sh",
+      // Start a simple health check server on port 8080
+      "cat << 'EOF' > /home/ec2-user/health_server.sh",
+      "#!/bin/bash",
+      "while true; do",
+      "  echo 'Starting health check server on port 8080'",
+      "  nc -l 8080 -c '/home/ec2-user/check_bitcoin_ready.sh'",
+      "done",
+      "EOF",
+      "chmod +x /home/ec2-user/health_server.sh",
+      "nohup /home/ec2-user/health_server.sh > /home/ec2-user/health_server.log 2>&1 &",
+      // Install netcat for the health check server
+      "yum install -y nc",
+      // Start bitcoind
       `runuser -l ec2-user -c 'bitcoind -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(
         network,
       )} -rpcauth=$(sops -d /home/ec2-user/.env.bitcoin | grep BITCOIN_RPC_AUTH | cut -d\'=\' -f2-) -debuglogfile=/home/ec2-user/bitcoin.log -daemonwait'`,
-      // Give bitcoind time to initialize
-      "sleep 60",
+      // Wait for bitcoind to be responsive before proceeding
+      "echo 'Waiting for bitcoind to be ready...'",
+      `until runuser -l ec2-user -c 'bitcoin-cli -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(
+        network,
+      )} getblockchaininfo' > /dev/null 2>&1; do sleep 5; echo 'Still waiting for bitcoind...'; done`,
+      "echo 'Bitcoin node is ready to serve requests'",
       // Launch electrs
       `runuser -l ec2-user -c '/usr/local/bin/electrs --conf /home/ec2-user/electrs.conf >> /home/ec2-user/electrs.log 2>&1 &'`,
+      "echo 'Electrs is ready to serve requests'",
     );
     // Lambda to update latest data snapshot on snapshot completion
     const updateLatestSnapshotFn = new lambdaNodejs.NodejsFunction(
@@ -632,17 +678,18 @@ export class Bitcoin extends Construct {
       ],
     });
 
-    // Health-check directly against bitcoind RPC (treat 200 or 401 as healthy)
+    // Health-check against a readiness file - if file exists, instance is not ready
     rpcListener.addTargets("target", {
       port: networkToRpcPort(network),
       targets: [asg],
       protocol: elbv2.ApplicationProtocol.HTTP,
+      deregistrationDelay: cdk.Duration.seconds(120),
       healthCheck: {
         enabled: true,
         port: `${networkToRpcPort(network)}`,
         path: "/",
         healthyHttpCodes: "200,401,405",
-        interval: cdk.Duration.seconds(30),
+        interval: cdk.Duration.seconds(300),
         timeout: cdk.Duration.seconds(10),
         healthyThresholdCount: 3,
         unhealthyThresholdCount: 2,

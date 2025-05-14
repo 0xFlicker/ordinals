@@ -81,7 +81,6 @@ export class AppStage extends cdk.Stage {
       sopsLayer,
       vpc,
       networks: ["testnet4", "mainnet"],
-      stackName: "ordinals",
     });
   }
 }
