@@ -4,15 +4,17 @@ import { Pay } from "@/features/inscription";
 import { getUserHandle, getUserIdFromSession } from "@/app/actions";
 import { BitcoinNetworkType } from "sats-connect";
 
-export const PayRoute = async ({
+export const PayRoute = ({
   fundingId,
   initialBitcoinNetwork,
+  handle,
+  userId,
 }: {
   fundingId: string;
   initialBitcoinNetwork: BitcoinNetworkType;
+  handle?: string;
+  userId?: string;
 }) => {
-  const userId = await getUserIdFromSession();
-  const handle = userId ? await getUserHandle(userId) : null;
   return (
     <SwitchableNetwork
       title="bitflick"

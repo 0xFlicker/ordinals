@@ -237,8 +237,8 @@ export type FeeEstimate = {
 
 export type FeeEstimateResponse = {
   __typename?: 'FeeEstimateResponse';
-  data: FeeEstimate;
-  problems: Array<BitcoinNetworkProblem>;
+  data?: Maybe<FeeEstimate>;
+  problems?: Maybe<Array<BitcoinNetworkProblem>>;
 };
 
 export enum FeeLevel {
@@ -857,6 +857,13 @@ export type GetUserHandleQueryVariables = Types.Exact<{
 
 export type GetUserHandleQuery = { __typename?: 'Query', user: { __typename?: 'Web3User', handle: string } };
 
+export type GetInscriptionFundingQueryVariables = Types.Exact<{
+  id: Types.Scalars['ID']['input'];
+}>;
+
+
+export type GetInscriptionFundingQuery = { __typename?: 'Query', inscriptionFunding?: { __typename?: 'InscriptionFunding', id: string, network: Types.BitcoinNetwork } | null };
+
 
 export const GetAppInfoDocument = gql`
     query getAppInfo {
@@ -895,6 +902,14 @@ export const GetUserHandleDocument = gql`
   }
 }
     `;
+export const GetInscriptionFundingDocument = gql`
+    query getInscriptionFunding($id: ID!) {
+  inscriptionFunding(id: $id) {
+    id
+    network
+  }
+}
+    `;
 
 export type SdkFunctionWrapper = <T>(action: (requestHeaders?:Record<string, string>) => Promise<T>, operationName: string, operationType?: string) => Promise<T>;
 
@@ -911,6 +926,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     getUserHandle(variables: GetUserHandleQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetUserHandleQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<GetUserHandleQuery>(GetUserHandleDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'getUserHandle', 'query');
+    },
+    getInscriptionFunding(variables: GetInscriptionFundingQueryVariables, requestHeaders?: GraphQLClientRequestHeaders): Promise<GetInscriptionFundingQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetInscriptionFundingQuery>(GetInscriptionFundingDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'getInscriptionFunding', 'query');
     }
   };
 }

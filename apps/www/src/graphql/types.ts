@@ -232,8 +232,8 @@ export type FeeEstimate = {
 
 export type FeeEstimateResponse = {
   __typename?: 'FeeEstimateResponse';
-  data: FeeEstimate;
-  problems: Array<BitcoinNetworkProblem>;
+  data?: Maybe<FeeEstimate>;
+  problems?: Maybe<Array<BitcoinNetworkProblem>>;
 };
 
 export enum FeeLevel {

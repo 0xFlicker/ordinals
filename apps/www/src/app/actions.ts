@@ -41,6 +41,13 @@ gql`
       handle
     }
   }
+
+  query getInscriptionFunding($id: ID!) {
+    inscriptionFunding(id: $id) {
+      id
+      network
+    }
+  }
 `;
 
 export async function appInfo() {
@@ -87,4 +94,17 @@ export async function getUserIdFromSession() {
     await importSPKIKey(pubKey)
   );
   return userId;
+}
+
+export async function getInscriptionFunding(id: string) {
+  const sdk = getSdk(
+    createGraphqlClient({
+      next: {
+        // 40 seconds
+        revalidate: 40,
+      },
+    })
+  );
+  const { inscriptionFunding } = await sdk.getInscriptionFunding({ id });
+  return inscriptionFunding;
 }

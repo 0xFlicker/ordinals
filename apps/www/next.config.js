@@ -50,6 +50,14 @@ const nextConfig = {
       },
     };
   },
+  rewrites: () => {
+    return [
+      {
+        source: "/graphql",
+        destination: process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

@@ -88,7 +88,9 @@ export const Inscribe: FC<{}> = () => {
   }, [connectBtcAsync, discoveredAddress, isConnected, network]);
 
   const { handleCreate, paymentRequest } = useInscribe({
-    network: BitcoinNetwork.Mainnet,
+    network: network
+      ? toGraphqlBitcoinNetwork(network)
+      : BitcoinNetwork.Mainnet,
     destinationAddress: ordinalsAddress,
     feeLevel: feeMode === "preset" ? feeLevel : undefined,
     feePerByte: feeMode === "custom" ? customFeeRate : undefined,
