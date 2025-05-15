@@ -43,7 +43,11 @@ export class BackendStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       cors: [
         {
-          allowedOrigins: ["http://localhost:3000", "https://www.bitflick.xyz"],
+          allowedOrigins: [
+            "http://localhost:3000",
+            "https://localhost:3000",
+            "https://www.bitflick.xyz",
+          ],
           allowedMethods: [s3.HttpMethods.PUT],
           allowedHeaders: ["*"],
           exposedHeaders: ["ETag"],

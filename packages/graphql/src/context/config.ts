@@ -103,6 +103,27 @@ export const regtestDefaultTipDestination = lazySingleton(() => {
   return process.env.REGTEST_DEFAULT_TIP_DESTINATION;
 });
 
+export const testnetDefaultTipDestination = lazySingleton(() => {
+  if (!process.env.TESTNET_DEFAULT_TIP_DESTINATION) {
+    throw new Error("TESTNET_DEFAULT_TIP_DESTINATION not set");
+  }
+  return process.env.TESTNET_DEFAULT_TIP_DESTINATION;
+});
+
+export const mainnetDefaultTipDestination = lazySingleton(() => {
+  if (!process.env.MAINNET_DEFAULT_TIP_DESTINATION) {
+    throw new Error("MAINNET_DEFAULT_TIP_DESTINATION not set");
+  }
+  return process.env.MAINNET_DEFAULT_TIP_DESTINATION;
+});
+
+export const testnet4DefaultTipDestination = lazySingleton(() => {
+  if (!process.env.TESTNET4_DEFAULT_TIP_DESTINATION) {
+    throw new Error("TESTNET4_DEFAULT_TIP_DESTINATION not set");
+  }
+  return process.env.TESTNET4_DEFAULT_TIP_DESTINATION;
+});
+
 export const parentInscriptionSecKeyEnvelopeKeyId = lazySingleton(() => {
   if (!process.env.PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID) {
     throw new Error("PARENT_INSCRIPTION_SEC_KEY_ENVELOPE_KEY_ID not set");
@@ -120,10 +141,23 @@ export const fundingSecKeyEnvelopeKeyId = lazySingleton(() => {
 export const defaultTipDestinationForNetwork = (
   network: BitcoinNetworkNames,
 ) => {
-  if (network === "regtest") {
-    return regtestDefaultTipDestination.get();
+  // if (network === "regtest") {
+  //   return regtestDefaultTipDestination.get();
+  // }
+  switch (network) {
+    case "regtest":
+      return regtestDefaultTipDestination.get();
+    case "testnet":
+      return testnetDefaultTipDestination.get();
+    case "mainnet":
+      return mainnetDefaultTipDestination.get();
+    case "testnet4":
+      return testnet4DefaultTipDestination.get();
+    default:
+      throw new Error(
+        `Default tip destination not set for network: ${network}`,
+      );
   }
-  throw new Error(`Default tip destination not set for network: ${network}`);
 };
 
 export interface IConfigContext {

@@ -46,7 +46,7 @@ export function serializeSessionCookie({
 }) {
   return serialize(cookieName, value, {
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "none",
     httpOnly: true,
     expires,
     path,
@@ -62,7 +62,7 @@ export function expireSessionCookie({
 }) {
   return serialize(cookieName, "", {
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "none",
     httpOnly: true,
     expires: new Date(0),
     path,

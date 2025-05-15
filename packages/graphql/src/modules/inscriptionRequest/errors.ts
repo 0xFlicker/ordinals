@@ -3,7 +3,8 @@ import { ApolloError } from "apollo-server-errors";
 export type TReason =
   | "INVALID_DESTINATION_ADDRESS"
   | "INVALID_FILE"
-  | "INVALID_REQUEST";
+  | "INVALID_REQUEST"
+  | "INVALID_FEE_LEVEL";
 function reasonToMessage(reason: TReason): string {
   switch (reason) {
     case "INVALID_DESTINATION_ADDRESS":
@@ -12,6 +13,8 @@ function reasonToMessage(reason: TReason): string {
       return "Invalid file";
     case "INVALID_REQUEST":
       return "Invalid request";
+    case "INVALID_FEE_LEVEL":
+      return "Invalid fee level";
     default:
       return "Unknown error";
   }

@@ -28,13 +28,12 @@ function setCookie(
   res: LambdaContextFunctionParams["express"]["res"],
   token: string,
 ) {
-  logger.info("Setting cookie");
   res.setHeader(
     "set-cookie",
     serializeSessionCookie({
       value: token,
-      path: "/graphql/",
-      cookieName: "session",
+      path: "/",
+      cookieName: "bitflick.session",
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
     }),
   );
@@ -86,7 +85,7 @@ const server = new ApolloServer({
           "set-cookie",
           expireSessionCookie({
             cookieName: sessionFromNamespace(namespace),
-            path: "/graphql/",
+            path: "/",
           }),
         );
       },

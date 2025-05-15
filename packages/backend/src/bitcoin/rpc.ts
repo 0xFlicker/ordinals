@@ -17,7 +17,7 @@ interface JsonRpcRequest {
   id: number;
 }
 
-interface JsonRpcResponse<R = unknown> {
+export interface JsonRpcResponse<R = unknown> {
   result: R;
   error: { code: number; message: string } | null;
   id: number;
@@ -81,6 +81,56 @@ async function invokeRpc<R>(
 }
 
 /**
+ * Invokes the RPC Lambda with a JSON-RPC payload and returns the
+ * `result` or throws if RPC error.
+ */
+async function invokeBatchRpc<R>(
+  requests: Omit<JsonRpcRequest, "id" | "jsonrpc">[],
+  network: BitcoinNetworkNames,
+): Promise<JsonRpcResponse<R>[]> {
+  const RPC_FN_ARN = process.env[`${network.toUpperCase()}_RPC_LAMBDA_ARN`];
+  if (!RPC_FN_ARN) {
+    throw new Error(
+      `${network.toUpperCase()}_RPC_LAMBDA_ARN env var is not set`,
+    );
+  }
+
+  let id = Date.now();
+
+  const payload: JsonRpcRequest[] = requests.map((request) => ({
+    jsonrpc: "1.0",
+    ...request,
+    id: id++,
+  }));
+
+  const cmd = new InvokeCommand({
+    FunctionName: RPC_FN_ARN,
+    InvocationType: "RequestResponse",
+    Payload: Buffer.from(JSON.stringify(payload)),
+  });
+
+  const resp = await lambdaClient.send(cmd);
+
+  if (resp.FunctionError) {
+    // Lambda itself errored
+    const raw = Buffer.from(resp.Payload!).toString("utf-8");
+    let errInfo: any;
+    try {
+      errInfo = JSON.parse(raw);
+    } catch {
+      throw new Error(`RPC Lambda error (malformed payload): ${raw}`);
+    }
+    throw new Error(`RPC Lambda exception: ${errInfo.errorMessage}`);
+  }
+
+  const raw = resp.Payload as Uint8Array;
+  const text = Buffer.from(raw).toString("utf-8");
+  const rpcResp = JSON.parse(text) as JsonRpcResponse<R>[];
+
+  return rpcResp;
+}
+
+/**
  * Broadcasts a raw transaction
  */
 export async function sendRawTransaction(
@@ -121,4 +171,24 @@ export async function estimateSmartFee(
     errors?: string[];
     blocks: number;
   }>("estimatesmartfee", [conf_target, estimate_mode], network);
+}
+
+export async function estimateSmartFeeBatch(
+  requests: {
+    conf_target: number;
+    estimate_mode?: "ECONOMICAL" | "CONSERVATIVE" | "UNSET";
+  }[],
+  network: BitcoinNetworkNames,
+) {
+  return invokeBatchRpc<{
+    feerate: number;
+    errors?: string[];
+    blocks: number;
+  }>(
+    requests.map((request) => ({
+      method: "estimatesmartfee",
+      params: [request.conf_target, request.estimate_mode],
+    })),
+    network,
+  );
 }

@@ -33,11 +33,21 @@ export class PipelineStack extends cdk.Stack {
       { connectionArn: props.connectionArn },
     );
 
+    // Get the connection ARN from the stack parameter or props
+    const connectionArnParam = new cdk.CfnParameter(this, 'ConnectionArnParam', {
+      type: 'String',
+      description: 'ARN of the CodeStar connection to GitHub',
+      default: props.connectionArn,
+    });
+    
     const synthStep = new CodeBuildStep("Synth", {
       input: source,
       primaryOutputDirectory: "deploy/cdk.out",
       buildEnvironment: {
         buildImage: codebuild.LinuxArmBuildImage.AMAZON_LINUX_2023_STANDARD_3_0,
+        environmentVariables: {
+          CONNECTION_ARN: { value: connectionArnParam.valueAsString },
+        },
       },
       installCommands: [
         "yum install -y gcc-c++ cairo-devel pango-devel libjpeg-turbo-devel giflib-devel",
@@ -50,7 +60,8 @@ export class PipelineStack extends cdk.Stack {
         "yarn install --frozen-lockfile",
         "cd deploy",
         "yarn install --frozen-lockfile",
-        "npx cdk synth --quiet",
+        // Pass the connection ARN as context during synth
+        "npx cdk synth --quiet --context codePipelineConnectionArn=$CONNECTION_ARN",
       ],
     });
 

@@ -152,6 +152,7 @@ export class Graphql extends Construct {
           },
         },
         environment: {
+          NODE_ENV: "production",
           LOG_LEVEL: "debug",
           NODE_OPTIONS: "--enable-source-maps",
           TABLE_NAMES: JSON.stringify({
@@ -227,6 +228,7 @@ export class Graphql extends Construct {
     const allowedOrigins = [
       "http://localhost:3000", // for local dev
       `https://www.${domainName.hostname}`, // your production frontend
+      "https://localhost:3000", // for local dev
     ];
 
     const httpApi = new HttpApi(this, "GraphqlApi", {

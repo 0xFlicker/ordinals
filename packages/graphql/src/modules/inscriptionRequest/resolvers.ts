@@ -14,7 +14,11 @@ import {
 } from "@0xflick/ordinals-models";
 import { estimateFeesWithMempool } from "../bitcoin/fees.js";
 import { MempoolModel } from "../../modules/bitcoin/models.js";
-import { createInscriptionTransaction } from "@0xflick/ordinals-backend";
+import {
+  createInscriptionTransaction,
+  estimateSmartFee,
+  getFeeEstimates,
+} from "@0xflick/ordinals-backend";
 import {
   getMultiPartUploadID,
   getS3UploadUrl,
@@ -30,6 +34,7 @@ import {
   defaultAdminStrategyAll,
   isActionOnResource,
 } from "@0xflick/ordinals-rbac-models";
+import { feeLevelToBlocks } from "../../modules/bitcoin/transforms.js";
 
 const logger = createLogger({
   name: "inscription-request-resolvers",
@@ -43,7 +48,7 @@ const logger = createLogger({
 //   }),
 // );
 
-const resolvers: InscriptionRequestModule.Resolvers = {
+export const resolvers: InscriptionRequestModule.Resolvers = {
   Mutation: {
     createInscriptionRequest: async (_, { input }, context, info) => {
       const {
@@ -53,7 +58,6 @@ const resolvers: InscriptionRequestModule.Resolvers = {
         inscriptionBucket,
         s3Client,
         uploadBucket,
-        createMempoolBitcoinClient,
         defaultTipDestinationForNetwork,
         inscriptionTip,
         fundingSecKeyEnvelopeKeyId,
@@ -70,15 +74,46 @@ const resolvers: InscriptionRequestModule.Resolvers = {
       if (!isValidTaprootAddress(destinationAddress)) {
         throw new InscriptionRequestError("INVALID_DESTINATION_ADDRESS");
       }
-      const feeRate = await estimateFeesWithMempool({
-        mempoolBitcoinClient: new MempoolModel(
-          createMempoolBitcoinClient({
-            network: toBitcoinNetworkName(network),
-          }),
-        ),
-        feePerByte,
-        feeLevel,
-      });
+      let feeRate: number;
+      if (!feePerByte && feeLevel) {
+        const smartFee = await getFeeEstimates(toBitcoinNetworkName(network));
+        switch (feeLevel) {
+          case "GLACIAL":
+            if (!smartFee.fees?.minimum) {
+              throw new InscriptionRequestError("INVALID_FEE_LEVEL");
+            }
+            feeRate = smartFee.fees?.minimum;
+            break;
+          case "LOW":
+            if (!smartFee.fees?.hour) {
+              throw new InscriptionRequestError("INVALID_FEE_LEVEL");
+            }
+            feeRate = smartFee.fees?.hour;
+            break;
+          case "MEDIUM":
+            if (!smartFee.fees?.halfHour) {
+              throw new InscriptionRequestError("INVALID_FEE_LEVEL");
+            }
+            feeRate = smartFee.fees?.halfHour;
+            break;
+          case "HIGH":
+            if (!smartFee.fees?.fastest) {
+              throw new InscriptionRequestError("INVALID_FEE_LEVEL");
+            }
+            feeRate = smartFee.fees?.fastest;
+            break;
+          default:
+            throw new InscriptionRequestError("INVALID_FEE_LEVEL");
+        }
+      } else if (feePerByte) {
+        feeRate = feePerByte;
+      } else {
+        const { fees } = await getFeeEstimates(toBitcoinNetworkName(network));
+        if (!fees) {
+          throw new InscriptionRequestError("INVALID_FEE_LEVEL");
+        }
+        feeRate = fees.fastest;
+      }
       const inscriptions: InscriptionContent[] = await Promise.all(
         files.map(async (file) => {
           if (file.inlineFile) {
@@ -332,5 +367,3 @@ const resolvers: InscriptionRequestModule.Resolvers = {
     },
   },
 };
-
-export default resolvers;

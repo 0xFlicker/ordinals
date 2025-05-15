@@ -50,3 +50,18 @@ export function toFeeLevel(feeLevel: FeeLevel, fees: IFeesRecommended) {
       throw new Error(`Unsupported fee level: ${feeLevel}`);
   }
 }
+
+export function feeLevelToBlocks(feeLevel: FeeLevel) {
+  switch (feeLevel) {
+    case "GLACIAL":
+      return 12;
+    case "LOW":
+      return 6;
+    case "MEDIUM":
+      return 3;
+    case "HIGH":
+      return 1;
+    default:
+      throw new Error(`Unsupported fee level: ${feeLevel}`);
+  }
+}
