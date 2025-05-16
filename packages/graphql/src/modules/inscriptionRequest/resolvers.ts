@@ -12,11 +12,8 @@ import {
   TInscriptionDoc,
   toBitcoinNetworkName,
 } from "@0xflick/ordinals-models";
-import { estimateFeesWithMempool } from "../bitcoin/fees.js";
-import { MempoolModel } from "../../modules/bitcoin/models.js";
 import {
   createInscriptionTransaction,
-  estimateSmartFee,
   getFeeEstimates,
 } from "@0xflick/ordinals-backend";
 import {
@@ -28,13 +25,7 @@ import { InscriptionProblem } from "../../generated-types/graphql.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { createLogger } from "@0xflick/ordinals-backend";
 import { verifyAuthorizedUser } from "../../modules/auth/controller.js";
-import {
-  EActions,
-  EResource,
-  defaultAdminStrategyAll,
-  isActionOnResource,
-} from "@0xflick/ordinals-rbac-models";
-import { feeLevelToBlocks } from "../../modules/bitcoin/transforms.js";
+import { EActions, EResource } from "@0xflick/ordinals-rbac-models";
 
 const logger = createLogger({
   name: "inscription-request-resolvers",

@@ -177,7 +177,7 @@ fi`,
   userData.addCommands("chmod +x /usr/local/bin/electrs");
 
   const electrsConf = [
-    `cookie_file = "/home/ec2-user/.bitcoin_${network}/${network}/.cookie"`,
+    `cookie_file = "/home/ec2-user/.bitcoin_${network}/.cookie"`,
     `db_dir = "${dataDir}/electrs"`,
     `network = "${networkToElectrsNetwork(network)}"`,
     `electrum_rpc_addr = "0.0.0.0:${networkToElectrsPort(network)}"`,
@@ -465,7 +465,6 @@ export class Bitcoin extends Construct {
     const rpcListener = alb.addListener("Listener", {
       port: networkToRpcPort(network),
       protocol: elbv2.ApplicationProtocol.HTTP,
-      open: true,
     });
 
     const electrsListener = nlb.addListener("ElectrsListener", {

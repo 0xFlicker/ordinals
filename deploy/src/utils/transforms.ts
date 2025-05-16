@@ -17,6 +17,12 @@ export function networkToElectrsNetwork(network: BitcoinNetwork) {
   switch (network) {
     case "testnet":
       return "testnet";
+    case "testnet4":
+      return "testnet4";
+    case "mainnet":
+      return "bitcoin";
+    case "regtest":
+      return "regtest";
     default:
       return network;
   }

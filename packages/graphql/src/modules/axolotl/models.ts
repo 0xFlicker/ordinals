@@ -174,20 +174,20 @@ export class AxolotlModel implements IAxolotlMeta {
   }
 
   public static async estimateFees({
-    mempool,
+    network,
     feePerByte,
     feeLevel,
     count,
     tipPerToken,
   }: {
+    network: BitcoinNetworkNames;
     count: number;
     feePerByte?: InputMaybe<number>;
     feeLevel?: InputMaybe<FeeLevel>;
-    mempool: MempoolModel;
     tipPerToken: number;
   }) {
     const feeRate = await estimateFeesWithMempool({
-      mempoolBitcoinClient: mempool,
+      network,
       feePerByte,
       feeLevel,
     });
@@ -318,7 +318,7 @@ export class AxolotlModel implements IAxolotlMeta {
     }
 
     const finalFee = await estimateFeesWithMempool({
-      mempoolBitcoinClient: mempool,
+      network,
       feePerByte,
       feeLevel,
     });

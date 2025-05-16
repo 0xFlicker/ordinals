@@ -39,13 +39,13 @@ export function toGraphqlBitcoinNetworkName(
 export function toFeeLevel(feeLevel: FeeLevel, fees: IFeesRecommended) {
   switch (feeLevel) {
     case "GLACIAL":
-      return fees.minimumFee;
+      return fees.minimum;
     case "LOW":
-      return fees.hourFee;
+      return fees.hour;
     case "MEDIUM":
-      return fees.halfHourFee;
+      return fees.halfHour;
     case "HIGH":
-      return fees.fastestFee;
+      return fees.fastest;
     default:
       throw new Error(`Unsupported fee level: ${feeLevel}`);
   }

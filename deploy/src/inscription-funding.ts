@@ -27,6 +27,7 @@ export interface IInscriptionFundingProps {
   readonly claimsTable: dynamodb.Table;
   readonly openEditionClaimsTable: dynamodb.Table;
   readonly parentInscriptionSecKeyEnvelope: Envelope;
+  readonly fundingSecKeyEnvelope: Envelope;
   readonly inscriptionBucket: s3.Bucket;
   readonly rpcLambdas: Record<BitcoinNetwork, lambda.Function | undefined>;
   readonly batchRevealTimeMinutes: number;
@@ -281,13 +282,6 @@ export class InscriptionFunding extends Construct {
       },
     );
 
-    // Grant permission to the lambda function to call the rpc lambda
-    for (const network of Object.keys(props.rpcLambdas)) {
-      props.rpcLambdas[network as BitcoinNetwork]?.grantInvoke(
-        this.batchRevealLambda,
-      );
-    }
-
     this.batchRevealLambda.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["kms:Decrypt"],
@@ -304,6 +298,18 @@ export class InscriptionFunding extends Construct {
       }),
     );
 
+    // Grant permission to the lambda function to call the rpc lambda
+    for (const network of Object.keys(props.rpcLambdas)) {
+      props.rpcLambdas[network as BitcoinNetwork]?.grantInvoke(
+        this.batchRevealLambda,
+      );
+    }
+
+    props.parentInscriptionSecKeyEnvelope.key.grantEncryptDecrypt(
+      this.batchRevealLambda,
+    );
+    props.fundingSecKeyEnvelope.key.grantEncryptDecrypt(this.batchRevealLambda);
+
     // Grant permissions to the Lambda function to read/write from the funding table
     props.fundingTable?.grantReadWriteData(this.batchRevealLambda);
 
@@ -318,11 +324,6 @@ export class InscriptionFunding extends Construct {
 
     // Grant permissions to the Lambda function to read/write from the transaction bucket to store transactions
     props.transactionBucket.grantReadWrite(this.batchRevealLambda);
-
-    // Grant permissions to the Lambda function to decrypt the parent inscription sec key envelope
-    props.parentInscriptionSecKeyEnvelope.key.grantDecrypt(
-      this.batchRevealLambda,
-    );
 
     // Also execute every 15 minutes
     const batchRevealRule = new events.Rule(this, "BatchRevealScheduleRule", {

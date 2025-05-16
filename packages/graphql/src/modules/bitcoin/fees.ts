@@ -1,13 +1,14 @@
 import { FeeLevel, InputMaybe } from "../../generated-types/graphql.js";
 import { toFeeLevel } from "./transforms.js";
-import { MempoolModel } from "./models.js";
+import { getFeeEstimates } from "@0xflick/ordinals-backend";
+import { BitcoinNetworkNames } from "@0xflick/ordinals-models";
 
 export async function estimateFeesWithMempool({
-  mempoolBitcoinClient,
+  network,
   feePerByte,
   feeLevel,
 }: {
-  mempoolBitcoinClient: MempoolModel;
+  network: BitcoinNetworkNames;
   feePerByte?: InputMaybe<number>;
   feeLevel?: InputMaybe<FeeLevel>;
 }): Promise<number> {
@@ -15,11 +16,19 @@ export async function estimateFeesWithMempool({
   if (feePerByte) {
     finalFee = feePerByte;
   } else if (feeLevel) {
-    const feeEstimate = await mempoolBitcoinClient.recommendedFees();
-    finalFee = toFeeLevel(feeLevel, feeEstimate);
+    const feeEstimate = await getFeeEstimates(network);
+    if (!feeEstimate.problems && feeEstimate.fees) {
+      finalFee = toFeeLevel(feeLevel, feeEstimate.fees);
+    } else {
+      throw new Error(`Failed to get fee estimates for network: ${network}`);
+    }
   } else {
-    const feeEstimate = await mempoolBitcoinClient.recommendedFees();
-    finalFee = toFeeLevel("MEDIUM", feeEstimate);
+    const feeEstimate = await getFeeEstimates(network);
+    if (!feeEstimate.problems && feeEstimate.fees) {
+      finalFee = toFeeLevel("MEDIUM", feeEstimate.fees);
+    } else {
+      throw new Error(`Failed to get fee estimates for network: ${network}`);
+    }
   }
   return finalFee;
 }

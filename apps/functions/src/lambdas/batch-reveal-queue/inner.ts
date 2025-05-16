@@ -175,7 +175,11 @@ export const handler: Handler = async () => {
 
   for (const [network, requests] of fundingsByNetwork.entries()) {
     const batchId = uuidv4();
-    const { fastestFee, hourFee } = await getFeeEstimates(network);
+    const { problems, fees } = await getFeeEstimates(network);
+    if (problems || !fees) {
+      logger.error({ problems }, "Fee estimation problems");
+      continue;
+    }
     const fundings: GroupableFunding[] = [];
     for (const { doc, funding } of requests) {
       if (!funding.fundingTxid) {
@@ -269,7 +273,7 @@ export const handler: Handler = async () => {
       rejectedFundings,
     } = groupFundings(
       fundings,
-      [fastestFee, hourFee],
+      [fees.fastest, fees.hour],
       process.env.BATCH_REVEAL_TIME_MINUTES
         ? parseInt(process.env.BATCH_REVEAL_TIME_MINUTES) * 60 * 1000
         : undefined,

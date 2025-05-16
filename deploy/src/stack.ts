@@ -110,6 +110,7 @@ export class BackendStack extends cdk.Stack {
       openEditionClaimsTable,
       batchTable,
       parentInscriptionSecKeyEnvelope,
+      fundingSecKeyEnvelope,
       inscriptionBucket,
       rpcLambdas: rpcStacks.rpcLambdas,
       transactionBucket,

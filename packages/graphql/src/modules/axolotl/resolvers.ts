@@ -362,7 +362,7 @@ export const resolvers: AxolotlModule.Resolvers = {
       });
       return AxolotlModel.estimateFees({
         count: count ?? 1,
-        mempool: new MempoolModel(client),
+        network: network ? toBitcoinNetworkName(network) : "mainnet",
         feeLevel,
         feePerByte,
         tipPerToken: 25000,

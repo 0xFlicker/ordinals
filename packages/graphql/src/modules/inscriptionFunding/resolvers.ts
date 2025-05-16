@@ -82,6 +82,8 @@ export const resolvers: InscriptionFundingModule.Resolvers = {
           return "TESTNET";
         case "regtest":
           return "REGTEST";
+        case "testnet4":
+          return "TESTNET4";
         default:
           throw new Error(`Unknown network: ${await p.network}`);
       }

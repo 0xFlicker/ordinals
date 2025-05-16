@@ -1,7 +1,10 @@
 // unfortunately, apps/graphql-backend is unaable to load the latent
 // @ts-nocheck
 import ElectrumClient from "@mempool/electrum-client";
+import { createLogger } from "../utils/logger.js";
 import { Tx, Address, Script, ScriptData } from "@cmdcode/tapscript";
+
+const logger = createLogger({ name: "electrum-transactions" });
 
 // Types for Electrum client
 export interface ElectrumClientConfig {
@@ -152,19 +155,28 @@ export async function electrumGetAddressTransactions({
     // Get the transaction details
     const transactions: Transaction[] = [];
     for (let i = startingIndex; i < endIndex; i++) {
-      const txHex = await client.client.blockchainTransaction_get(
-        history[i].tx_hash,
-        false,
-      );
-      const tx = parseTransaction(history[i].tx_hash, txHex, history[i].height);
-      transactions.push(tx);
+      try {
+        const txHex = await client.client.blockchainTransaction_get(
+          history[i].tx_hash,
+          false,
+        );
+        const tx = parseTransaction(
+          history[i].tx_hash,
+          txHex,
+          history[i].height,
+        );
+        transactions.push(tx);
+      } catch (error) {
+        logger.error(
+          error,
+          `Error getting transaction ${history[i].tx_hash} for address ${scriptHash}`,
+        );
+      }
     }
 
     return transactions;
   } catch (error) {
-    console.error(
-      `Error getting transactions for address ${scriptHash}: ${error}`,
-    );
+    logger.error(error, `Error getting transactions for address ${scriptHash}`);
     throw error;
   }
 }
