@@ -7,7 +7,6 @@ import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import * as s3a from "aws-cdk-lib/aws-s3-assets";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as log from "aws-cdk-lib/aws-logs";
-import * as log from "aws-cdk-lib/aws-logs";
 import {
   networkToElectrsPort,
   networkToElectrsNetwork,
