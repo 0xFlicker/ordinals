@@ -2,10 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
-import path from "path";
-import { fileURLToPath } from "url";
-import * as iam from "aws-cdk-lib/aws-iam";
+
 export interface FundingTableProps {
   readonly domainName: string;
   readonly sopsLayer: lambda.LayerVersion;
@@ -16,69 +13,6 @@ export class FundingTable extends Construct {
 
   constructor(scope: Construct, id: string, props: FundingTableProps) {
     super(scope, id);
-    const { domainName } = props;
-
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-    // Create secret layer for .env.graphql (dynamic based on domainName)
-    const secretsDir = path.join(__dirname, "../../../secrets", domainName);
-    const graphqlSecretLayer = new lambda.LayerVersion(
-      this,
-      "DdbFundingSecretLayer",
-      {
-        code: lambda.Code.fromAsset(secretsDir, {
-          exclude: ["*", "!.env.graphql"],
-        }),
-        compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
-        compatibleArchitectures: [lambda.Architecture.ARM_64],
-        description: "Layer containing the encrypted .env.graphql file",
-      },
-    );
-    const dynamodbUpdateFundingLambda = new lambdaNodejs.NodejsFunction(
-      this,
-      "DynamodbUpdateFundingLambdaFunction",
-      {
-        entry: path.join(
-          __dirname,
-          "../../../apps/functions/src/lambdas/dynamodb-update-funding/handler.ts",
-        ),
-        handler: "handler",
-        runtime: lambda.Runtime.NODEJS_20_X,
-        architecture: lambda.Architecture.ARM_64,
-        memorySize: 128,
-        bundling: {
-          externalModules: ["aws-sdk", "@aws-sdk/*", "dtrace-provider"],
-          sourceMap: true,
-          minify: true,
-          sourcesContent: true,
-          inject: [path.join(__dirname, "../esbuild/cjs-shim.ts")],
-          format: lambdaNodejs.OutputFormat.ESM,
-          target: "node20",
-          platform: "node",
-        },
-        environment: {
-          LOG_LEVEL: "debug",
-          NODE_OPTIONS: "--enable-source-maps",
-        },
-        layers: [props.sopsLayer, graphqlSecretLayer],
-      },
-    );
-
-    dynamodbUpdateFundingLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ["kms:Decrypt"],
-        resources: [
-          "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
-        ],
-      }),
-    );
-
-    dynamodbUpdateFundingLambda.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ["sts:AssumeRole"],
-        resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
-      }),
-    );
 
     this.table = new dynamodb.Table(this, id, {
       partitionKey: { name: "pk", type: dynamodb.AttributeType.STRING },
@@ -87,16 +21,6 @@ export class FundingTable extends Construct {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
     });
-
-    const streamArn = this.table.tableStreamArn;
-    if (streamArn) {
-      new lambda.EventSourceMapping(this, "StreamProcessor", {
-        target: dynamodbUpdateFundingLambda,
-        eventSourceArn: streamArn,
-        startingPosition: lambda.StartingPosition.LATEST,
-        batchSize: 100,
-      });
-    }
 
     this.table.addGlobalSecondaryIndex({
       indexName: "GSI1",
@@ -212,7 +136,5 @@ export class FundingTable extends Construct {
       exportName: `${id}StreamArn`,
       value: this.table.tableStreamArn ?? "null",
     });
-
-    this.table.grantStreamRead(dynamodbUpdateFundingLambda);
   }
 }

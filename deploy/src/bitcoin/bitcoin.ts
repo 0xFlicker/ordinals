@@ -23,6 +23,7 @@ import {
   networkToBitcoinFlags,
   networkToElectrsPort,
   networkToRpcPort,
+  networkToP2pPort,
 } from "../utils/transforms.js";
 import { networkToElectrsNetwork } from "../utils/transforms.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -143,8 +144,6 @@ fi`,
     "mount $DATA_DEVICE $DATA_DIR",
     "grep -q '$DATA_DEVICE' /etc/fstab || echo '$DATA_DEVICE $DATA_DIR ext4 defaults,nofail 0 2' >> /etc/fstab",
     "chown -R ec2-user:ec2-user $DATA_DIR",
-    "mkdir -p $DATA_DIR/electrs",
-    "chown -R ec2-user:ec2-user $DATA_DIR/electrs",
   );
   const bitcoindArchive = userData.addS3DownloadCommand({
     bucket: executableBucket,
@@ -159,34 +158,13 @@ fi`,
     '    "logs_collected": {',
     '      "files": {',
     '        "collect_list": [',
-    `          { "file_path": "/home/ec2-user/bitcoin.log", "log_group_name": "bitcoin-${network}-stdout-log", "log_stream_name": "{instance_id}" },`,
-    `          { "file_path": "/home/ec2-user/electrs.log", "log_group_name": "electrs-${network}-stdout-log", "log_stream_name": "{instance_id}" }`,
+    `          { "file_path": "/home/ec2-user/bitcoin.log", "log_group_name": "bitcoin-${network}-stdout-log", "log_stream_name": "{instance_id}" }`,
     "        ]",
     "      }",
     "    }",
     "  }",
     "}",
     "EOF",
-  );
-
-  userData.addS3DownloadCommand({
-    bucket: executableBucket,
-    bucketKey: electrsKey,
-    localFile: "/usr/local/bin/electrs",
-  });
-  userData.addCommands("chmod +x /usr/local/bin/electrs");
-
-  const electrsConf = [
-    `cookie_file = "/home/ec2-user/.bitcoin_${network}/.cookie"`,
-    `db_dir = "${dataDir}/electrs"`,
-    `network = "${networkToElectrsNetwork(network)}"`,
-    `electrum_rpc_addr = "0.0.0.0:${networkToElectrsPort(network)}"`,
-    `log_filters = "INFO"`,
-  ];
-  userData.addCommands(
-    `cat << EOF > /home/ec2-user/electrs.conf`,
-    ...electrsConf,
-    `EOF`,
   );
 
   // Inline initialization for node binaries and blockchain data
@@ -251,11 +229,10 @@ function createLaunchTemplate({
     machineImage: ec2.MachineImage.latestAmazonLinux2023({
       cpuType: ec2.AmazonLinuxCpuType.ARM_64,
     }),
-    // Only root volume is mapped; data volume will be created/attached via user-data
     blockDevices: [
       {
         deviceName: "/dev/xvda",
-        volume: ec2.BlockDeviceVolume.ebs(20, {
+        volume: ec2.BlockDeviceVolume.ebs(8, {
           volumeType: ec2.EbsDeviceVolumeType.GP3,
         }),
       },
@@ -324,20 +301,20 @@ export class Bitcoin extends Construct {
       documentType: "Session",
     });
 
-    const role = new iam.Role(this, `Role`, {
+    const bitcoinRole = new iam.Role(this, `Role`, {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
     });
 
-    role.addManagedPolicy(
+    bitcoinRole.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName(
         "AmazonSSMManagedInstanceCore",
       ),
     );
-    role.addManagedPolicy(
+    bitcoinRole.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
     );
     // Permissions for EBS volume operations and parameter retrieval in user-data
-    role.addToPolicy(
+    bitcoinRole.addToPolicy(
       new iam.PolicyStatement({
         actions: [
           "ec2:CreateVolume",
@@ -427,16 +404,54 @@ export class Bitcoin extends Construct {
       securityGroups: [nlbSecurityGroup],
       loadBalancerName: `electrum-${network}`,
     });
+    // P2P Network Load Balancer for Bitcoin P2P port
+    const p2pPort = networkToP2pPort(network);
+    const p2pNlbSecurityGroup = new ec2.SecurityGroup(this, "P2PNLBSG", {
+      vpc,
+      description: "Security group for Bitcoin P2P NLB",
+    });
+    p2pNlbSecurityGroup.addIngressRule(
+      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Port.tcp(p2pPort),
+      "Allow P2P from VPC",
+    );
+    p2pNlbSecurityGroup.addEgressRule(
+      ec2.Peer.securityGroupId(btcServiceGroup.securityGroupId),
+      ec2.Port.tcp(p2pPort),
+      "Allow P2P to Bitcoin nodes",
+    );
 
-    executableBucket.grantRead(role);
+    const p2pNlb = new elbv2.NetworkLoadBalancer(this, "P2PNLB", {
+      vpc,
+      internetFacing: false,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [p2pNlbSecurityGroup],
+      loadBalancerName: `bitcoin-p2p-${network}`,
+    });
+    const p2pListener = p2pNlb.addListener("P2PListener", {
+      port: p2pPort,
+      protocol: elbv2.Protocol.TCP,
+    });
+
+    executableBucket.grantRead(bitcoinRole);
 
     // SOPS-encrypted RPC auth secret asset
-    const secretAsset = new s3a.Asset(this, "Secret", {
+    const bitcoinCoreSecretAsset = new s3a.Asset(this, "CoreSecret", {
       path: path.join(__dirname, "../../../secrets/bitflick.xyz/.env.bitcoin"),
     });
-    secretAsset.grantRead(role);
-    // Allow decrypting the SOPS file via KMS
-    role.addToPolicy(
+    bitcoinCoreSecretAsset.grantRead(bitcoinRole);
+
+    // SOPS-encrypted RPC auth secret asset for Electrs instances
+    const bitcoinRpcSecretAsset = new s3a.Asset(this, "RpcSecret", {
+      path: path.join(
+        __dirname,
+        `../../../secrets/bitflick.xyz/.env.rpc.${network}`,
+      ),
+    });
+    // grantRead delegated to electrsRole below
+
+    // Allow decrypting the SOPS file via KMS for bitcoinRole
+    bitcoinRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ["kms:Decrypt"],
         resources: [
@@ -444,8 +459,40 @@ export class Bitcoin extends Construct {
         ],
       }),
     );
-    // Allow SOPS process to assume sopsAdmin role for KMS master key access
-    role.addToPolicy(
+    // Allow SOPS process to assume sopsAdmin role for KMS master key access (bitcoinRole)
+    bitcoinRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["sts:AssumeRole"],
+        resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
+      }),
+    );
+    // Create IAM role for Electrs-only instances
+    const electrsRole = new iam.Role(this, "ElectrsRole", {
+      assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
+    });
+    // Standard policies for EC2 SSM and CloudWatch
+    electrsRole.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName(
+        "AmazonSSMManagedInstanceCore",
+      ),
+    );
+    electrsRole.addManagedPolicy(
+      iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
+    );
+    // Grant read access to executables and RPC secret
+    executableBucket.grantRead(electrsRole);
+    bitcoinRpcSecretAsset.grantRead(electrsRole);
+    // Allow decrypting the SOPS file via KMS for electrsRole
+    electrsRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["kms:Decrypt"],
+        resources: [
+          "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
+        ],
+      }),
+    );
+    // Allow SOPS process to assume sopsAdmin role (electrsRole)
+    electrsRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ["sts:AssumeRole"],
         resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
@@ -471,6 +518,123 @@ export class Bitcoin extends Construct {
       port: networkToElectrsPort(network),
       protocol: elbv2.Protocol.TCP,
     });
+    // Separate Electrs-only service on nano instances
+    const electrsServiceGroup = new ec2.SecurityGroup(
+      this,
+      "ElectrsServiceGroup",
+      {
+        vpc,
+        description: "Electrs service security group.",
+      },
+    );
+    electrsServiceGroup.addIngressRule(
+      ec2.Peer.securityGroupId(nlbSecurityGroup.securityGroupId),
+      ec2.Port.tcp(networkToElectrsPort(network)),
+      "allow electrum from NLB",
+    );
+    electrsServiceGroup.addEgressRule(
+      ec2.Peer.securityGroupId(albSecurityGroup.securityGroupId),
+      ec2.Port.tcp(networkToRpcPort(network)),
+      "allow RPC to bitcoind nodes",
+    );
+    // User data for electrs-only instances
+    const electrsUserData = ec2.UserData.forLinux({ shebang: "#!/bin/bash" });
+    electrsUserData.addCommands(
+      "yum update -y",
+      "yum install -y amazon-cloudwatch-agent",
+      "yum install -y https://github.com/getsops/sops/releases/download/v3.10.2/sops-3.10.2-1.aarch64.rpm",
+      "yum install -y jq",
+      // Fetch the Electrs RPC secret
+      `aws s3 cp s3://${bitcoinRpcSecretAsset.s3BucketName}/${bitcoinRpcSecretAsset.s3ObjectKey} /home/ec2-user/.env.rpc.${network}`,
+    );
+    // CloudWatch agent config for electrs logs
+    electrsUserData.addCommands(
+      "cat << 'EOF' > /opt/amazon-cloudwatch-agent.json",
+      "{",
+      '  "agent": { "run_as_user": "root" },',
+      '  "logs": {',
+      '    "logs_collected": {',
+      '      "files": {',
+      '        "collect_list": [',
+      `          { "file_path": "/home/ec2-user/electrs.log", "log_group_name": "electrs-${network}-stdout-log", "log_stream_name": "{instance_id}" }`,
+      "        ]",
+      "      }",
+      "    }",
+      "  }",
+      "}",
+      "EOF",
+      "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/amazon-cloudwatch-agent.json",
+    );
+    electrsUserData.addS3DownloadCommand({
+      bucket: executableBucket,
+      bucketKey: electrsKey,
+      localFile: "/usr/local/bin/electrs",
+    });
+    electrsUserData.addCommands(
+      "chmod +x /usr/local/bin/electrs",
+      // Extract RPC credentials from the new secret JSON file
+      `RPC_ENDPOINT=${alb.loadBalancerDnsName}:${networkToRpcPort(network)}`,
+      `RPC_USER=$(sops -d /home/ec2-user/.env.rpc.${network} | jq -r .JSON_RPC_USER)`,
+      `RPC_PASS=$(sops -d /home/ec2-user/.env.rpc.${network} | jq -r .JSON_RPC_PASSWORD)`,
+      "cat << EOF > /home/ec2-user/electrs.conf",
+      `rpc_addr = "$RPC_ENDPOINT"`,
+      `rpc_user = "$RPC_USER"`,
+      `rpc_pass = "$RPC_PASS"`,
+      `daemon_p2p_addr = "${p2pNlb.loadBalancerDnsName}:${p2pPort}"`,
+      `db_dir = "/home/ec2-user/.electrs"`,
+      `network = "${networkToElectrsNetwork(network)}"`,
+      `electrum_rpc_addr = "0.0.0.0:${networkToElectrsPort(network)}"`,
+      `log_filters = "INFO"`,
+      "EOF",
+    );
+    electrsUserData.addCommands(
+      "runuser -l ec2-user -c '/usr/local/bin/electrs --conf /home/ec2-user/electrs.conf >> /home/ec2-user/electrs.log 2>&1 &'",
+    );
+    // Launch Template for electrs-only instances
+    const electrsLaunchTemplate = new ec2.LaunchTemplate(
+      this,
+      "ElectrsLaunchTemplate",
+      {
+        userData: electrsUserData,
+        role: electrsRole,
+        machineImage: ec2.MachineImage.latestAmazonLinux2023({
+          cpuType: ec2.AmazonLinuxCpuType.ARM_64,
+        }),
+        blockDevices: [
+          {
+            deviceName: "/dev/xvda",
+            volume: ec2.BlockDeviceVolume.ebs(20, {
+              volumeType: ec2.EbsDeviceVolumeType.GP3,
+            }),
+          },
+        ],
+        securityGroup: electrsServiceGroup,
+        associatePublicIpAddress: true,
+      },
+    );
+    // Auto Scaling Group for electrs-only instances
+    const electrsAsg = new autoscaling.AutoScalingGroup(this, "ElectrsAsg", {
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      mixedInstancesPolicy: {
+        launchTemplate: electrsLaunchTemplate,
+        instancesDistribution: {
+          onDemandBaseCapacity: 0,
+          onDemandPercentageAboveBaseCapacity: 0,
+          spotAllocationStrategy:
+            autoscaling.SpotAllocationStrategy.PRICE_CAPACITY_OPTIMIZED,
+        },
+        launchTemplateOverrides: [
+          {
+            instanceType: ec2.InstanceType.of(
+              ec2.InstanceClass.T4G,
+              ec2.InstanceSize.NANO,
+            ),
+          },
+        ],
+      },
+      minCapacity: 2,
+    });
 
     // Define an EC2 Auto Scaling Group with Spot Instances
     const asg = new autoscaling.AutoScalingGroup(this, "Asg", {
@@ -491,7 +655,7 @@ export class Bitcoin extends Construct {
         launchTemplate: createLaunchTemplate({
           context: this,
           userData,
-          role,
+          role: bitcoinRole,
           securityGroup: btcServiceGroup,
           network,
         }),
@@ -541,7 +705,7 @@ export class Bitcoin extends Construct {
       // TODO: Replace with cosign-verified SOPS binary install
       "yum install -y https://github.com/getsops/sops/releases/download/v3.10.2/sops-3.10.2-1.aarch64.rpm",
       // Fetch encrypted dotenv with RPC auth
-      `aws s3 cp s3://${secretAsset.s3BucketName}/${secretAsset.s3ObjectKey} /home/ec2-user/.env.bitcoin`,
+      `aws s3 cp s3://${bitcoinCoreSecretAsset.s3BucketName}/${bitcoinCoreSecretAsset.s3ObjectKey} /home/ec2-user/.env.bitcoin`,
       // Start CloudWatch agent
       "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/amazon-cloudwatch-agent.json",
       // Create a script that will check if bitcoind is ready
@@ -581,9 +745,6 @@ export class Bitcoin extends Construct {
         network,
       )} getblockchaininfo' > /dev/null 2>&1; do sleep 5; echo 'Still waiting for bitcoind...'; done`,
       "echo 'Bitcoin node is ready to serve requests'",
-      // Launch electrs
-      `runuser -l ec2-user -c '/usr/local/bin/electrs --conf /home/ec2-user/electrs.conf >> /home/ec2-user/electrs.log 2>&1 &'`,
-      "echo 'Electrs is ready to serve requests'",
     );
     // Lambda to update latest data snapshot on snapshot completion
     const updateLatestSnapshotFn = new lambdaNodejs.NodejsFunction(
@@ -651,6 +812,7 @@ export class Bitcoin extends Construct {
       state: "ENABLED",
       policyDetails: {
         resourceTypes: ["VOLUME"],
+
         targetTags: [
           { key: "Service", value: "bitcoin-data" },
           { key: "Chain", value: network },
@@ -698,7 +860,17 @@ export class Bitcoin extends Construct {
     electrsListener.addTargets("ElectrsTargets", {
       port: networkToElectrsPort(network),
       protocol: elbv2.Protocol.TCP,
+      targets: [electrsAsg],
+    });
+    // Attach Bitcoin ASG to P2P NLB
+    p2pListener.addTargets("P2PTargets", {
+      port: p2pPort,
+      protocol: elbv2.Protocol.TCP,
       targets: [asg],
+    });
+    new cdk.CfnOutput(this, "BitcoinP2PNLB", {
+      exportName: `BitcoinP2PNLB-${network}`,
+      value: p2pNlb.loadBalancerDnsName,
     });
 
     new log.LogGroup(this, "stdout", {

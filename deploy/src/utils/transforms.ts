@@ -53,3 +53,17 @@ export function networkToRpcPort(network: BitcoinNetwork) {
       return 18443;
   }
 }
+
+// Default P2P port for Bitcoin nodes
+export function networkToP2pPort(network: BitcoinNetwork) {
+  switch (network) {
+    case "testnet":
+      return 18333;
+    case "testnet4":
+      return 48333;
+    case "mainnet":
+      return 8333;
+    case "regtest":
+      return 18444;
+  }
+}
