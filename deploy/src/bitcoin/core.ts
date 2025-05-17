@@ -8,12 +8,6 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import * as s3a from "aws-cdk-lib/aws-s3-assets";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as log from "aws-cdk-lib/aws-logs";
-import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
-import * as events from "aws-cdk-lib/aws-events";
-import * as targets from "aws-cdk-lib/aws-events-targets";
-import * as dlm from "aws-cdk-lib/aws-dlm";
-import { Aws } from "aws-cdk-lib";
 import {
   networkToRpcPort,
   networkToP2pPort,
@@ -306,91 +300,6 @@ export class BitcoinCore extends Construct {
           topic: new sns.Topic(this, "AsgTerminationTopic"),
           scalingEvents: autoscaling.ScalingEvents.TERMINATION_EVENTS,
         },
-      ],
-    });
-    // Snapshot update Lambda on EC2 snapshot completion and DLM policy for automated backups
-    const updateLatestSnapshotFn = new lambdaNodejs.NodejsFunction(
-      this,
-      "UpdateLatestSnapshotFn",
-      {
-        runtime: lambda.Runtime.NODEJS_20_X,
-        entry: path.join(
-          __dirname,
-          "../../../apps/functions/src/lambdas/updateLatestSnapshot.ts",
-        ),
-        handler: "handler",
-        environment: {
-          PARAM_NAME: `/bitcoin/${network}/latestSnapshot`,
-          NETWORK: network,
-        },
-      },
-    );
-    updateLatestSnapshotFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ["ec2:DescribeSnapshots", "ssm:PutParameter"],
-        resources: [
-          `arn:aws:ssm:${Aws.REGION}:${Aws.ACCOUNT_ID}:parameter/bitcoin/${network}/latestSnapshot`,
-        ],
-      }),
-    );
-    const snapshotRule = new events.Rule(this, "SnapshotCompleteRule", {
-      eventPattern: {
-        source: ["aws.ec2"],
-        detailType: ["EC2 Snapshot State-change Notification"],
-        detail: { state: ["completed"] },
-      },
-    });
-    snapshotRule.addTarget(new targets.LambdaFunction(updateLatestSnapshotFn));
-    const dlmServiceRole = new iam.Role(this, "DlmServiceRole", {
-      assumedBy: new iam.ServicePrincipal("dlm.amazonaws.com"),
-    });
-    dlmServiceRole.addToPolicy(
-      new iam.PolicyStatement({
-        actions: [
-          "ec2:CreateSnapshot",
-          "ec2:DeleteSnapshot",
-          "ec2:CreateTags",
-          "ec2:DeleteTags",
-          "ec2:DescribeSnapshots",
-          "ec2:DescribeVolumes",
-          "ec2:ModifySnapshotAttribute",
-          "resourcegroupstaggingapi:GetResources",
-          "resourcegroupstaggingapi:GetTagKeys",
-          "resourcegroupstaggingapi:GetTagValues",
-        ],
-        resources: ["*"],
-      }),
-    );
-    new dlm.CfnLifecyclePolicy(this, "SnapshotPolicy", {
-      description: `DLM policy for Bitcoin data ${network}`,
-      executionRoleArn: dlmServiceRole.roleArn,
-      state: "ENABLED",
-      policyDetails: {
-        resourceTypes: ["VOLUME"],
-
-        targetTags: [
-          { key: "Service", value: "bitcoin-data" },
-          { key: "Chain", value: network },
-          { key: "SnapshotRole", value: "seed" },
-        ],
-        schedules: [
-          {
-            name: "BitcoinDataSnapshotSchedule",
-            createRule: { interval: 24, intervalUnit: "HOURS" },
-            retainRule: { count: 3 },
-            fastRestoreRule: {
-              availabilityZones: vpc.publicSubnets.map(
-                (s) => s.availabilityZone!,
-              ),
-              count: 1,
-            },
-            copyTags: true,
-          },
-        ],
-      },
-      tags: [
-        { key: "Service", value: "bitcoin-data" },
-        { key: "Chain", value: network },
       ],
     });
 

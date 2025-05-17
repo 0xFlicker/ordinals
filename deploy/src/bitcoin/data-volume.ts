@@ -161,6 +161,7 @@ export class DataVolume extends Construct {
             {
               name: `DailyDataVolumeSnapshots-${this.snapshotPathComponent}`,
               tagsToAdd: [{ key: "CreatedBy", value: "DLM" }],
+              copyTags: true,
               createRule: {
                 interval: 24,
                 intervalUnit: "HOURS",
@@ -212,6 +213,17 @@ export class DataVolume extends Construct {
       schedule: events.Schedule.cron({ minute: "0", hour: "0" }),
     });
     rule.addTarget(new targets.LambdaFunction(this.updateSnapshotLambda));
+
+    const snapshotCompleteRule = new events.Rule(this, "OnEc2SnapshotComplete", {
+      eventPattern: {
+        source: ["aws.ec2"],
+        detailType: ["EC2 Snapshot State-change Notification"],
+        detail: { state: ["completed"] },
+      },
+    });
+    snapshotCompleteRule.addTarget(
+      new targets.LambdaFunction(this.updateSnapshotLambda),
+    );
   }
 
   /**
