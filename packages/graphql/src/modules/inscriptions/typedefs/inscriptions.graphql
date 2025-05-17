@@ -20,4 +20,5 @@ input InscriptionQuery {
 
 type Query {
   inscriptions(query: InscriptionQuery!): [Inscription!]!
+  inscriptionIds(query: InscriptionQuery!): [ID!]!
 }

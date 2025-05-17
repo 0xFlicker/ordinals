@@ -2,6 +2,7 @@ import { resolvers as authResolver } from "./auth/resolvers.js";
 import { resolvers as axolotlResolver } from "./axolotl/resolvers.js";
 import { resolvers as bitcoinResolver } from "./bitcoin/resolvers.js";
 import { resolvers as collectionsResolver } from "./collections/resolvers.js";
+import { resolvers as inscriptionsResolvers } from "./inscriptions/resolvers.js";
 import { resolvers as inscriptionRequestResolver } from "./inscriptionRequest/resolvers.js";
 import { resolvers as inscriptionFundingResolver } from "./inscriptionFunding/resolvers.js";
 import { resolvers as permissionResolver } from "./permissions/resolvers.js";
@@ -12,6 +13,7 @@ export const resolvers = [
   axolotlResolver,
   bitcoinResolver,
   collectionsResolver,
+  inscriptionsResolvers,
   inscriptionFundingResolver,
   inscriptionRequestResolver,
   permissionResolver,

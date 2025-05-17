@@ -18,6 +18,7 @@ const config: CodegenConfig = {
           Web3User: "../modules/user/models.js#Web3UserModel",
           Web3LoginUser: "../modules/user/models.js#Web3LoginUserModel",
           Collection: "../modules/collections/models.js#CollectionModel",
+          Inscription: "../modules/inscriptions/models.js#InscriptionModel",
         },
       },
       presetConfig: {

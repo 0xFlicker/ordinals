@@ -1078,7 +1078,7 @@ export class FundingDao<
       new QueryCommand({
         TableName: FundingDao.TABLE_NAME,
         IndexName: "creatorUserId-index",
-        KeyConditionExpression: "creatorUserId = :creatorUserId, sk = :sk",
+        KeyConditionExpression: "creatorUserId = :creatorUserId AND sk = :sk",
         ExpressionAttributeValues: {
           ":creatorUserId": userId,
           ":sk": "funding",

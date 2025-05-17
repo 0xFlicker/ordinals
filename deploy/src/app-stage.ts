@@ -7,6 +7,7 @@ import { SopsLayerStack } from "./layers.js";
 import { VpcStack } from "./vpc-stack.js";
 import { BitcoinStack } from "./bitcoin/bitcoin.js";
 import { BackendStack, FrameStack } from "./stack.js";
+import { BeachheadStack } from "./beachhead.js";
 
 /**
  * A single stage of the Ordinals application, grouping all AWS stacks.
@@ -98,6 +99,13 @@ export class AppStage extends cdk.Stage {
       networks: ["testnet4", "mainnet"],
       electrumNlbs,
       bitcoinRpcAlbs,
+    });
+
+    new BeachheadStack(this, "Beachhead", {
+      vpc,
+      rootVolumeSize: 200,
+      dataVolumeSize: 250,
+      env: props.env,
     });
   }
 }

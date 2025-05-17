@@ -40,7 +40,7 @@ await client.initElectrum({
 // console.log("tx", inspect(tx, { depth: null }));
 console.log(client.versionInfo);
 const addressData = Address.p2tr.decode(
-  "bcrt1pdqrltcg7wmnjsq29stltc5qujeshw8n4hx6h30xeg4arqc407f5sc89qfj",
+  "bc1pnynxflz2lalngp3j0cudsstjeuaeq7fw88l7lglrj08hlt9yd8wsukt4lz",
 );
 
 // const scriptPubKey = Address.p2tr.decode(
