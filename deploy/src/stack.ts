@@ -14,6 +14,7 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { SiteToSiteVpn } from "./site-to-site-vpn.js";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { BitcoinNetwork } from "./utils/types.js";
+import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 
 /**
  * Common props for stacks that require a VPC and Bitcoin client security group.
@@ -27,11 +28,26 @@ interface IProps extends cdk.StackProps {
   vpc?: ec2.IVpc;
   /** Security group permitting Bitcoin client access */
   networks?: BitcoinNetwork[];
+  /** Electrum NLBs for each network */
+  electrumNlbs: Record<BitcoinNetwork, elbv2.INetworkLoadBalancer | undefined>;
+  /** Bitcoin RPC ALBs for each network */
+  bitcoinRpcAlbs: Record<
+    BitcoinNetwork,
+    elbv2.IApplicationLoadBalancer | undefined
+  >;
 }
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: IProps) {
-    const { origin, sopsLayer, vpc, networks, ...rest } = props;
+    const {
+      origin,
+      sopsLayer,
+      vpc,
+      networks,
+      electrumNlbs,
+      bitcoinRpcAlbs,
+      ...rest
+    } = props;
     super(scope, id, rest);
 
     const { bucket: inscriptionBucket } = new Storage(this, "Storage", {
@@ -80,13 +96,6 @@ export class BackendStack extends cdk.Stack {
       sopsLayer,
     });
 
-    const rpcStacks = new BitcoinRpcFunction(this, "RpcStack", {
-      domainName: new URL(origin).host,
-      networks,
-      sopsLayer,
-      vpc,
-    });
-
     const parentInscriptionSecKeyEnvelope = new Envelope(
       this,
       "ParentInscriptionSecKeyEnvelope",
@@ -97,6 +106,14 @@ export class BackendStack extends cdk.Stack {
 
     const fundingSecKeyEnvelope = new Envelope(this, "FundingSecKeyEnvelope", {
       description: "Key for envelope encryption of bitcoin taproot secKeys",
+    });
+
+    const rpcStacks = new BitcoinRpcFunction(this, "RpcStack", {
+      domainName: new URL(origin).host,
+      networks,
+      sopsLayer,
+      vpc,
+      bitcoinRpcAlbs: props.bitcoinRpcAlbs,
     });
 
     // Always deploy the InscriptionFunding construct
@@ -118,6 +135,7 @@ export class BackendStack extends cdk.Stack {
       sopsLayer,
       vpc,
       networks,
+      electrumNlbs,
     });
 
     if (process.env.DEPLOYMENT !== "localstack") {
@@ -137,6 +155,7 @@ export class BackendStack extends cdk.Stack {
         uploadsTable,
         sopsLayer,
         rpcLambdas: rpcStacks.rpcLambdas,
+        electrumNlbs,
       });
       const graphqlApiUrl = cdk.Fn.select(
         1,

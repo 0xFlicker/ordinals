@@ -5,8 +5,7 @@ import { SharedBinaryBucketStack } from "./shared-bucket.js";
 import { CodeBuildStack } from "./codebuild/stack.js";
 import { SopsLayerStack } from "./layers.js";
 import { VpcStack } from "./vpc-stack.js";
-import { BitcoinStack, MariaDbStack } from "./bitcoin/stack.js";
-import { BuildStack } from "./bitcoin/build-stack.js";
+import { BitcoinStack } from "./bitcoin/bitcoin.js";
 import { BackendStack, FrameStack } from "./stack.js";
 
 /**
@@ -61,18 +60,34 @@ export class AppStage extends cdk.Stage {
     const vpc = vpcStack.vpc;
 
     // Bitcoin-node clusters
-    new BitcoinStack(this, "Testnet4Cluster", {
+    const {
+      electrumNlb: testnet4ElectrumNlb,
+      bitcoinRpcAlbs: testnet4BitcoinRpcAlbs,
+    } = new BitcoinStack(this, "Testnet4Cluster", {
       network: "testnet4",
       vpc,
       env: props.env,
-      stackName: "testnet4",
     });
-    new BitcoinStack(this, "MainnetCluster", {
+    const {
+      electrumNlb: mainnetElectrumNlb,
+      bitcoinRpcAlbs: mainnetBitcoinRpcAlbs,
+    } = new BitcoinStack(this, "MainnetCluster", {
       network: "mainnet",
       vpc,
       env: props.env,
-      stackName: "mainnet",
     });
+    const electrumNlbs = {
+      testnet4: testnet4ElectrumNlb,
+      mainnet: mainnetElectrumNlb,
+      regtest: undefined,
+      testnet: undefined,
+    };
+    const bitcoinRpcAlbs = {
+      testnet4: testnet4BitcoinRpcAlbs,
+      mainnet: mainnetBitcoinRpcAlbs,
+      regtest: undefined,
+      testnet: undefined,
+    };
 
     // Backend services and front-end frame
     new BackendStack(this, "Backend", {
@@ -81,6 +96,8 @@ export class AppStage extends cdk.Stage {
       sopsLayer,
       vpc,
       networks: ["testnet4", "mainnet"],
+      electrumNlbs,
+      bitcoinRpcAlbs,
     });
   }
 }

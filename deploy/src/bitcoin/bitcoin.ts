@@ -7,35 +7,39 @@ import { BitcoinNetwork } from "../utils/types.js";
 import { BitcoinCore, BitcoinCoreProps } from "./core.js";
 import { Electrs, ElectrsProps } from "./electrs.js";
 import { networkToRpcPort, networkToP2pPort } from "../utils/transforms.js";
+import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 
-export interface BitcoinProps {
-  /** S3 key for Electrs binary */
-  electrsKey: string;
-  /** Path to RPC secret (e.g. .env.rpc.${network}) */
-  rpcSecretPath: string;
-  /** Existing VPC to use */
-  existingVpc?: ec2.IVpc;
-  /** Bitcoin network */
+export interface BitcoinProps extends cdk.StackProps {
+  /** Bitcoin network to deploy */
   network: BitcoinNetwork;
-  /** S3 bucket for executables */
-  executableBucket: s3.IBucket;
-  /** Bitcoin key */
-  bitcoinKey: string;
-  /** Node key */
-  nodeKey: string;
+  /** Optional existing VPC to deploy into */
+  vpc?: ec2.IVpc;
 }
 
-export class Bitcoin extends Construct {
+export class BitcoinStack extends cdk.Stack {
   public readonly vpc: ec2.IVpc;
   public readonly btcServiceGroup: ec2.ISecurityGroup;
   public readonly btcClientGroup: ec2.ISecurityGroup;
+  public readonly electrumNlb: elbv2.INetworkLoadBalancer;
+  public readonly bitcoinRpcAlbs: elbv2.IApplicationLoadBalancer;
 
   constructor(scope: Construct, id: string, props: BitcoinProps) {
-    super(scope, id);
+    const { network, vpc: existingVpc, ...rest } = props;
+    super(scope, id, props);
+    const bitcoinKey = "bitcoin-core.tar.gz";
+    const electrsKey = "electrs";
 
     // Tag all resources for the Bitcoin stack
     Tags.of(this).add("Service", "bitcoin-data");
     Tags.of(this).add("Network", props.network);
+
+    // Import the shared binaries bucket name from BuildStack
+    // const exeBucketName = cdk.Fn.importValue("SharedBinaryBucketName");
+    const bucket = s3.Bucket.fromBucketName(
+      this,
+      "BitcoinExeBucket",
+      "build-sharedbinarybucket5ed2c620-a532o2rrxyls",
+    );
 
     // SSM Session Manager documents for interactive sessions
     new cdk.aws_ssm.CfnDocument(this, "Session", {
@@ -76,8 +80,8 @@ export class Bitcoin extends Construct {
     });
 
     const vpc =
-      props.existingVpc ??
-      new ec2.Vpc(this, `Vpc-${props.network}`, {
+      existingVpc ??
+      new ec2.Vpc(this, `Vpc-${network}`, {
         maxAzs: 3,
         subnetConfiguration: [
           { name: "public", subnetType: ec2.SubnetType.PUBLIC, cidrMask: 24 },
@@ -91,10 +95,9 @@ export class Bitcoin extends Construct {
     this.vpc = vpc;
     // 1) Build Bitcoin Core infrastructure
     const core = new BitcoinCore(this, "Core", {
-      executableBucket: props.executableBucket,
-      network: props.network,
-      bitcoinKey: props.bitcoinKey,
-      nodeKey: props.nodeKey,
+      executableBucket: bucket,
+      network,
+      bitcoinKey,
       vpc,
     });
     this.btcServiceGroup = core.serviceGroup;
@@ -102,10 +105,9 @@ export class Bitcoin extends Construct {
     // 2) Build Electrs infrastructure
     const electrs = new Electrs(this, "Electrs", {
       vpc,
-      network: props.network,
-      executableBucket: props.executableBucket,
-      electrsKey: props.electrsKey,
-      rpcSecretPath: props.rpcSecretPath,
+      network,
+      executableBucket: bucket,
+      electrsKey,
       rpcLoadBalancerDns: core.alb.loadBalancerDnsName,
       rpcPort: networkToRpcPort(props.network),
       p2pLoadBalancerDns: core.p2pNlb.loadBalancerDnsName,
@@ -119,5 +121,8 @@ export class Bitcoin extends Construct {
       ec2.Port.tcp(networkToP2pPort(props.network)),
       "Allow P2P traffic from Electrs service",
     );
+
+    this.electrumNlb = electrs.nlb;
+    this.bitcoinRpcAlbs = core.alb;
   }
 }

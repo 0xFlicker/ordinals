@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import * as cdk from "aws-cdk-lib";
+import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as iam from "aws-cdk-lib/aws-iam";
@@ -18,6 +19,10 @@ export interface BitcoinRpcFunctionProps {
   readonly sopsLayer: lambda.LayerVersion;
   readonly vpc?: ec2.IVpc;
   readonly networks?: BitcoinNetwork[];
+  readonly bitcoinRpcAlbs: Record<
+    BitcoinNetwork,
+    elbv2.IApplicationLoadBalancer | undefined
+  >;
 }
 
 export class BitcoinRpcFunction extends Construct {
@@ -84,6 +89,28 @@ export class BitcoinRpcFunction extends Construct {
             NODE_OPTIONS: "--enable-source-maps",
             BITCOIN_NETWORK: network,
             DEPLOYMENT: "aws",
+            JSON_RPC_ENDPOINT: `http://${(() => {
+              switch (network.toUpperCase()) {
+                case "REGTEST":
+                  return (
+                    props.bitcoinRpcAlbs.regtest?.loadBalancerDnsName ?? ""
+                  );
+                case "TESTNET":
+                  return (
+                    props.bitcoinRpcAlbs.testnet?.loadBalancerDnsName ?? ""
+                  );
+                case "TESTNET4":
+                  return (
+                    props.bitcoinRpcAlbs.testnet4?.loadBalancerDnsName ?? ""
+                  );
+                case "MAINNET":
+                  return (
+                    props.bitcoinRpcAlbs.mainnet?.loadBalancerDnsName ?? ""
+                  );
+                default:
+                  return "";
+              }
+            })()}:${networkToRpcPort(network)}`,
           },
           // attach SOPS and secret layers
           layers: [props.sopsLayer, rpcSecretLayer],

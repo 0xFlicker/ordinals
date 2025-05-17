@@ -19,6 +19,7 @@ import { Duration } from "aws-cdk-lib";
 import { CorsHttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
 import { BitcoinNetwork } from "./utils/types.js";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 interface TableNames {
@@ -59,6 +60,10 @@ export interface GraphqlProps {
   readonly sopsLayer: lambda.LayerVersion;
   readonly vpc?: ec2.IVpc;
   readonly btcClientGroups?: ec2.ISecurityGroup[];
+  readonly electrumNlbs: Record<
+    BitcoinNetwork,
+    elbv2.INetworkLoadBalancer | undefined
+  >;
 }
 
 export class Graphql extends Construct {
@@ -87,6 +92,7 @@ export class Graphql extends Construct {
       rpcLambdas,
       vpc,
       btcClientGroups,
+      electrumNlbs,
     }: GraphqlProps,
   ) {
     super(scope, id);
@@ -178,6 +184,14 @@ export class Graphql extends Construct {
               .map(([network, lambda]) => [
                 `${network.toUpperCase()}_RPC_LAMBDA_ARN`,
                 lambda?.functionArn,
+              ]),
+          ),
+          ...Object.fromEntries(
+            Object.entries(electrumNlbs)
+              .filter(([, nlb]) => nlb !== undefined)
+              .map(([network, nlb]) => [
+                `${network.toUpperCase()}_ELECTRUM_HOSTNAME`,
+                nlb?.loadBalancerDnsName ?? "",
               ]),
           ),
         },

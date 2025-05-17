@@ -15,6 +15,7 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { BitcoinNetwork } from "./utils/types.js";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface IInscriptionFundingProps {
@@ -35,6 +36,10 @@ export interface IInscriptionFundingProps {
   readonly sopsLayer: lambda.LayerVersion;
   readonly vpc?: ec2.IVpc;
   readonly networks?: BitcoinNetwork[];
+  readonly electrumNlbs: Record<
+    BitcoinNetwork,
+    elbv2.INetworkLoadBalancer | undefined
+  >;
 }
 
 export class InscriptionFunding extends Construct {
@@ -156,6 +161,14 @@ export class InscriptionFunding extends Construct {
           FUNDED_QUEUE_URL: this.fundedQueue.queueUrl,
           INSUFFICIENT_FUNDS_QUEUE_URL: this.insufficientFundsQueue.queueUrl,
           GENESIS_QUEUE_URL: this.genesisQueue.queueUrl,
+          ...Object.fromEntries(
+            Object.entries(props.electrumNlbs)
+              .filter(([, nlb]) => nlb !== undefined)
+              .map(([network, nlb]) => [
+                `${network.toUpperCase()}_ELECTRUM_HOSTNAME`,
+                nlb?.loadBalancerDnsName ?? "",
+              ]),
+          ),
         },
         // attach SOPS, GraphQL, and Electrum secret layers
         layers: [props.sopsLayer, graphqlSecretLayer, electrumSecretLayer],
@@ -274,6 +287,14 @@ export class InscriptionFunding extends Construct {
               .map(([network, lambda]) => [
                 `${network.toUpperCase()}_RPC_LAMBDA_ARN`,
                 lambda?.functionArn,
+              ]),
+          ),
+          ...Object.fromEntries(
+            Object.entries(props.electrumNlbs)
+              .filter(([, nlb]) => nlb !== undefined)
+              .map(([network, nlb]) => [
+                `${network.toUpperCase()}_ELECTRUM_HOSTNAME`,
+                nlb?.loadBalancerDnsName ?? "",
               ]),
           ),
           BATCH_REVEAL_TIME_MINUTES: props.batchRevealTimeMinutes.toString(),

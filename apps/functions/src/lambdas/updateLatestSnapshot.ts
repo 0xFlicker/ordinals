@@ -15,12 +15,14 @@ export const handler = async (event: EC2SnapshotEvent): Promise<void> => {
   const detail = event.detail;
   const snapshotId = detail["snapshot-id"] || detail.snapshot_id;
   if (!snapshotId || detail.state !== "completed") {
-    console.log("Event is not a completed snapshot or missing snapshot ID, skipping.");
+    console.log(
+      "Event is not a completed snapshot or missing snapshot ID, skipping.",
+    );
     return;
   }
   const ec2 = new EC2Client({});
   const desc = await ec2.send(
-    new DescribeSnapshotsCommand({ SnapshotIds: [snapshotId] })
+    new DescribeSnapshotsCommand({ SnapshotIds: [snapshotId] }),
   );
   const snapshot = desc.Snapshots && desc.Snapshots[0];
   if (!snapshot) {
@@ -29,24 +31,19 @@ export const handler = async (event: EC2SnapshotEvent): Promise<void> => {
   }
   const tags = snapshot.Tags || [];
   // Only proceed for bitcoin-data service snapshots
-  const isBitcoinData = tags.some((t) => t.Key === "Service" && t.Value === "bitcoin-data");
+  const isBitcoinData = tags.some(
+    (t) => t.Key === "Service" && t.Value === "bitcoin-data",
+  );
   if (!isBitcoinData) {
-    console.log(`Snapshot ${snapshotId} is not tagged for bitcoin-data, skipping.`);
-    return;
-  }
-  // Further filter by Chain tag matching this function's NETWORK env
-  const networkEnv = process.env.NETWORK;
-  if (!networkEnv) {
-    console.error("NETWORK environment variable is not set, cannot filter snapshots.");
-    return;
-  }
-  const isCorrectChain = tags.some((t) => t.Key === "Chain" && t.Value === networkEnv);
-  if (!isCorrectChain) {
-    console.log(`Snapshot ${snapshotId} Chain tag does not match network ${networkEnv}, skipping.`);
+    console.log(
+      `Snapshot ${snapshotId} is not tagged for bitcoin-data, skipping.`,
+    );
     return;
   }
   // Only seed snapshots should update the parameter
-  const isSeed = tags.some((t) => t.Key === "SnapshotRole" && t.Value === "seed");
+  const isSeed = tags.some(
+    (t) => t.Key === "SnapshotRole" && t.Value === "seed",
+  );
   if (!isSeed) {
     console.log(`Snapshot ${snapshotId} is not a seed snapshot, skipping.`);
     return;
@@ -63,7 +60,7 @@ export const handler = async (event: EC2SnapshotEvent): Promise<void> => {
       Value: snapshotId,
       Type: "String",
       Overwrite: true,
-    })
+    }),
   );
   console.log(`Updated SSM parameter ${paramName} to ${snapshotId}`);
 };

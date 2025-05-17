@@ -14,24 +14,84 @@ import {
 import path from "path";
 import { fileURLToPath } from "url";
 import { BitcoinNetwork } from "../utils/types.js";
+import { DataVolume } from "./data-volume.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Properties for the Electrs construct. Electrs is an Electrum server implementation
+ * that connects to a Bitcoin Core node.
+ */
 export interface ElectrsProps {
+  /**
+   * The VPC in which Electrs instances will live.
+   */
   readonly vpc: ec2.IVpc;
+
+  /**
+   * Network name, e.g., 'mainnet' or 'testnet'.
+   */
   readonly network: BitcoinNetwork;
+
+  /**
+   * S3 bucket containing the Electrs binary.
+   */
   readonly executableBucket: s3.IBucket;
+
+  /**
+   * S3 key for the Electrs binary.
+   */
   readonly electrsKey: string;
-  readonly rpcSecretPath: string; // local path to .env.rpc.${network}
-  readonly rpcLoadBalancerDns: string; // from core.alb.loadBalancerDnsName
-  readonly rpcPort: number; // networkToRpcPort(network)
-  readonly p2pLoadBalancerDns: string; // from core.p2pNlb.loadBalancerDnsName
-  readonly p2pPort: number; // networkToP2pPort(network)
+
+  /**
+   * DNS name of the Bitcoin Core RPC load balancer.
+   */
+  readonly rpcLoadBalancerDns: string;
+
+  /**
+   * Port number for Bitcoin Core RPC.
+   */
+  readonly rpcPort: number;
+
+  /**
+   * DNS name of the Bitcoin Core P2P load balancer.
+   */
+  readonly p2pLoadBalancerDns: string;
+
+  /**
+   * Port number for Bitcoin Core P2P.
+   */
+  readonly p2pPort: number;
 }
 
+/**
+ * Construct that deploys an Electrs server with the following components:
+ * - Auto Scaling Group with spot instances
+ * - Network Load Balancer for client access
+ * - Persistent data volume for Electrs database
+ * - CloudWatch logging
+ * - Security groups for RPC and P2P access
+ */
 export class Electrs extends Construct {
+  /**
+   * The Auto Scaling Group that manages Electrs instances.
+   */
   public readonly asg: autoscaling.AutoScalingGroup;
+
+  /**
+   * The Network Load Balancer that distributes client traffic.
+   */
   public readonly nlb: elbv2.NetworkLoadBalancer;
+
+  /**
+   * The security group for Electrs instances.
+   */
   public readonly serviceGroup: ec2.ISecurityGroup;
+
+  /**
+   * The data volume construct that manages persistent storage.
+   */
+  private readonly dataVolume: DataVolume;
+
   constructor(scope: Construct, id: string, props: ElectrsProps) {
     super(scope, id);
     const {
@@ -39,53 +99,87 @@ export class Electrs extends Construct {
       network,
       executableBucket,
       electrsKey,
-      rpcSecretPath,
       rpcLoadBalancerDns,
       rpcPort,
       p2pLoadBalancerDns,
       p2pPort,
     } = props;
 
-    // 1) IAM Role
-    const role = new iam.Role(this, "Role", {
-      assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
+    const dataVolumeSize = network === "mainnet" ? 200 : 80;
+
+    // Create the data volume construct for persistent storage
+    this.dataVolume = new DataVolume(this, "DataVolume", {
+      vpc,
+      mountPath: "/home/ec2-user/.electrs",
+      snapshotPathComponent: `electrs_${network}`,
+      defaultVolumeSize: dataVolumeSize,
+      enableDlmPolicy: false,
     });
-    role.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName(
-        "AmazonSSMManagedInstanceCore",
-      ),
-    );
-    role.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
-    );
+
+    // Configure IAM role with necessary permissions
+    const role = this.dataVolume.role;
+    if (role instanceof iam.Role) {
+      role.addManagedPolicy(
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "AmazonSSMManagedInstanceCore",
+        ),
+      );
+      role.addManagedPolicy(
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "CloudWatchAgentServerPolicy",
+        ),
+      );
+      role.addToPolicy(
+        new iam.PolicyStatement({
+          actions: ["kms:Decrypt"],
+          resources: [
+            "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
+          ],
+        }),
+      );
+      role.addToPolicy(
+        new iam.PolicyStatement({
+          actions: ["sts:AssumeRole"],
+          resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
+        }),
+      );
+    }
+
+    // Load RPC credentials from S3
     const rpcAsset = new s3a.Asset(this, "RpcSecret", {
-      path: path.join(__dirname, rpcSecretPath),
+      path: path.join(__dirname, `../../../secrets/bitflick.xyz/.env.rpc`),
     });
     executableBucket.grantRead(role);
     rpcAsset.grantRead(role);
-    role.addToPolicy(
-      new iam.PolicyStatement({ actions: ["kms:Decrypt"], resources: ["*"] }),
-    );
-    role.addToPolicy(
-      new iam.PolicyStatement({
-        actions: ["sts:AssumeRole"],
-        resources: ["arn:aws:iam::*:role/sopsAdmin"],
-      }),
-    );
 
-    // 2) Electrs SG
+    // Create security group for Electrs instances
     const egSG = new ec2.SecurityGroup(this, "ServiceSG", {
       vpc,
       description: "electrs SG",
     });
     this.serviceGroup = egSG;
-    // allow electrum NLB traffic once it exists
-    // we’ll attach below
 
-    // 3) Electrs NLB
+    // Create security group and NLB for client access
+    const nlbSG = new ec2.SecurityGroup(this, "NlbSG", {
+      vpc,
+      description: "Electrs NLB Security Group",
+    });
+    nlbSG.addIngressRule(
+      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Port.tcp(networkToElectrsPort(network)),
+      "Allow Electrs client traffic from VPC",
+    );
+    nlbSG.addEgressRule(
+      ec2.Peer.securityGroupId(egSG.securityGroupId),
+      ec2.Port.tcp(networkToElectrsPort(network)),
+      "Forward Electrs traffic to instances",
+    );
+
+    // Create internal NLB for client access
     this.nlb = new elbv2.NetworkLoadBalancer(this, "NLB", {
       vpc,
       internetFacing: false,
+      securityGroups: [nlbSG],
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
     });
     const listener = this.nlb.addListener("ElectrsListener", {
@@ -93,14 +187,13 @@ export class Electrs extends Construct {
       protocol: elbv2.Protocol.TCP,
     });
 
-    // 4) UserData
+    // Configure user data for instance initialization
     const ud = ec2.UserData.forLinux({ shebang: "#!/bin/bash" });
-    // … install sops/jq, aws s3 cp rpcAsset, build electrs.conf using rpcLoadBalancerDns:rpcPort, p2pLoadBalancerDns:p2pPort …
+    ud.addCommands(...this.dataVolume.getUserDataCommands());
     ud.addCommands(
       "yum update -y",
       "yum install -y amazon-cloudwatch-agent",
       "yum install -y https://github.com/getsops/sops/releases/download/v3.10.2/sops-3.10.2-1.aarch64.rpm",
-      "yum install -y jq",
       // CloudWatch agent config for electrs logs
       "cat << 'EOF' > /opt/amazon-cloudwatch-agent.json",
       "{",
@@ -117,30 +210,60 @@ export class Electrs extends Construct {
       "}",
       "EOF",
       "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/amazon-cloudwatch-agent.json",
-      `aws s3 cp s3://${rpcAsset.s3BucketName}/${rpcAsset.s3ObjectKey} /home/ec2-user/.env.rpc.${network}`,
+      // Create and set permissions for electrs directories
+      "mkdir -p /home/ec2-user/.electrs",
+      "chown -R ec2-user:ec2-user /home/ec2-user/.electrs",
+      // Download and set up RPC credentials
+      `aws s3 cp s3://${rpcAsset.s3BucketName}/${rpcAsset.s3ObjectKey} /home/ec2-user/.env.rpc`,
+      "chown ec2-user:ec2-user /home/ec2-user/.env.rpc.*",
       // Download Electrs binary
       `aws s3 cp s3://${executableBucket.bucketName}/${electrsKey} /usr/local/bin/electrs`,
+      "chmod +x /usr/local/bin/electrs",
+      // Set up electrs configuration
+      `echo Creating electrs.conf`,
       `RPC_ENDPOINT=${rpcLoadBalancerDns}:${rpcPort}`,
-      `RPC_USER=$(sops -d /home/ec2-user/.env.rpc.${network} | jq -r .JSON_RPC_USER)`,
-      `RPC_PASS=$(sops -d /home/ec2-user/.env.rpc.${network} | jq -r .JSON_RPC_PASSWORD)`,
+      `RPC_USER=$(sops -d /home/ec2-user/.env.rpc | grep JSON_RPC_USER | cut -d '=' -f2-)`,
+      `RPC_PASS=$(sops -d /home/ec2-user/.env.rpc | grep JSON_RPC_PASSWORD | cut -d '=' -f2-)`,
       "cat << EOF > /home/ec2-user/electrs.conf",
-      `rpc_addr = "$RPC_ENDPOINT"`,
-      `rpc_user = "$RPC_USER"`,
-      `rpc_pass = "$RPC_PASS"`,
+      `daemon_rpc_addr = "$RPC_ENDPOINT"`,
+      `auth = "$RPC_USER:$RPC_PASS"`,
       `daemon_p2p_addr = "${p2pLoadBalancerDns}:${p2pPort}"`,
       `network = "${networkToElectrsNetwork(network)}"`,
       `electrum_rpc_addr = "0.0.0.0:${networkToElectrsPort(network)}"`,
       `db_dir = "/home/ec2-user/.electrs"`,
+      `db_log_dir = "/home/ec2-user/logs"`,
       "EOF",
-      "chmod +x /usr/local/bin/electrs",
-      "nohup /usr/local/bin/electrs --conf /home/ec2-user/electrs.conf >> /home/ec2-user/electrs.log 2>&1 &",
+      "chown ec2-user:ec2-user /home/ec2-user/electrs.conf",
+      // Wait for bitcoind to be responsive before proceeding
+      "echo 'Waiting for bitcoind to be ready...'",
+      `until curl -s --user "$RPC_USER:$RPC_PASS" -d '{"jsonrpc":"1.0","method":"getblockchaininfo","params":[]}' http://$RPC_ENDPOINT > /dev/null 2>&1; do sleep 5; echo 'Still waiting for bitcoind...'; done`,
+      // Run electrs as ec2-user
+      "cat << 'EOF' > /home/ec2-user/run_electrs.sh",
+      "#!/bin/bash",
+      "while true; do",
+      "  /usr/local/bin/electrs --conf /home/ec2-user/electrs.conf >> /home/ec2-user/electrs.log 2>&1",
+      '  echo "Electrs exited with code $?, restarting in 5 seconds..." >> /home/ec2-user/electrs.log',
+      "  sleep 5",
+      "done",
+      "EOF",
+      "mkdir -p $HOME/logs",
+      "chmod +x /home/ec2-user/run_electrs.sh",
+      "chown ec2-user:ec2-user /home/ec2-user/run_electrs.sh",
+      "runuser -l ec2-user -c 'nohup /home/ec2-user/run_electrs.sh &'",
+      "echo 'Electrs node is ready to serve requests'",
     );
 
-    // 5) Launch & ASG
+    // Create launch template and auto scaling group
     const lt = new ec2.LaunchTemplate(this, `LT-${network}`, {
       userData: ud,
       role,
-      machineImage: ec2.MachineImage.latestAmazonLinux2023(),
+      securityGroup: egSG,
+      machineImage: ec2.MachineImage.latestAmazonLinux2023({
+        cpuType: ec2.AmazonLinuxCpuType.ARM_64,
+      }),
+      blockDevices: [
+        { deviceName: "/dev/xvda", volume: ec2.BlockDeviceVolume.ebs(20) },
+      ],
     });
     this.asg = new autoscaling.AutoScalingGroup(this, "ASG", {
       vpc,
@@ -155,7 +278,7 @@ export class Electrs extends Construct {
           {
             instanceType: ec2.InstanceType.of(
               ec2.InstanceClass.T4G,
-              ec2.InstanceSize.NANO,
+              ec2.InstanceSize.SMALL,
             ),
           },
         ],
@@ -169,32 +292,34 @@ export class Electrs extends Construct {
       protocol: elbv2.Protocol.TCP,
     });
 
-    // 6) Wire SGs
-    // allow electrs SG -> bitcoind RPC
+    // Configure security group rules
     egSG.addEgressRule(
       ec2.Peer.ipv4(vpc.vpcCidrBlock),
       ec2.Port.tcp(rpcPort),
       "to bitcoind RPC",
     );
-    // allow electrs SG -> bitcoind p2p
-    egSG.addIngressRule(
+    egSG.addEgressRule(
       ec2.Peer.ipv4(vpc.vpcCidrBlock),
       ec2.Port.tcp(p2pPort),
-      "from P2P NLB",
+      "to bitcoind P2P",
+    );
+    egSG.addIngressRule(
+      ec2.Peer.securityGroupId(nlbSG.securityGroupId),
+      ec2.Port.tcp(networkToElectrsPort(network)),
+      "Allow Electrs NLB to connect to service instances",
     );
 
-    // 7) CloudWatch log groups for Electrs
+    // Create CloudWatch log groups
     new log.LogGroup(this, "electrs-stdout", {
       retention: log.RetentionDays.TWO_WEEKS,
-      logGroupName: `electrs-${network}-stdout-log`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
     new log.LogGroup(this, "electrs-stderr", {
       retention: log.RetentionDays.TWO_WEEKS,
-      logGroupName: `electrs-${network}-stderr-log`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
+    // Export NLB DNS name
     new cdk.CfnOutput(this, "ElectrsNLB", {
       exportName: `ElectrsNLB-${network}`,
       value: this.nlb.loadBalancerDnsName,

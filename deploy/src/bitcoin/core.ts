@@ -26,21 +26,15 @@ import { BitcoinNetwork } from "../utils/types.js";
 function createBtcUserData({
   executableBucket,
   bitcoinKey,
-  nodeKey,
   network,
   vpc,
 }: {
   executableBucket: s3.IBucket;
   bitcoinKey: string;
-  nodeKey: string;
   network: BitcoinNetwork;
   vpc: ec2.IVpc;
 }) {
   const userData = ec2.UserData.forLinux({ shebang: "#!/bin/bash" });
-  const nodeArchivePath = userData.addS3DownloadCommand({
-    bucket: executableBucket,
-    bucketKey: nodeKey,
-  });
   // Prepare data directory for blockchain
   const dataDir = `/home/ec2-user/.bitcoin_${network}`;
   userData.addCommands(`mkdir -p ${dataDir}`);
@@ -77,7 +71,7 @@ fi`,
     "if ! blkid $DATA_DEVICE; then mkfs.ext4 $DATA_DEVICE; fi",
     "mount $DATA_DEVICE $DATA_DIR",
     "grep -q '$DATA_DEVICE' /etc/fstab || echo '$DATA_DEVICE $DATA_DIR ext4 defaults,nofail 0 2' >> /etc/fstab",
-    "chown -R ec2-user:ec2-user $DATA_DIR"
+    "chown -R ec2-user:ec2-user $DATA_DIR",
   );
   const bitcoindArchive = userData.addS3DownloadCommand({
     bucket: executableBucket,
@@ -98,24 +92,17 @@ fi`,
     "    }",
     "  }",
     "}",
-    "EOF"
+    "EOF",
   );
   // Inline initialization for node binaries and blockchain data
   userData.addCommands(
-    `NODE_ARCHIVE=${nodeArchivePath}`,
-    `NODE_FOLDER=$(dirname "$NODE_ARCHIVE")`,
     `BITCOIN_ARCHIVE=${bitcoindArchive}`,
     `BITCOIN_FOLDER=$(dirname "$BITCOIN_ARCHIVE")`,
-    "# extract node binaries",
-    'cd "$NODE_FOLDER"',
-    'tar -xJf "$NODE_ARCHIVE"',
-    "mv node*/bin/* /usr/local/bin",
-    "rm -rf node-*",
     "# extract bitcoin binaries",
     'cd "$BITCOIN_FOLDER"',
     'tar -xzf "$BITCOIN_ARCHIVE"',
-    "mv bitcoind bitcoin-cli /usr/local/bin/", 
-    'rm -f "$BITCOIN_ARCHIVE"'
+    "mv bitcoind bitcoin-cli /usr/local/bin/",
+    'rm -f "$BITCOIN_ARCHIVE"',
   );
   // Write bitcoin.conf with network section and RPC settings
   const confLines = [
@@ -131,7 +118,7 @@ fi`,
     `cat << EOF > ${dataDir}/bitcoin.conf`,
     ...confLines,
     "EOF",
-    `chown ec2-user:ec2-user ${dataDir}/bitcoin.conf`
+    `chown ec2-user:ec2-user ${dataDir}/bitcoin.conf`,
   );
   return userData;
 }
@@ -141,7 +128,6 @@ export interface BitcoinCoreProps {
   readonly executableBucket: s3.IBucket;
   readonly network: BitcoinNetwork;
   readonly bitcoinKey: string;
-  readonly nodeKey: string;
   readonly vpc: ec2.IVpc;
 }
 
@@ -155,21 +141,21 @@ export class BitcoinCore extends Construct {
 
   constructor(scope: Construct, id: string, props: BitcoinCoreProps) {
     super(scope, id);
-    const { executableBucket, network, bitcoinKey, nodeKey, vpc } = props;
+    const { executableBucket, network, bitcoinKey, vpc } = props;
 
     // 1) IAM Role for Bitcoin nodes
-    this.role = new iam.Role(this, "Role", {
+    const role = (this.role = new iam.Role(this, "Role", {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
-    });
-    this.role.addManagedPolicy(
+    }));
+    role.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName(
         "AmazonSSMManagedInstanceCore",
       ),
     );
-    this.role.addManagedPolicy(
+    role.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
     );
-    this.role.addToPrincipalPolicy(
+    role.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: [
           "ec2:CreateVolume",
@@ -183,18 +169,18 @@ export class BitcoinCore extends Construct {
       }),
     );
     // KMS/SOPS rights: allow decrypting secret and assuming sopsAdmin
-    this.role.addToPrincipalPolicy(
+    role.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: ["kms:Decrypt"],
         resources: [
-          `arn:aws:kms:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:key/42d63d0c-0f8e-493f-ac73-91c83da1341e`,
+          "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
         ],
       }),
     );
-    this.role.addToPrincipalPolicy(
+    role.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: ["sts:AssumeRole"],
-        resources: [`arn:aws:iam::${cdk.Aws.ACCOUNT_ID}:role/sopsAdmin`],
+        resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
       }),
     );
 
@@ -256,15 +242,14 @@ export class BitcoinCore extends Construct {
     const secretAsset = new s3a.Asset(this, "CoreSecret", {
       path: path.join(__dirname, "../../../secrets/bitflick.xyz/.env.bitcoin"),
     });
-    secretAsset.grantRead(this.role);
+    secretAsset.grantRead(role);
     // Grant read access to executables as well
-    executableBucket.grantRead(this.role);
+    executableBucket.grantRead(role);
 
     // 6) UserData and LaunchTemplate
     const btcUD = createBtcUserData({
       executableBucket,
       bitcoinKey,
-      nodeKey,
       network,
       vpc,
     });
@@ -281,7 +266,9 @@ export class BitcoinCore extends Construct {
       // Create a script that will check if bitcoind is ready
       "cat << 'EOF' > /home/ec2-user/check_bitcoin_ready.sh",
       "#!/bin/bash",
-      `bitcoin-cli -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(network)} getblockchaininfo > /dev/null 2>&1`,
+      `bitcoin-cli -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(
+        network,
+      )} getblockchaininfo > /dev/null 2>&1`,
       "if [ $? -eq 0 ]; then",
       "  # Bitcoin is ready, return HTTP 200",
       '  echo -e "HTTP/1.1 200 OK\\r\\nContent-Type: text/plain\\r\\nConnection: close\\r\\n\\r\\nBitcoin Ready"',
@@ -304,15 +291,19 @@ export class BitcoinCore extends Construct {
       // Install netcat for the health check server
       "yum install -y nc",
       // Start bitcoind
-      `runuser -l ec2-user -c 'bitcoind -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(network)} -rpcauth=$(sops -d /home/ec2-user/.env.bitcoin | grep BITCOIN_RPC_AUTH | cut -d'=' -f2-) -debuglogfile=/home/ec2-user/bitcoin.log -daemonwait'`,
+      `runuser -l ec2-user -c 'bitcoind -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(
+        network,
+      )} -rpcauth=$(sops -d /home/ec2-user/.env.bitcoin | grep BITCOIN_RPC_AUTH | cut -d'=' -f2-) -debuglogfile=/home/ec2-user/bitcoin.log -daemonwait'`,
       // Wait for bitcoind to be responsive before proceeding
       "echo 'Waiting for bitcoind to be ready...'",
-      `until runuser -l ec2-user -c 'bitcoin-cli -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(network)} getblockchaininfo' > /dev/null 2>&1; do sleep 5; echo 'Still waiting for bitcoind...'; done`,
-      "echo 'Bitcoin node is ready to serve requests'"
+      `until runuser -l ec2-user -c 'bitcoin-cli -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(
+        network,
+      )} getblockchaininfo' > /dev/null 2>&1; do sleep 5; echo 'Still waiting for bitcoind...'; done`,
+      "echo 'Bitcoin node is ready to serve requests'",
     );
     const lt = new ec2.LaunchTemplate(this, `LT-${network}`, {
       userData: btcUD,
-      role: this.role,
+      role,
       machineImage: ec2.MachineImage.latestAmazonLinux2023({
         cpuType: ec2.AmazonLinuxCpuType.ARM_64,
       }),
@@ -322,6 +313,18 @@ export class BitcoinCore extends Construct {
       securityGroup: btcServiceGroup,
       associatePublicIpAddress: true,
     });
+
+    btcServiceGroup.addIngressRule(
+      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Port.tcp(networkToRpcPort(network)),
+      "RPC from VPC",
+    );
+
+    btcServiceGroup.addIngressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(networkToP2pPort(network)),
+      "P2P from World",
+    );
 
     // 7) Bitcoin ASG
     this.asg = new autoscaling.AutoScalingGroup(this, "Asg", {
@@ -362,15 +365,22 @@ export class BitcoinCore extends Construct {
       ],
     });
     // Snapshot update Lambda on EC2 snapshot completion and DLM policy for automated backups
-    const updateLatestSnapshotFn = new lambdaNodejs.NodejsFunction(this, "UpdateLatestSnapshotFn", {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, "../../../apps/functions/src/lambdas/updateLatestSnapshot.ts"),
-      handler: "handler",
-      environment: {
-        PARAM_NAME: `/bitcoin/${network}/latestSnapshot`,
-        NETWORK: network,
+    const updateLatestSnapshotFn = new lambdaNodejs.NodejsFunction(
+      this,
+      "UpdateLatestSnapshotFn",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        entry: path.join(
+          __dirname,
+          "../../../apps/functions/src/lambdas/updateLatestSnapshot.ts",
+        ),
+        handler: "handler",
+        environment: {
+          PARAM_NAME: `/bitcoin/${network}/latestSnapshot`,
+          NETWORK: network,
+        },
       },
-    });
+    );
     updateLatestSnapshotFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["ec2:DescribeSnapshots", "ssm:PutParameter"],
@@ -451,6 +461,7 @@ export class BitcoinCore extends Construct {
         interval: cdk.Duration.seconds(60),
       },
     });
+
     p2pListener.addTargets("P2P-TG", {
       port: p2pPort,
       targets: [this.asg],
@@ -465,12 +476,10 @@ export class BitcoinCore extends Construct {
     // 8) CloudWatch log groups for Bitcoin Core
     new log.LogGroup(this, "stdout", {
       retention: log.RetentionDays.TWO_WEEKS,
-      logGroupName: `bitcoin-${network}-stdout-log`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
     new log.LogGroup(this, "stderr", {
       retention: log.RetentionDays.TWO_WEEKS,
-      logGroupName: `bitcoin-${network}-stderr-log`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
