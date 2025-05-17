@@ -68,6 +68,7 @@ export class AppStage extends cdk.Stage {
       network: "testnet4",
       vpc,
       env: props.env,
+      enableDlmPolicy: true,
     });
     const {
       electrumNlb: mainnetElectrumNlb,

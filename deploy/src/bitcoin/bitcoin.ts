@@ -14,6 +14,8 @@ export interface BitcoinProps extends cdk.StackProps {
   network: BitcoinNetwork;
   /** Optional existing VPC to deploy into */
   vpc?: ec2.IVpc;
+  /** Enable DLM policy for data volume */
+  enableDlmPolicy?: boolean;
 }
 
 export class BitcoinStack extends cdk.Stack {
@@ -24,7 +26,7 @@ export class BitcoinStack extends cdk.Stack {
   public readonly bitcoinRpcAlbs: elbv2.IApplicationLoadBalancer;
 
   constructor(scope: Construct, id: string, props: BitcoinProps) {
-    const { network, vpc: existingVpc, ...rest } = props;
+    const { network, vpc: existingVpc, enableDlmPolicy, ...rest } = props;
     super(scope, id, props);
     const bitcoinKey = "bitcoin-core.tar.gz";
     const electrsKey = "electrs";
@@ -99,6 +101,7 @@ export class BitcoinStack extends cdk.Stack {
       network,
       bitcoinKey,
       vpc,
+      enableDlmPolicy,
     });
     this.btcServiceGroup = core.serviceGroup;
 
@@ -112,6 +115,7 @@ export class BitcoinStack extends cdk.Stack {
       rpcPort: networkToRpcPort(props.network),
       p2pLoadBalancerDns: core.p2pNlb.loadBalancerDnsName,
       p2pPort: networkToP2pPort(props.network),
+      enableDlmPolicy,
     });
     this.btcClientGroup = electrs.serviceGroup;
 

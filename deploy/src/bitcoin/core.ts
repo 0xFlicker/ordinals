@@ -22,106 +22,8 @@ import {
 import path from "path";
 import { fileURLToPath } from "url";
 import { BitcoinNetwork } from "../utils/types.js";
-// Function to create UserData for Bitcoin Core instances: mounts data volume, installs binaries, and configures Bitcoin Core
-function createBtcUserData({
-  executableBucket,
-  bitcoinKey,
-  network,
-  vpc,
-}: {
-  executableBucket: s3.IBucket;
-  bitcoinKey: string;
-  network: BitcoinNetwork;
-  vpc: ec2.IVpc;
-}) {
-  const userData = ec2.UserData.forLinux({ shebang: "#!/bin/bash" });
-  // Prepare data directory for blockchain
-  const dataDir = `/home/ec2-user/.bitcoin_${network}`;
-  userData.addCommands(`mkdir -p ${dataDir}`);
-  // Create or restore data volume and mount it
-  const dataVolumeSize = network === "mainnet" ? 1000 : 200;
-  userData.addCommands(
-    "# fetch IMDSv2 token",
-    "TOKEN=$(curl -sf -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds:21600')",
-    "# retrieve availability zone",
-    'AZ=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)',
-    'if [ -z "$AZ" ]; then echo "ERROR: AZ not found"; exit 1; fi',
-    "# try to get the latest seed snapshot",
-    `if ! SNAP_ID=$(aws ssm get-parameter --name /bitcoin/${network}/latestSnapshot --query Parameter.Value --output text 2>/dev/null); then
-  echo 'No seed snapshot, creating new volume';
-  VOL_ID=$(aws ec2 create-volume --availability-zone $AZ --size ${dataVolumeSize} --volume-type gp3 --tag-specifications 'ResourceType=volume,Tags=[{Key=Service,Value=bitcoin-data},{Key=Chain,Value=${network}}]' --query VolumeId --output text)
-else
-  echo "Restoring from snapshot $SNAP_ID";
-  VOL_ID=$(aws ec2 create-volume --availability-zone $AZ --snapshot-id $SNAP_ID --volume-type gp3 --tag-specifications 'ResourceType=volume,Tags=[{Key=Service,Value=bitcoin-data},{Key=Chain,Value=${network}}]' --query VolumeId --output text)
-fi`,
-    "aws ec2 wait volume-available --volume-ids $VOL_ID",
-    'INSTANCE_ID=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)',
-    "aws ec2 attach-volume --volume-id $VOL_ID --device /dev/xvdb --instance-id $INSTANCE_ID",
-    // Ensure data volume is deleted when the instance terminates to avoid orphaned volumes
-    `aws ec2 modify-instance-attribute --instance-id $INSTANCE_ID --block-device-mappings '[{"DeviceName":"/dev/xvdb","Ebs":{"DeleteOnTermination":true}}]'`,
-    "# only seed role tags for DLM",
-    'INSTANCE_LC=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-life-cycle 2>/dev/null || echo on-demand)',
-    'if [ "$INSTANCE_LC" != "spot" ]; then',
-    "  aws ec2 create-tags --resources $VOL_ID --tags Key=SnapshotRole,Value=seed",
-    "fi",
-    "# mount the data device",
-    "if [ -b /dev/xvdb ]; then DATA_DEVICE=/dev/xvdb; else DATA_DEVICE=/dev/nvme1n1; fi",
-    `DATA_DIR=${dataDir}`,
-    "while [ ! -b $DATA_DEVICE ]; do sleep 1; done",
-    "if ! blkid $DATA_DEVICE; then mkfs.ext4 $DATA_DEVICE; fi",
-    "mount $DATA_DEVICE $DATA_DIR",
-    "grep -q '$DATA_DEVICE' /etc/fstab || echo '$DATA_DEVICE $DATA_DIR ext4 defaults,nofail 0 2' >> /etc/fstab",
-    "chown -R ec2-user:ec2-user $DATA_DIR",
-  );
-  const bitcoindArchive = userData.addS3DownloadCommand({
-    bucket: executableBucket,
-    bucketKey: bitcoinKey,
-  });
-  // generate CloudWatch agent config inline for log collection
-  userData.addCommands(
-    "cat << 'EOF' > /opt/amazon-cloudwatch-agent.json",
-    "{",
-    '  "agent": { "run_as_user": "root" },',
-    '  "logs": {',
-    '    "logs_collected": {',
-    '      "files": {',
-    '        "collect_list": [',
-    `          { "file_path": "/home/ec2-user/bitcoin.log", "log_group_name": "bitcoin-${network}-stdout-log", "log_stream_name": "{instance_id}" }`,
-    "        ]",
-    "      }",
-    "    }",
-    "  }",
-    "}",
-    "EOF",
-  );
-  // Inline initialization for node binaries and blockchain data
-  userData.addCommands(
-    `BITCOIN_ARCHIVE=${bitcoindArchive}`,
-    `BITCOIN_FOLDER=$(dirname "$BITCOIN_ARCHIVE")`,
-    "# extract bitcoin binaries",
-    'cd "$BITCOIN_FOLDER"',
-    'tar -xzf "$BITCOIN_ARCHIVE"',
-    "mv bitcoind bitcoin-cli /usr/local/bin/",
-    'rm -f "$BITCOIN_ARCHIVE"',
-  );
-  // Write bitcoin.conf with network section and RPC settings
-  const confLines = [
-    network !== "mainnet" ? `[${network}]` : "",
-    "txindex=1",
-    "prune=0",
-    "server=1",
-    `rpcallowip=${vpc.vpcCidrBlock}`,
-    "rpcbind=0.0.0.0",
-    "debug=rpc",
-  ];
-  userData.addCommands(
-    `cat << EOF > ${dataDir}/bitcoin.conf`,
-    ...confLines,
-    "EOF",
-    `chown ec2-user:ec2-user ${dataDir}/bitcoin.conf`,
-  );
-  return userData;
-}
+import { DataVolume } from "./data-volume.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface BitcoinCoreProps {
@@ -129,6 +31,7 @@ export interface BitcoinCoreProps {
   readonly network: BitcoinNetwork;
   readonly bitcoinKey: string;
   readonly vpc: ec2.IVpc;
+  readonly enableDlmPolicy?: boolean;
 }
 
 export class BitcoinCore extends Construct {
@@ -141,54 +44,102 @@ export class BitcoinCore extends Construct {
 
   constructor(scope: Construct, id: string, props: BitcoinCoreProps) {
     super(scope, id);
-    const { executableBucket, network, bitcoinKey, vpc } = props;
+    const { executableBucket, network, bitcoinKey, vpc, enableDlmPolicy } =
+      props;
 
-    // 1) IAM Role for Bitcoin nodes
-    const role = (this.role = new iam.Role(this, "Role", {
-      assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
-    }));
-    role.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName(
-        "AmazonSSMManagedInstanceCore",
-      ),
-    );
-    role.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
-    );
-    role.addToPrincipalPolicy(
-      new iam.PolicyStatement({
-        actions: [
-          "ec2:CreateVolume",
-          "ec2:AttachVolume",
-          "ec2:DescribeVolumes",
-          "ec2:CreateTags",
-          "ec2:ModifyInstanceAttribute",
-          "ssm:GetParameter",
-        ],
-        resources: ["*"],
-      }),
-    );
-    // KMS/SOPS rights: allow decrypting secret and assuming sopsAdmin
-    role.addToPrincipalPolicy(
-      new iam.PolicyStatement({
-        actions: ["kms:Decrypt"],
-        resources: [
-          "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
-        ],
-      }),
-    );
-    role.addToPrincipalPolicy(
-      new iam.PolicyStatement({
-        actions: ["sts:AssumeRole"],
-        resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
-      }),
-    );
+    // Configure data volume for blockchain data and assign IAM role
+    const dataDir = `/home/ec2-user/.bitcoin_${network}`;
+    const dataVolumeSize = network === "mainnet" ? 1000 : 200;
+    const userData = ec2.UserData.forLinux({ shebang: "#!/bin/bash" });
+    const dataVolume = new DataVolume(this, "DataVolume", {
+      vpc,
+      mountPath: dataDir,
+      snapshotPathComponent: network,
+      defaultVolumeSize: dataVolumeSize,
+      enableDlmPolicy,
+    });
+    const role = (this.role = dataVolume.role);
+    userData.addCommands(...dataVolume.getUserDataCommands());
+    if (this.role instanceof iam.Role) {
+      this.role.addManagedPolicy(
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "AmazonSSMManagedInstanceCore",
+        ),
+      );
+      role.addManagedPolicy(
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "CloudWatchAgentServerPolicy",
+        ),
+      );
+      role.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          actions: ["kms:Decrypt"],
+          resources: [
+            "arn:aws:kms:us-east-2:167146046754:key/42d63d0c-0f8e-493f-ac73-91c83da1341e",
+          ],
+        }),
+      );
+      role.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          actions: ["sts:AssumeRole"],
+          resources: ["arn:aws:iam::167146046754:role/sopsAdmin"],
+        }),
+      );
+    }
 
     const btcServiceGroup = new ec2.SecurityGroup(this, "BitcoinServiceSG", {
       vpc,
       description: "bitcoind SG",
     });
     this.serviceGroup = btcServiceGroup;
+
+    const bitcoindArchive = userData.addS3DownloadCommand({
+      bucket: executableBucket,
+      bucketKey: bitcoinKey,
+    });
+    // generate CloudWatch agent config inline for log collection
+    userData.addCommands(
+      "cat << 'EOF' > /opt/amazon-cloudwatch-agent.json",
+      "{",
+      '  "agent": { "run_as_user": "root" },',
+      '  "logs": {',
+      '    "logs_collected": {',
+      '      "files": {',
+      '        "collect_list": [',
+      `          { "file_path": "/home/ec2-user/bitcoin.log", "log_group_name": "bitcoin-${network}-stdout-log", "log_stream_name": "{instance_id}" }`,
+      "        ]",
+      "      }",
+      "    }",
+      "  }",
+      "}",
+      "EOF",
+    );
+    // Inline initialization for node binaries and blockchain data
+    userData.addCommands(
+      `BITCOIN_ARCHIVE=${bitcoindArchive}`,
+      `BITCOIN_FOLDER=$(dirname "$BITCOIN_ARCHIVE")`,
+      "# extract bitcoin binaries",
+      'cd "$BITCOIN_FOLDER"',
+      'tar -xzf "$BITCOIN_ARCHIVE"',
+      "mv bitcoind bitcoin-cli /usr/local/bin/",
+      'rm -f "$BITCOIN_ARCHIVE"',
+    );
+    // Write bitcoin.conf with network section and RPC settings
+    const confLines = [
+      network !== "mainnet" ? `[${network}]` : "",
+      "txindex=1",
+      "prune=0",
+      "server=1",
+      `rpcallowip=${vpc.vpcCidrBlock}`,
+      "rpcbind=0.0.0.0",
+      "debug=rpc",
+    ];
+    userData.addCommands(
+      `cat << EOF > ${dataDir}/bitcoin.conf`,
+      ...confLines,
+      "EOF",
+      `chown ec2-user:ec2-user ${dataDir}/bitcoin.conf`,
+    );
 
     // 3) Application Load Balancer for RPC
     const albSG = new ec2.SecurityGroup(this, "ALB-SG", { vpc });
@@ -246,15 +197,8 @@ export class BitcoinCore extends Construct {
     // Grant read access to executables as well
     executableBucket.grantRead(role);
 
-    // 6) UserData and LaunchTemplate
-    const btcUD = createBtcUserData({
-      executableBucket,
-      bitcoinKey,
-      network,
-      vpc,
-    });
     // Additional commands: install CloudWatch agent, SOPS, fetch RPC secret, start CloudWatch agent, health scripts, start bitcoind
-    btcUD.addCommands(
+    userData.addCommands(
       "yum update -y",
       "yum install -y amazon-cloudwatch-agent",
       // TODO: Replace with cosign-verified SOPS binary install
@@ -302,7 +246,7 @@ export class BitcoinCore extends Construct {
       "echo 'Bitcoin node is ready to serve requests'",
     );
     const lt = new ec2.LaunchTemplate(this, `LT-${network}`, {
-      userData: btcUD,
+      userData,
       role,
       machineImage: ec2.MachineImage.latestAmazonLinux2023({
         cpuType: ec2.AmazonLinuxCpuType.ARM_64,

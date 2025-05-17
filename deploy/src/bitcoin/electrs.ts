@@ -61,6 +61,11 @@ export interface ElectrsProps {
    * Port number for Bitcoin Core P2P.
    */
   readonly p2pPort: number;
+
+  /**
+   * Enable DLM policy for data volume.
+   */
+  readonly enableDlmPolicy?: boolean;
 }
 
 /**
@@ -103,6 +108,7 @@ export class Electrs extends Construct {
       rpcPort,
       p2pLoadBalancerDns,
       p2pPort,
+      enableDlmPolicy,
     } = props;
 
     const dataVolumeSize = network === "mainnet" ? 200 : 80;
@@ -113,7 +119,7 @@ export class Electrs extends Construct {
       mountPath: "/home/ec2-user/.electrs",
       snapshotPathComponent: `electrs_${network}`,
       defaultVolumeSize: dataVolumeSize,
-      enableDlmPolicy: false,
+      enableDlmPolicy,
     });
 
     // Configure IAM role with necessary permissions
