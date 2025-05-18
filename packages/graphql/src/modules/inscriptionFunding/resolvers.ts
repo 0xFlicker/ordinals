@@ -105,6 +105,7 @@ export const resolvers: InscriptionFundingModule.Resolvers = {
         bitcoinRegtestMempoolEndpoint: "http://localhost:4080",
         bitcoinTestnetMempoolEndpoint: "https://mempool.space/testnet",
         bitcoinMainnetMempoolEndpoint: "https://mempool.space",
+        bitcoinTestnet4MempoolEndpoint: "https://mempool.space/testnet4",
       });
     },
 
@@ -119,6 +120,7 @@ export const resolvers: InscriptionFundingModule.Resolvers = {
         bitcoinRegtestMempoolEndpoint: "http://localhost:4080",
         bitcoinTestnetMempoolEndpoint: "https://mempool.space/testnet",
         bitcoinMainnetMempoolEndpoint: "https://mempool.space",
+        bitcoinTestnet4MempoolEndpoint: "https://mempool.space/testnet4",
       });
     },
   },

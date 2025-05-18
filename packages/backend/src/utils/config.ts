@@ -74,6 +74,9 @@ export const regtestMempoolUrl = lazySingleton(() => {
 export const testnetMempoolUrl = lazySingleton(() => {
   return process.env.TESTNET_MEMPOOL_URL ?? null;
 });
+export const testnet4MempoolUrl = lazySingleton(() => {
+  return process.env.TESTNET4_MEMPOOL_URL ?? null;
+});
 export const testnetMempoolAuth = lazySingleton(() => {
   return process.env.TESTNET_MEMPOOL_AUTH ?? null;
 });

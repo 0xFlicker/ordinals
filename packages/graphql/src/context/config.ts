@@ -11,6 +11,7 @@ import {
   tableNames,
   mainnetMempoolAuth,
   testnetMempoolAuth,
+  testnet4MempoolUrl,
 } from "@0xflick/ordinals-backend";
 import { BitcoinNetworkNames, lazySingleton } from "@0xflick/ordinals-models";
 
@@ -177,6 +178,7 @@ export interface IConfigContext {
   axolotlAllowanceChainId: number;
   bitcoinRegtestMempoolEndpoint: string | null;
   bitcoinTestnetMempoolEndpoint: string | null;
+  bitcoinTestnet4MempoolEndpoint: string | null;
   bitcoinTestnetMempoolAuth: string | null;
   bitcoinMainnetMempoolEndpoint: string | null;
   bitcoinMainnetMempoolAuth: string | null;
@@ -242,6 +244,9 @@ export function createConfigContext(): IConfigContext {
     },
     get bitcoinTestnetMempoolAuth() {
       return testnetMempoolAuth.get();
+    },
+    get bitcoinTestnet4MempoolEndpoint() {
+      return testnet4MempoolUrl.get();
     },
     get bitcoinMainnetMempoolEndpoint() {
       return mainnetMempoolUrl.get();

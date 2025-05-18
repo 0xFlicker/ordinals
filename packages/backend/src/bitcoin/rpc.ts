@@ -127,6 +127,9 @@ async function invokeBatchRpc<R>(
   const text = Buffer.from(raw).toString("utf-8");
   const rpcResp = JSON.parse(text) as JsonRpcResponse<R>[];
 
+  // sort by id
+  rpcResp.sort((a, b) => a.id - b.id);
+
   return rpcResp;
 }
 

@@ -49,6 +49,7 @@ export class PipelineStack extends cdk.Stack {
       primaryOutputDirectory: "deploy/cdk.out",
       buildEnvironment: {
         buildImage: codebuild.LinuxArmBuildImage.AMAZON_LINUX_2023_STANDARD_3_0,
+        computeType: codebuild.ComputeType.MEDIUM,
         environmentVariables: {
           CONNECTION_ARN: { value: connectionArnParam.valueAsString },
         },
@@ -59,26 +60,11 @@ export class PipelineStack extends cdk.Stack {
         "node -v",
       ],
       commands: [
-        // Install Yarn and dependencies
         "npm install -g yarn",
         "yarn install --frozen-lockfile",
         "cd deploy",
         "yarn install --frozen-lockfile",
-        // Create CDK cache directory with proper permissions
-        "mkdir -p /root/.cdk/cache",
-        "chmod -R 777 /root/.cdk",
-        // Pass the connection ARN as context during synth
         "npx cdk synth --quiet --context codePipelineConnectionArn=$CONNECTION_ARN",
-      ],
-    });
-
-    // Add administrative permissions to the pipeline's deployment role
-    const deploymentRole = new cdk.aws_iam.Role(this, "DeploymentRole", {
-      assumedBy: new cdk.aws_iam.ServicePrincipal("codebuild.amazonaws.com"),
-      managedPolicies: [
-        cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName(
-          "AdministratorAccess",
-        ),
       ],
     });
 
@@ -87,9 +73,6 @@ export class PipelineStack extends cdk.Stack {
       synth: synthStep,
       pipelineType: cdk.aws_codepipeline.PipelineType.V2,
       selfMutation: true, // Allow pipeline to update itself
-      dockerEnabledForSynth: true, // Enable Docker for synth if needed
-      dockerEnabledForSelfMutation: true, // Enable Docker for self-mutation if needed
-      role: deploymentRole,
     });
 
     // Deployment stage: runs the full CDK AppStage in this account/region
@@ -99,19 +82,21 @@ export class PipelineStack extends cdk.Stack {
       env: props.env,
     });
 
-    pipeline.addStage(prodStage, {
-      pre: [
-        new CodeBuildStep("UpdatePermissions", {
-          commands: ['echo "Setting up deployment permissions"'],
-          rolePolicyStatements: [
-            new cdk.aws_iam.PolicyStatement({
-              actions: ["sts:AssumeRole"],
-              resources: ["*"],
-              effect: cdk.aws_iam.Effect.ALLOW,
-            }),
-          ],
+    const updatePermissions = new CodeBuildStep("UpdatePermissions", {
+      commands: ['echo "Setting up deployment permissions"'],
+      rolePolicyStatements: [
+        new cdk.aws_iam.PolicyStatement({
+          actions: ["sts:AssumeRole"],
+          resources: ["*"],
+          effect: cdk.aws_iam.Effect.ALLOW,
         }),
       ],
+    });
+    updatePermissions.role?.addManagedPolicy(
+      cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName("AdministratorAccess"),
+    );
+    pipeline.addStage(prodStage, {
+      pre: [updatePermissions],
     });
   }
 }

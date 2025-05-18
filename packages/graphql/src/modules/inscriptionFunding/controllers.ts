@@ -8,21 +8,25 @@ export async function getUrl({
   id,
   bitcoinRegtestMempoolEndpoint,
   bitcoinTestnetMempoolEndpoint,
+  bitcoinTestnet4MempoolEndpoint,
   bitcoinMainnetMempoolEndpoint,
 }: {
   network: BitcoinNetworkNames;
   id: string;
   bitcoinRegtestMempoolEndpoint: string;
   bitcoinTestnetMempoolEndpoint: string;
+  bitcoinTestnet4MempoolEndpoint: string;
   bitcoinMainnetMempoolEndpoint: string;
 }) {
   switch (network) {
     case "regtest":
       return `${bitcoinRegtestMempoolEndpoint}/tx/${id}`;
     case "testnet":
-      return `${bitcoinTestnetMempoolEndpoint}/testnet/tx/${id}`;
+      return `${bitcoinTestnetMempoolEndpoint}/tx/${id}`;
     case "mainnet":
       return `${bitcoinMainnetMempoolEndpoint}/tx/${id}`;
+    case "testnet4":
+      return `${bitcoinTestnet4MempoolEndpoint}/tx/${id}`;
     default:
       throw new Error(`Unknown network: ${network}`);
   }

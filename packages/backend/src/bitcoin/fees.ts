@@ -49,10 +49,10 @@ export async function getFeeEstimates(network: BitcoinNetworkNames): Promise<{
   try {
     const results = await estimateSmartFeeBatch(
       [
-        { conf_target: 1, estimate_mode: "ECONOMICAL" },
-        { conf_target: 2, estimate_mode: "ECONOMICAL" },
-        { conf_target: 6, estimate_mode: "ECONOMICAL" },
         { conf_target: 12, estimate_mode: "ECONOMICAL" },
+        { conf_target: 6, estimate_mode: "ECONOMICAL" },
+        { conf_target: 3, estimate_mode: "ECONOMICAL" },
+        { conf_target: 1, estimate_mode: "ECONOMICAL" },
       ],
       network,
     );
