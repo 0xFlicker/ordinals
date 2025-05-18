@@ -43,6 +43,8 @@ export interface IAddressInscriptionModel<T = Record<string, any>> {
   sizeEstimate: number;
   genesisScriptHash: string;
   batchId?: string;
+  numberOfInscriptions: number;
+  batchTransactionOffset?: number;
   meta: T;
   type: "address-inscription";
 }
@@ -74,6 +76,8 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
   public tipAmountSat?: number;
   public tipAmountDestination?: string;
   public sizeEstimate: number;
+  public numberOfInscriptions: number;
+  public batchTransactionOffset?: number;
   public meta: T;
   public type: "address-inscription" = "address-inscription";
 
@@ -104,6 +108,8 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
     this.tipAmountDestination = item.tipAmountDestination;
     this.meta = item.meta;
     this.sizeEstimate = item.sizeEstimate;
+    this.numberOfInscriptions = item.numberOfInscriptions;
+    this.batchTransactionOffset = item.batchTransactionOffset;
   }
 
   private _id?: ID_AddressInscription;

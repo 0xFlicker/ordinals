@@ -368,6 +368,7 @@ export class AxolotlModel implements IAxolotlMeta {
         revealedAt,
       },
       genesisScriptHash: encodeElectrumScriptHash(fundingAddress),
+      numberOfInscriptions: inscriptionContents.length,
     });
 
     const doc: TInscriptionDoc = {

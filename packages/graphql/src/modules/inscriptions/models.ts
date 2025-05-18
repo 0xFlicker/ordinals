@@ -1,10 +1,12 @@
 import { FundingDocDao } from "@0xflick/ordinals-backend";
 import {
   BitcoinNetworkNames,
+  IAddressInscriptionModel,
   InscriptionFile,
   TInscriptionDoc,
 } from "@0xflick/ordinals-models";
 import { Web3User } from "generated-types/graphql";
+import { InscriptionDataLoader } from "./providers";
 
 /* graphql type
 type Inscription {
@@ -34,53 +36,25 @@ export type IInscriptionModel = {
 };
 
 export class InscriptionModel {
-  public readonly id: string;
-  private readonly _txid: string;
-  private readonly _fundingAddress: string;
+  private readonly _txid?: string;
   private readonly _inscriptionIndex: number;
-  private readonly _owner?: Promise<Web3User>;
-  private readonly _content?: Promise<string>;
-  private readonly _contentUrl?: Promise<string>;
-  private readonly _contentLength?: Promise<number>;
-  private readonly _contentType?: Promise<string>;
-  private readonly _parents?: Promise<InscriptionModel[]>;
-  private readonly _children?: Promise<InscriptionModel[]>;
-  private readonly _network: BitcoinNetworkNames;
 
   private _contentPromise: Promise<InscriptionFile> | undefined;
-  private readonly fundingDocDao: FundingDocDao;
+  private funding: IAddressInscriptionModel;
+  private readonly inscriptionDataLoader: InscriptionDataLoader;
 
-  constructor(
-    data: Partial<IInscriptionModel> & {
-      id: string;
-      txid: string;
-      fundingAddress: string;
-      inscriptionIndex: number;
-      network: BitcoinNetworkNames;
-      context: {
-        fundingDocDao: FundingDocDao;
-      };
-    },
-  ) {
-    this.id = data.id;
-    this._owner = data.owner ? Promise.resolve(data.owner) : undefined;
-    this._content = data.content ? Promise.resolve(data.content) : undefined;
-    this._contentUrl = data.contentUrl
-      ? Promise.resolve(data.contentUrl)
-      : undefined;
-    this._contentLength = data.contentLength
-      ? Promise.resolve(data.contentLength)
-      : undefined;
-    this._contentType = data.contentType
-      ? Promise.resolve(data.contentType)
-      : undefined;
-    this._parents = data.parents ? Promise.resolve(data.parents) : undefined;
-    this._children = data.children ? Promise.resolve(data.children) : undefined;
-    this._txid = data.txid;
-    this._fundingAddress = data.fundingAddress;
-    this._inscriptionIndex = data.inscriptionIndex;
-    this.fundingDocDao = data.context.fundingDocDao;
-    this._network = data.network;
+  constructor({
+    funding,
+    index,
+    inscriptionDataLoader,
+  }: {
+    funding: IAddressInscriptionModel;
+    index: number;
+    inscriptionDataLoader: InscriptionDataLoader;
+  }) {
+    this.inscriptionDataLoader = inscriptionDataLoader;
+    this.funding = funding;
+    this._inscriptionIndex = index;
   }
 
   private async primeContent() {
@@ -88,51 +62,44 @@ export class InscriptionModel {
       return this._contentPromise;
     }
 
-    this._contentPromise = this.fundingDocDao.getInscriptionContent({
-      id: this.id,
-      fundingAddress: this._fundingAddress,
-      inscriptionIndex: this._inscriptionIndex,
-    });
+    this._contentPromise = this.inscriptionDataLoader.getTransactionContentById(
+      {
+        id: this.id,
+        fundingAddress: this.funding.address,
+        inscriptionIndex: this._inscriptionIndex,
+      },
+    );
+
     return this._contentPromise;
   }
 
+  get id() {
+    return this.funding.id;
+  }
+
   get content() {
-    return (
-      this._contentPromise ??
-      this.primeContent().then((content) => content.content)
-    );
+    return this.primeContent().then((content) => content.content);
   }
 
   get contentUrl() {
-    return (
-      this._contentUrl ??
-      Promise.resolve(
-        `https://ordinals.com/inscription/${this._txid}i${this._inscriptionIndex}`,
-      )
-    );
+    return `https://ordinals.com/inscription/${this._txid}i${this._inscriptionIndex}`;
   }
 
   get contentLength() {
-    return (
-      this._contentLength ??
-      this.primeContent().then((content) => content.content.byteLength)
-    );
+    return this.primeContent().then((content) => content.content.byteLength);
   }
 
   get contentType() {
-    return (
-      this._contentType ??
-      this.primeContent().then((content) => content.mimetype)
-    );
+    return this.primeContent().then((content) => content.mimetype);
   }
 
   get parents() {
     // TODO: implement
-    return Promise.resolve([]);
+    return [];
   }
 
   get children() {
     // TODO: implement
-    return Promise.resolve([]);
+    return [];
   }
 }

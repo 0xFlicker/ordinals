@@ -200,6 +200,7 @@ export async function updateCollectionFunding({
       createdAt: new Date(),
       // The little-endian hash of the scriptPubKey of the funding address, used for electrum subscription
       genesisScriptHash: encodeElectrumScriptHash(fundingAddress),
+      numberOfInscriptions: writableInscriptions.length,
     }),
     ...writableInscriptions.map((f) =>
       fundingDocDao.saveInscriptionContent({

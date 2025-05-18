@@ -118,7 +118,14 @@ export class BatchDAO {
     );
   }
 
-  public async updateBatch(batchId: string, txid: string): Promise<void> {
+  public async updateBatch(
+    batchId: string,
+    txid: string,
+    fundingReveals: {
+      id: string;
+      batchTransactionOffset: number;
+    }[],
+  ): Promise<void> {
     // use batchId-index to get all fundings for the batch
     const fundings = await this.client.send(
       new QueryCommand({
@@ -134,21 +141,42 @@ export class BatchDAO {
     if (!fundingIds) {
       throw new Error("No fundings found for batch");
     }
-    const transactItems = fundingIds.map((id) => ({
-      Update: {
-        TableName: BatchDAO.TABLE_NAME,
-        Key: { pk: id, sk: "funding" },
-        ConditionExpression: "fundingStatus = :fundingStatus",
-        UpdateExpression:
-          "SET batchId = :batchId, fundingStatus = :newStatus, revealTxid = :revealTxid",
-        ExpressionAttributeValues: {
-          ":batchId": batchId,
-          ":newStatus": REVEALED,
-          ":fundingStatus": BATCHED,
-          ":revealTxid": txid,
+    // Match the fundings to the fundingReveals
+    const fundingMap = new Map<
+      string,
+      {
+        id: string;
+        batchTransactionOffset: number;
+      }
+    >();
+    for (const reveal of fundingReveals) {
+      fundingMap.set(reveal.id, reveal);
+    }
+    const fundingIdsWithOffsets = fundingIds.map((id) => {
+      const reveal = fundingMap.get(id);
+      if (!reveal) {
+        throw new Error("Funding reveal not found");
+      }
+      return { id, batchTransactionOffset: reveal.batchTransactionOffset };
+    });
+    const transactItems = fundingIdsWithOffsets.map(
+      ({ id, batchTransactionOffset }) => ({
+        Update: {
+          TableName: BatchDAO.TABLE_NAME,
+          Key: { pk: id, sk: "funding" },
+          ConditionExpression: "fundingStatus = :fundingStatus",
+          UpdateExpression:
+            "SET batchId = :batchId, fundingStatus = :newStatus, revealTxid = :revealTxid, batchTransactionOffset = :batchTransactionOffset",
+          ExpressionAttributeValues: {
+            ":batchId": batchId,
+            ":newStatus": REVEALED,
+            ":fundingStatus": BATCHED,
+            ":revealTxid": txid,
+            ":batchTransactionOffset": batchTransactionOffset,
+          },
         },
-      },
-    }));
+      }),
+    );
     await this.client.send(
       new TransactWriteCommand({
         TransactItems: [

@@ -4,6 +4,7 @@ import type { InscriptionFundingModel } from '../modules/inscriptionFunding/mode
 import type { RoleModel } from '../modules/permissions/models.js';
 import type { Web3UserModel, Web3LoginUserModel } from '../modules/user/models.js';
 import type { CollectionModel } from '../modules/collections/models.js';
+import type { InscriptionModel } from '../modules/inscriptions/models.js';
 import type { Context } from '../context/index.js';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
@@ -640,6 +641,7 @@ export type Query = {
   currentBitcoinFees: FeeEstimateResponse;
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
+  inscriptionIds: Array<Scalars['ID']['output']>;
   inscriptions: Array<Inscription>;
   presale?: Maybe<PresaleResponse>;
   presales: PresalesResult;
@@ -696,6 +698,11 @@ export type QueryInscriptionFundingArgs = {
 
 export type QueryInscriptionFundingsArgs = {
   query: InscriptionFundingQuery;
+};
+
+
+export type QueryInscriptionIdsArgs = {
+  query: InscriptionQuery;
 };
 
 
@@ -937,7 +944,7 @@ export type ResolversTypes = {
   Float: ResolverTypeWrapper<Scalars['Float']['output']>;
   FundingStatus: FundingStatus;
   ID: ResolverTypeWrapper<Scalars['ID']['output']>;
-  Inscription: ResolverTypeWrapper<Omit<Inscription, 'children' | 'owner' | 'parents'> & { children: Array<ResolversTypes['Inscription']>, owner?: Maybe<ResolversTypes['Web3User']>, parents: Array<ResolversTypes['Inscription']> }>;
+  Inscription: ResolverTypeWrapper<InscriptionModel>;
   InscriptionData: ResolverTypeWrapper<InscriptionData>;
   InscriptionDataInput: InscriptionDataInput;
   InscriptionFileInlineInput: InscriptionFileInlineInput;
@@ -1017,7 +1024,7 @@ export type ResolversParentTypes = {
   FeeEstimateResponse: FeeEstimateResponse;
   Float: Scalars['Float']['output'];
   ID: Scalars['ID']['output'];
-  Inscription: Omit<Inscription, 'children' | 'owner' | 'parents'> & { children: Array<ResolversParentTypes['Inscription']>, owner?: Maybe<ResolversParentTypes['Web3User']>, parents: Array<ResolversParentTypes['Inscription']> };
+  Inscription: InscriptionModel;
   InscriptionData: InscriptionData;
   InscriptionDataInput: InscriptionDataInput;
   InscriptionFileInlineInput: InscriptionFileInlineInput;
@@ -1387,6 +1394,7 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   currentBitcoinFees?: Resolver<ResolversTypes['FeeEstimateResponse'], ParentType, ContextType, RequireFields<QueryCurrentBitcoinFeesArgs, 'network'>>;
   inscriptionFunding?: Resolver<Maybe<ResolversTypes['InscriptionFunding']>, ParentType, ContextType, RequireFields<QueryInscriptionFundingArgs, 'id'>>;
   inscriptionFundings?: Resolver<ResolversTypes['InscriptionFundingsResult'], ParentType, ContextType, RequireFields<QueryInscriptionFundingsArgs, 'query'>>;
+  inscriptionIds?: Resolver<Array<ResolversTypes['ID']>, ParentType, ContextType, RequireFields<QueryInscriptionIdsArgs, 'query'>>;
   inscriptions?: Resolver<Array<ResolversTypes['Inscription']>, ParentType, ContextType, RequireFields<QueryInscriptionsArgs, 'query'>>;
   presale?: Resolver<Maybe<ResolversTypes['PresaleResponse']>, ParentType, ContextType, RequireFields<QueryPresaleArgs, 'id'>>;
   presales?: Resolver<ResolversTypes['PresalesResult'], ParentType, ContextType, RequireFields<QueryPresalesArgs, 'query'>>;

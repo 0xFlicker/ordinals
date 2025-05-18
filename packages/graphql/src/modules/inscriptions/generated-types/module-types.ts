@@ -4,7 +4,7 @@ import type * as gm from "@0xflick/graphql-modules";
 export namespace InscriptionsModule {
   interface DefinedFields {
     Inscription: 'id' | 'owner' | 'content' | 'contentUrl' | 'contentLength' | 'contentType' | 'parents' | 'children';
-    Query: 'inscriptions';
+    Query: 'inscriptions' | 'inscriptionIds';
   };
   
   interface DefinedInputFields {
@@ -42,6 +42,7 @@ export namespace InscriptionsModule {
     Query?: {
       '*'?: gm.Middleware[];
       inscriptions?: gm.Middleware[];
+      inscriptionIds?: gm.Middleware[];
     };
   };
 }

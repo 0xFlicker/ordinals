@@ -238,6 +238,8 @@ export const resolvers: InscriptionRequestModule.Resolvers = {
           genesisScriptHash: encodeElectrumScriptHash(
             inscriptionTransaction.fundingAddress,
           ),
+          numberOfInscriptions:
+            inscriptionTransaction.writableInscriptions.length,
         }),
         ...inscriptionTransaction.writableInscriptions.map((f, index) =>
           fundingDocDao.saveInscriptionContent({

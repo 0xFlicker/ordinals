@@ -30,6 +30,8 @@ import {
   QueryCommand,
   ScanCommand,
   DynamoDBDocumentClient,
+  BatchGetCommand,
+  BatchWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 
 export type TFundingDb<T extends Record<string, any>> = {
@@ -57,6 +59,8 @@ export type TFundingDb<T extends Record<string, any>> = {
   batchId?: string;
   sizeEstimate: number;
   creatorUserId?: string;
+  numberOfInscriptions: number;
+  batchTransactionOffset?: number;
 } & T;
 
 export type TFundingCollectionDb<T extends Record<string, any>> = {
@@ -727,6 +731,28 @@ export class FundingDao<
     return FundingDao.fromFundingDb(db.Item as TFundingDb<ItemMeta>);
   }
 
+  public async batchGetFundings(
+    ids: string[],
+  ): Promise<IAddressInscriptionModel<ItemMeta>[]> {
+    const db = await this.client.send(
+      new BatchGetCommand({
+        RequestItems: {
+          [FundingDao.TABLE_NAME]: {
+            Keys: ids.map((id) => ({ pk: id, sk: "funding" })),
+          },
+        },
+      }),
+    );
+    if (!db.Responses) {
+      return [];
+    }
+    return (
+      db.Responses[FundingDao.TABLE_NAME]?.map((item) =>
+        FundingDao.fromFundingDb(item as TFundingDb<ItemMeta>),
+      ) ?? []
+    );
+  }
+
   public async deleteFunding(id: string) {
     await this.client.send(
       new DeleteCommand({
@@ -844,9 +870,11 @@ export class FundingDao<
   public async revealFunded({
     id,
     revealTxid,
+    batchTransactionOffset,
   }: {
     id: string;
     revealTxid: string;
+    batchTransactionOffset: number;
   }) {
     await this.client.send(
       new UpdateCommand({
@@ -857,10 +885,11 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET revealTxid = :revealTxid, fundingStatus = :fundingStatus",
+          "SET revealTxid = :revealTxid, fundingStatus = :fundingStatus, batchTransactionOffset = :batchTransactionOffset",
         ExpressionAttributeValues: {
           ":revealTxid": revealTxid,
           ":fundingStatus": "revealed" as TFundingStatus,
+          ":batchTransactionOffset": batchTransactionOffset,
         },
       }),
     );
@@ -1053,23 +1082,23 @@ export class FundingDao<
     };
   }
 
-  public async getAllInscriptionsByCreatorUserId(userId: string) {
-    const inscriptionsIds: string[] = [];
-    for await (const inscriptionId of this.getAllInscriptionsByCreatorUserIdIterator(
+  public async getAllFundingsByCreatorUserId(userId: string) {
+    const fundingsIds: string[] = [];
+    for await (const fundingId of this.getAllFundingsByCreatorUserIdIterator(
       userId,
     )) {
-      inscriptionsIds.push(inscriptionId);
+      fundingsIds.push(fundingId);
     }
-    return inscriptionsIds;
+    return fundingsIds;
   }
 
-  public getAllInscriptionsByCreatorUserIdIterator(userId: string) {
+  public getAllFundingsByCreatorUserIdIterator(userId: string) {
     return paginate((options) =>
-      this.getAllInscriptionsByCreatorUserIdPaginated(userId, options),
+      this.getAllFundingsByCreatorUserIdPaginated(userId, options),
     );
   }
 
-  async getAllInscriptionsByCreatorUserIdPaginated(
+  async getAllFundingsByCreatorUserIdPaginated(
     userId: string,
     options?: IPaginationOptions,
   ) {
@@ -1169,6 +1198,8 @@ export class FundingDao<
     secKey,
     sizeEstimate,
     genesisScriptHash,
+    numberOfInscriptions,
+    batchTransactionOffset,
   }: IPresaleModel): TPresaleDb {
     return {
       pk: id,
@@ -1185,6 +1216,8 @@ export class FundingDao<
       secKey,
       timesChecked,
       sizeEstimate,
+      numberOfInscriptions,
+      ...(batchTransactionOffset && { batchTransactionOffset }),
       ...(fundedAt && { fundedAt: fundedAt.getTime() }),
       ...(lastChecked && { lastChecked: lastChecked.getTime() }),
       ...(nextCheckAt && { nextCheckAt: nextCheckAt.getTime() }),
@@ -1220,6 +1253,8 @@ export class FundingDao<
     tipAmountSat,
     batchId,
     sizeEstimate,
+    numberOfInscriptions,
+    batchTransactionOffset,
   }: IAddressInscriptionModel<T>): TFundingDb<T> {
     return {
       pk: id,
@@ -1235,6 +1270,8 @@ export class FundingDao<
       genesisScriptHash,
       destinationAddress,
       sizeEstimate,
+      numberOfInscriptions,
+      ...(batchTransactionOffset && { batchTransactionOffset }),
       createdAt: createdAt.getTime(),
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: lastChecked.getTime(),
@@ -1344,6 +1381,8 @@ export class FundingDao<
     farcasterFid,
     secKey,
     sizeEstimate,
+    numberOfInscriptions,
+    batchTransactionOffset,
   }: TPresaleDb): IPresaleModel {
     return {
       address,
@@ -1362,6 +1401,8 @@ export class FundingDao<
       secKey,
       sizeEstimate,
       genesisScriptHash,
+      numberOfInscriptions,
+      ...(batchTransactionOffset && { batchTransactionOffset }),
       createdAt: new Date(createdAt),
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: new Date(lastChecked),
@@ -1402,6 +1443,8 @@ export class FundingDao<
     tipAmountSat,
     batchId,
     sizeEstimate,
+    numberOfInscriptions,
+    batchTransactionOffset,
     ...meta
   }: TFundingDb<T>): IAddressInscriptionModel<T> {
     return {
@@ -1416,6 +1459,8 @@ export class FundingDao<
       sizeEstimate,
       genesisScriptHash,
       type: "address-inscription",
+      numberOfInscriptions,
+      ...(batchTransactionOffset && { batchTransactionOffset }),
       createdAt: new Date(createdAt),
       ...(typeof lastChecked !== "undefined" && {
         lastChecked: new Date(lastChecked),

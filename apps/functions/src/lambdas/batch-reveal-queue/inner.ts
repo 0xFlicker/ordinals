@@ -56,11 +56,15 @@ const s3Client = createS3Client();
  * @param network The Bitcoin network
  * @returns The transaction ID
  */
-async function submitBatchTransaction(
-  fundings: InscriptionFunding[],
-  hex: string,
-  network: BitcoinNetworkNames,
-): Promise<string> {
+async function submitBatchTransaction({
+  fundings,
+  hex,
+  network,
+}: {
+  fundings: InscriptionFunding[];
+  hex: string;
+  network: BitcoinNetworkNames;
+}): Promise<string> {
   const id = uuidv4();
   let txid: string | undefined;
   try {
@@ -80,13 +84,30 @@ async function submitBatchTransaction(
       "Sending raw transaction",
     );
     txid = await sendRawTransaction(hex, network);
+
+    // Track the offset index for each funding.
+    const fundingReveals: {
+      id: string;
+      batchTransactionOffset: number;
+    }[] = [];
+    for (const { parentTxs, inputs } of fundings) {
+      let offsetIndex = parentTxs?.length ?? 0;
+      for (const input of inputs) {
+        fundingReveals.push({
+          id: input.rootTapKey,
+          batchTransactionOffset: offsetIndex,
+        });
+        offsetIndex += input.inscriptions.length;
+      }
+    }
+
     await Promise.all([
       sendBatchSubmittedEvent(sqsClient, {
         batchId: id,
         txid,
         fundingIds: fundings.map(({ id }) => id),
       }),
-      batchDao.updateBatch(id, txid),
+      batchDao.updateBatch(id, txid, fundingReveals),
     ]);
     return txid;
   } catch (error: any) {
@@ -295,12 +316,20 @@ export const handler: Handler = async () => {
           })
         : Promise.resolve<null>(null),
       ...Object.values(nextParentInscription).map(async ({ fundings, hex }) => {
-        return submitBatchTransaction(fundings, hex, network);
+        return submitBatchTransaction({
+          fundings,
+          hex,
+          network,
+        });
       }),
       ...Object.values(feeDestinationGroups)
         .map((revealedTransactions) =>
           revealedTransactions.map(async ({ fundings, hex }) => {
-            return submitBatchTransaction(fundings, hex, network);
+            return submitBatchTransaction({
+              fundings,
+              hex,
+              network,
+            });
           }),
         )
         .flat(),

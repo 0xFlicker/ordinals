@@ -35,4 +35,6 @@ export interface IPresaleModel {
   farcasterFid?: number;
   genesisScriptHash: string;
   sizeEstimate: number;
+  numberOfInscriptions: number;
+  batchTransactionOffset?: number;
 }
