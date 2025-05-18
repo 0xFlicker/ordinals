@@ -227,10 +227,10 @@ export type CreateInscriptionResponse = {
 
 export type FeeEstimate = {
   __typename?: 'FeeEstimate';
-  fastest: Scalars['Int']['output'];
-  halfHour: Scalars['Int']['output'];
-  hour: Scalars['Int']['output'];
-  minimum: Scalars['Int']['output'];
+  fastest: Scalars['Float']['output'];
+  halfHour: Scalars['Float']['output'];
+  hour: Scalars['Float']['output'];
+  minimum: Scalars['Float']['output'];
 };
 
 export type FeeEstimateResponse = {
@@ -257,10 +257,12 @@ export enum FundingStatus {
 export type Inscription = {
   __typename?: 'Inscription';
   children: Array<Inscription>;
-  content: Scalars['String']['output'];
+  contentBase64: Scalars['String']['output'];
   contentLength: Scalars['Int']['output'];
   contentType: Scalars['String']['output'];
   contentUrl: Scalars['String']['output'];
+  contentUtf8: Scalars['String']['output'];
+  fundingStatus: FundingStatus;
   id: Scalars['ID']['output'];
   owner?: Maybe<Web3User>;
   parents: Array<Inscription>;
@@ -644,6 +646,7 @@ export type Query = {
   currentBitcoinFees: FeeEstimateResponse;
   inscriptionFunding?: Maybe<InscriptionFunding>;
   inscriptionFundings: InscriptionFundingsResult;
+  inscriptionIds: Array<Scalars['ID']['output']>;
   inscriptions: Array<Inscription>;
   presale?: Maybe<PresaleResponse>;
   presales: PresalesResult;
@@ -700,6 +703,11 @@ export type QueryInscriptionFundingArgs = {
 
 export type QueryInscriptionFundingsArgs = {
   query: InscriptionFundingQuery;
+};
+
+
+export type QueryInscriptionIdsArgs = {
+  query: InscriptionQuery;
 };
 
 

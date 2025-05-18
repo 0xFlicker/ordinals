@@ -229,10 +229,10 @@ export type CreateInscriptionResponse = {
 
 export type FeeEstimate = {
   __typename?: 'FeeEstimate';
-  fastest: Scalars['Int']['output'];
-  halfHour: Scalars['Int']['output'];
-  hour: Scalars['Int']['output'];
-  minimum: Scalars['Int']['output'];
+  fastest: Scalars['Float']['output'];
+  halfHour: Scalars['Float']['output'];
+  hour: Scalars['Float']['output'];
+  minimum: Scalars['Float']['output'];
 };
 
 export type FeeEstimateResponse = {
@@ -1207,10 +1207,10 @@ export type CreateInscriptionResponseResolvers<ContextType = Context, ParentType
 };
 
 export type FeeEstimateResolvers<ContextType = Context, ParentType extends ResolversParentTypes['FeeEstimate'] = ResolversParentTypes['FeeEstimate']> = {
-  fastest?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  halfHour?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  hour?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  minimum?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  fastest?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  halfHour?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  hour?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  minimum?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

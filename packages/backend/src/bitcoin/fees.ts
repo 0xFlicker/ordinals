@@ -49,9 +49,9 @@ export async function getFeeEstimates(network: BitcoinNetworkNames): Promise<{
   try {
     const results = await estimateSmartFeeBatch(
       [
-        { conf_target: 12, estimate_mode: "ECONOMICAL" },
         { conf_target: 6, estimate_mode: "ECONOMICAL" },
         { conf_target: 3, estimate_mode: "ECONOMICAL" },
+        { conf_target: 2, estimate_mode: "ECONOMICAL" },
         { conf_target: 1, estimate_mode: "ECONOMICAL" },
       ],
       network,
@@ -82,7 +82,7 @@ export async function getFeeEstimates(network: BitcoinNetworkNames): Promise<{
       minimumErrors && minimumErrors.length > 0 ? minimumErrors : null;
 
     function rpcFeeRateToSatPerByte(feeRate: number) {
-      return Math.ceil(Number(bitcoinToSats(feeRate.toString())) / 1000);
+      return Math.round(Number(bitcoinToSats(feeRate.toString())) / 1000);
     }
 
     function checkErrors(

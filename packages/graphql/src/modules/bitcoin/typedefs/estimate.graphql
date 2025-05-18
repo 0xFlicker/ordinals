@@ -1,8 +1,8 @@
 type FeeEstimate {
-  minimum: Int!
-  fastest: Int!
-  halfHour: Int!
-  hour: Int!
+  minimum: Float!
+  fastest: Float!
+  halfHour: Float!
+  hour: Float!
 }
 
 type FeeEstimateResponse {
