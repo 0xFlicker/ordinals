@@ -406,9 +406,7 @@ function tryPlatformFeeDistribution(
     const share = Math.floor((allocatedToPlatform * dest.weight) / totalWeight);
     return {
       value: share,
-      scriptPubKey: Address.p2tr.scriptPubKey(
-        Address.p2tr.decode(dest.address),
-      ),
+      scriptPubKey: Address.toScriptPubKey(dest.address),
     } as OutputData;
   });
 
