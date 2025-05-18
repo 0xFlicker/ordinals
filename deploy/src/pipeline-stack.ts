@@ -60,6 +60,9 @@ export class PipelineStack extends cdk.Stack {
         "yarn install --frozen-lockfile",
         "cd deploy",
         "yarn install --frozen-lockfile",
+        // Create CDK cache directory with proper permissions
+        "mkdir -p /root/.cdk/cache",
+        "chmod -R 777 /root/.cdk",
         // Pass the connection ARN as context during synth
         "npx cdk synth --quiet --context codePipelineConnectionArn=$CONNECTION_ARN",
       ],

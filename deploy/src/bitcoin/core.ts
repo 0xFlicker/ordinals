@@ -171,6 +171,11 @@ export class BitcoinCore extends Construct {
       ec2.Port.tcp(p2pPort),
       "to bitcoind p2p",
     );
+    p2pSG.addEgressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(8080),
+      "to health check server",
+    );
     this.p2pSecurityGroup = p2pSG;
     this.p2pNlb = new elbv2.NetworkLoadBalancer(this, "P2P-NLB", {
       vpc,
@@ -310,7 +315,8 @@ export class BitcoinCore extends Construct {
       healthCheck: {
         enabled: true,
         path: "/",
-        healthyHttpCodes: "200,401",
+        port: "8080",
+        healthyHttpCodes: "200",
         interval: cdk.Duration.seconds(60),
       },
     });
@@ -320,6 +326,7 @@ export class BitcoinCore extends Construct {
       targets: [this.asg],
       protocol: elbv2.Protocol.TCP,
       healthCheck: {
+        enabled: true,
         protocol: elbv2.Protocol.TCP,
         port: `${p2pPort}`,
         interval: cdk.Duration.seconds(30),

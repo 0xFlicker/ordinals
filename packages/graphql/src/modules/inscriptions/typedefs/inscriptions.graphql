@@ -3,10 +3,13 @@ type Inscription {
 
   owner: Web3User
 
-  content: String!
+  contentUtf8: String!
+  contentBase64: String!
   contentUrl: String!
   contentLength: Int!
   contentType: String!
+
+  fundingStatus: FundingStatus!
 
   parents: [Inscription!]!
   children: [Inscription!]!

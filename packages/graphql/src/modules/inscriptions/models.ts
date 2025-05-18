@@ -1,4 +1,4 @@
-import { FundingDocDao } from "@0xflick/ordinals-backend";
+import { createLogger } from "@0xflick/ordinals-backend";
 import {
   BitcoinNetworkNames,
   IAddressInscriptionModel,
@@ -7,6 +7,10 @@ import {
 } from "@0xflick/ordinals-models";
 import { Web3User } from "generated-types/graphql";
 import { InscriptionDataLoader } from "./providers";
+
+const logger = createLogger({
+  name: "inscriptions/models",
+});
 
 /* graphql type
 type Inscription {
@@ -46,10 +50,12 @@ export class InscriptionModel {
   constructor({
     funding,
     index,
+    batchTransactionOffset,
     inscriptionDataLoader,
   }: {
     funding: IAddressInscriptionModel;
     index: number;
+    batchTransactionOffset: number;
     inscriptionDataLoader: InscriptionDataLoader;
   }) {
     this.inscriptionDataLoader = inscriptionDataLoader;
@@ -77,12 +83,26 @@ export class InscriptionModel {
     return this.funding.id;
   }
 
-  get content() {
-    return this.primeContent().then((content) => content.content);
+  get fundingStatus() {
+    return this.funding.fundingStatus;
+  }
+
+  get contentUtf8() {
+    return this.primeContent().then((content) => {
+      logger.info({ content: content.content }, "Content");
+      return Buffer.from(new Uint8Array(content.content)).toString("utf-8");
+    });
+  }
+  get contentBase64() {
+    return this.primeContent().then((content) =>
+      Buffer.from(new Uint8Array(content.content)).toString("base64"),
+    );
   }
 
   get contentUrl() {
-    return `https://ordinals.com/inscription/${this._txid}i${this._inscriptionIndex}`;
+    return `https://ordinals.com/inscription/${this._txid}i${
+      this._inscriptionIndex + (this.funding.batchTransactionOffset ?? 0)
+    }`;
   }
 
   get contentLength() {

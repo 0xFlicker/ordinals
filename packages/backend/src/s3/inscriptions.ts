@@ -104,8 +104,8 @@ export class FundingDocDao {
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: this.transactionContentKey(id),
-        Body: JSON.stringify(item),
-        ContentType: "application/json",
+        Body: Buffer.from(new Uint8Array(item.content)),
+        ContentType: item.mimetype,
       }),
     );
   }
@@ -120,8 +120,10 @@ export class FundingDocDao {
     if (!response.Body) {
       throw new Error("No body returned from S3");
     }
-    const data = await response.Body.transformToString();
-    return JSON.parse(data);
+    return {
+      content: await response.Body.transformToByteArray(),
+      mimetype: response.ContentType ?? "application/octet-stream",
+    };
   }
 
   async getInscriptionTransaction(request: {

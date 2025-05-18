@@ -257,10 +257,12 @@ export type FundingStatus =
 export type Inscription = {
   __typename?: 'Inscription';
   children: Array<Inscription>;
-  content: Scalars['String']['output'];
+  contentBase64: Scalars['String']['output'];
   contentLength: Scalars['Int']['output'];
   contentType: Scalars['String']['output'];
   contentUrl: Scalars['String']['output'];
+  contentUtf8: Scalars['String']['output'];
+  fundingStatus: FundingStatus;
   id: Scalars['ID']['output'];
   owner?: Maybe<Web3User>;
   parents: Array<Inscription>;
@@ -1220,10 +1222,12 @@ export type FeeEstimateResponseResolvers<ContextType = Context, ParentType exten
 
 export type InscriptionResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Inscription'] = ResolversParentTypes['Inscription']> = {
   children?: Resolver<Array<ResolversTypes['Inscription']>, ParentType, ContextType>;
-  content?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  contentBase64?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   contentLength?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   contentType?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   contentUrl?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  contentUtf8?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  fundingStatus?: Resolver<ResolversTypes['FundingStatus'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
   parents?: Resolver<Array<ResolversTypes['Inscription']>, ParentType, ContextType>;

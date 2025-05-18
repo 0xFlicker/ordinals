@@ -1,6 +1,11 @@
 import { InscriptionsModule } from "./generated-types/module-types";
 import { InscriptionModel } from "./models.js";
 import { InscriptionDataLoader } from "./providers";
+import { createLogger } from "@0xflick/ordinals-backend";
+
+const logger = createLogger({
+  name: "inscriptions",
+});
 
 export const resolvers: InscriptionsModule.Resolvers = {
   Query: {
@@ -22,20 +27,20 @@ export const resolvers: InscriptionsModule.Resolvers = {
         throw new Error("User not found");
       }
       const fundingIds = await fundingDao.getAllFundingsByCreatorUserId(userId);
+      logger.info({ fundingIds }, "Found fundingIds for user");
       const dataLoader = new InscriptionDataLoader(fundingDocDao, fundingDao);
       const fundings = await Promise.all(
         fundingIds.map((fundingId) => dataLoader.getTransactionById(fundingId)),
       );
+      logger.info({ fundings: fundings.length }, "Found fundings for user");
       const inscriptions: InscriptionModel[] = [];
       for (const funding of fundings) {
-        if (typeof funding.batchTransactionOffset !== "number") {
-          continue;
-        }
         for (let i = 0; i < funding.numberOfInscriptions; i++) {
           inscriptions.push(
             new InscriptionModel({
               funding,
-              index: funding.batchTransactionOffset + i,
+              index: i,
+              batchTransactionOffset: funding.batchTransactionOffset ?? 0,
               inscriptionDataLoader: dataLoader,
             }),
           );
