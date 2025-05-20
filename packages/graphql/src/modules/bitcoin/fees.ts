@@ -3,7 +3,7 @@ import { toFeeLevel } from "./transforms.js";
 import { getFeeEstimates } from "@0xflick/ordinals-backend";
 import { BitcoinNetworkNames } from "@0xflick/ordinals-models";
 
-export async function estimateFeesWithMempool({
+export async function estimateFeesWithInputs({
   network,
   feePerByte,
   feeLevel,

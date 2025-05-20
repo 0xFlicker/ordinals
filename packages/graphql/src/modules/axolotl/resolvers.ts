@@ -11,7 +11,7 @@ import {
   toGraphqlBitcoinNetworkName,
 } from "../bitcoin/transforms.js";
 import { toGraphqlFundingStatus } from "./transforms.js";
-import { estimateFeesWithMempool } from "../bitcoin/fees.js";
+import { estimateFeesWithInputs } from "../bitcoin/fees.js";
 import { InscriptionFundingModel } from "../inscriptionFunding/models.js";
 import {
   AddressInscriptionModel,

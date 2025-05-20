@@ -70,54 +70,6 @@ function sha256sh(script: ScriptData) {
 }
 
 /**
- * Creates an Electrum client instance
- */
-export async function createElectrumClient(
-  config: ElectrumClientConfig,
-): Promise<ElectrumClientInstance> {
-  const { tls, hostname, port } = config;
-  const protocol = tls ? "tls" : "tcp";
-  const client = new ElectrumClient(
-    port,
-    hostname,
-    protocol,
-    {},
-    {
-      onConnect: () => {
-        console.log(`Connected to Electrum server at ${hostname}:${port}`);
-      },
-      onClose: () => {
-        console.log(`Disconnected from Electrum server at ${hostname}:${port}`);
-      },
-      onError: (err) => {
-        console.error(`Electrum error: ${JSON.stringify(err)}`);
-      },
-      onLog: (str) => {
-        console.log(`Electrum log: ${str}`);
-      },
-    },
-  );
-
-  return client
-    .initElectrum({
-      client: "nodejs",
-      version: "1.4",
-    })
-    .then(() => {
-      return {
-        client,
-        isConnected: true,
-      };
-    })
-    .catch((err) => {
-      console.error(
-        `Error connecting to Electrum server at ${hostname}:${port}: ${err}`,
-      );
-      throw err;
-    });
-}
-
-/**
  * Gets transactions for an address since an optional last seen transaction ID
  */
 export async function electrumGetAddressTransactions({
@@ -199,7 +151,7 @@ function toHexString(value: any): string {
 /**
  * Parses a raw transaction hex into a Transaction object
  */
-function parseTransaction(
+export function parseTransaction(
   txid: string,
   txHex: string,
   height?: number,

@@ -3,30 +3,16 @@ import { BitcoinNetworkNames } from "@0xflick/inscriptions";
 import Queue from "p-queue";
 import { MempoolConfig } from "@mempool/mempool.js/lib/interfaces/index.js";
 import {
-  mainnetElectrumHostname,
   mainnetMempoolAuth,
   mainnetMempoolUrl,
   regtestMempoolUrl,
   testnetMempoolAuth,
   testnetMempoolUrl,
-  mainnetElectrumPort,
-  testnetElectrumPort,
-  testnetElectrumHostname,
-  testnet4ElectrumPort,
-  testnet4ElectrumHostname,
-  regtestElectrumPort,
-  regtestElectrumHostname,
-  testnetElectrumProtocol,
-  testnet4ElectrumProtocol,
-  mainnetElectrumProtocol,
-  regtestElectrumProtocol,
 } from "../index.js";
 import { createLogger } from "../index.js";
-import { lazySingleton } from "@0xflick/ordinals-models";
-import {
-  createElectrumClient,
-  electrumGetAddressTransactions,
-} from "../electrs/transactions.js";
+
+import { electrumGetAddressTransactions } from "../electrs/transactions.js";
+import { electrumClientForNetwork } from "../electrs/client.js";
 const logger = createLogger({ name: "mempool" });
 export type MempoolClient = ReturnType<typeof createMempoolClient>;
 
@@ -141,53 +127,6 @@ const checkTxo = async ({
   };
 };
 
-export const mainnetElectrumClientFactory = lazySingleton(() => {
-  return createElectrumClient({
-    tls: mainnetElectrumProtocol.get(),
-    hostname: mainnetElectrumHostname.get(),
-    port: mainnetElectrumPort.get(),
-  });
-});
-
-export const testnetElectrumClientFactory = lazySingleton(() => {
-  return createElectrumClient({
-    tls: testnetElectrumProtocol.get(),
-    hostname: testnetElectrumHostname.get(),
-    port: testnetElectrumPort.get(),
-  });
-});
-
-export const testnet4ElectrumClientFactory = lazySingleton(() => {
-  return createElectrumClient({
-    tls: testnet4ElectrumProtocol.get(),
-    hostname: testnet4ElectrumHostname.get(),
-    port: testnet4ElectrumPort.get(),
-  });
-});
-
-export const regtestElectrumClientFactory = lazySingleton(() => {
-  return createElectrumClient({
-    tls: regtestElectrumProtocol.get(),
-    hostname: regtestElectrumHostname.get(),
-    port: regtestElectrumPort.get(),
-  });
-});
-
-export const electrumClientForNetwork = (network: BitcoinNetworkNames) => {
-  switch (network) {
-    case "mainnet":
-      return mainnetElectrumClientFactory.get();
-    case "testnet":
-      return testnetElectrumClientFactory.get();
-    case "testnet4":
-      return testnet4ElectrumClientFactory.get();
-    case "regtest":
-      return regtestElectrumClientFactory.get();
-    default:
-      throw new Error(`Unknown Bitcoin network: ${network}`);
-  }
-};
-
 export async function pullElectrumTransactionsForAddress({
   address,
   scriptHash,
@@ -203,6 +142,10 @@ export async function pullElectrumTransactionsForAddress({
     scriptHash,
     client: await electrumClientForNetwork(network),
   });
+  logger.info(
+    { scriptHash, address, findValue, network, txCount: txs.length },
+    "Pulled Electrum transactions for address",
+  );
   for (const tx of txs) {
     for (let i = 0; i < tx.vout.length; i++) {
       const output = tx.vout[i];

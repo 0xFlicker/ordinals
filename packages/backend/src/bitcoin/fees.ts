@@ -82,7 +82,7 @@ export async function getFeeEstimates(network: BitcoinNetworkNames): Promise<{
       minimumErrors && minimumErrors.length > 0 ? minimumErrors : null;
 
     function rpcFeeRateToSatPerByte(feeRate: number) {
-      return Math.round(Number(bitcoinToSats(feeRate.toString())) / 1000);
+      return Number(bitcoinToSats(feeRate.toString())) / 1000;
     }
 
     function checkErrors(

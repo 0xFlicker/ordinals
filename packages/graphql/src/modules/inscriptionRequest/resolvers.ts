@@ -5,6 +5,8 @@ import {
   InscriptionContent,
   bitcoinToSats,
   encodeElectrumScriptHash,
+  generateBatchRefundTransaction,
+  generateRefundTransaction,
   isValidTaprootAddress,
 } from "@0xflick/inscriptions";
 import { InscriptionRequestError } from "./errors.js";
@@ -25,7 +27,14 @@ import { InscriptionProblem } from "../../generated-types/graphql.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { createLogger } from "@0xflick/ordinals-backend";
 import { verifyAuthorizedUser } from "../../modules/auth/controller.js";
-import { EActions, EResource } from "@0xflick/ordinals-rbac-models";
+import {
+  EActions,
+  EResource,
+  and,
+  defaultAdminStrategyAll,
+  isActionOnResource,
+} from "@0xflick/ordinals-rbac-models";
+import { estimateFeesWithInputs } from "modules/bitcoin/fees.js";
 
 const logger = createLogger({
   name: "inscription-request-resolvers",
@@ -345,6 +354,81 @@ export const resolvers: InscriptionRequestModule.Resolvers = {
           ],
         };
       }
+    },
+    refundPayments: async (_, { input }, context, info) => {
+      const { requireMutation } = context;
+      requireMutation(info);
+      const {
+        fundings,
+        network: graphqlNetwork,
+        feeLevel,
+        feePerByte,
+        destinationAddress,
+      } = input;
+      const fundingIds = [
+        ...new Set(fundings.map(({ fundingId }) => fundingId)),
+      ];
+      const network = toBitcoinNetworkName(graphqlNetwork);
+      // for every fundingId, build a matcher that requires all to pass:
+      const canRefundAction = and(
+        ...fundingIds.map((fundingId) =>
+          defaultAdminStrategyAll(
+            EResource.ROLE,
+            isActionOnResource({
+              action: EActions.DELETE,
+              resource: EResource.INSCRIPTION,
+              identifier: fundingId,
+            }),
+          ),
+        ),
+      );
+      await verifyAuthorizedUser({
+        authorizer: canRefundAction,
+        ...context,
+      });
+
+      // Load all transaction data
+      const { fundingDao, fundingDocDao } = context;
+      const transactions = await Promise.all(
+        fundingIds.map(async (fundingId) => {
+          const funding = await fundingDao.getFunding(fundingId);
+          if (!funding) {
+            throw new InscriptionRequestError("INVALID_REQUEST");
+          }
+          const doc = await fundingDocDao.getInscriptionTransaction({
+            fundingAddress: funding.address,
+            id: funding.id,
+          });
+          return {
+            funding,
+            doc,
+          };
+        }),
+      );
+
+      const fee = await estimateFeesWithInputs({
+        network,
+        feeLevel,
+        feePerByte,
+      });
+
+      const refundTx = await generateBatchRefundTransaction({
+        feeRate: fee,
+        inputs: transactions.map((tx) => ({
+          txid: tx.funding.fundingTxid!,
+          vout: tx.funding.fundingVout!,
+          amount: tx.funding.fundingAmountSat,
+          refundCBlock: tx.doc.refundCBlock,
+          secKey: Buffer.from(tx.doc.secKey, "hex"),
+          treeTapKey: tx.doc.refundTapKey,
+        })),
+        destinationAddress,
+      });
+      return {
+        data: {
+          txId: refundTx,
+        },
+      };
     },
   },
   Query: {

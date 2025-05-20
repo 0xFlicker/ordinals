@@ -118,34 +118,35 @@ export class DataVolume extends Construct {
     this.mountPath = mountPath;
     this.defaultVolumeSize = defaultVolumeSize;
     this.snapshotPathComponent = snapshotPathComponent;
-    // Create or use existing role
-    if (existingRole) {
-      this.role = existingRole;
-    } else {
-      const newRole = new iam.Role(this, "DataVolumeRole", {
-        assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
-      });
-
-      // Add necessary permissions to the role
-      newRole.addToPolicy(
-        new iam.PolicyStatement({
-          actions: [
-            "ec2:CreateVolume",
-            "ec2:AttachVolume",
-            "ec2:DescribeVolumes",
-            "ec2:CreateTags",
-            "ec2:ModifyInstanceAttribute",
-            "ssm:GetParameter",
-          ],
-          resources: ["*"],
-        }),
-      );
-
-      this.role = newRole;
-    }
 
     // Create DLM policy for automated snapshots if enabled
     if (enableDlmPolicy) {
+      // Create or use existing role
+      if (existingRole) {
+        this.role = existingRole;
+      } else {
+        const newRole = new iam.Role(this, "DataVolumeRole", {
+          assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
+        });
+
+        // Add necessary permissions to the role
+        newRole.addToPolicy(
+          new iam.PolicyStatement({
+            actions: [
+              "ec2:CreateVolume",
+              "ec2:AttachVolume",
+              "ec2:DescribeVolumes",
+              "ec2:CreateTags",
+              "ec2:ModifyInstanceAttribute",
+              "ssm:GetParameter",
+            ],
+            resources: ["*"],
+          }),
+        );
+
+        this.role = newRole;
+      }
+
       this.dlmPolicy = new dlm.CfnLifecyclePolicy(this, "DataVolumeDlmPolicy", {
         executionRoleArn: `arn:aws:iam::${Aws.ACCOUNT_ID}:role/AWSDataLifecycleManagerDefaultRole`,
         description: `DataVolume DLM policy for ${this.snapshotPathComponent}`,
@@ -163,7 +164,7 @@ export class DataVolume extends Construct {
               tagsToAdd: [{ key: "CreatedBy", value: "DLM" }],
               copyTags: true,
               createRule: {
-                interval: 24,
+                interval: 6,
                 intervalUnit: "HOURS",
               },
               retainRule: {
@@ -208,19 +209,23 @@ export class DataVolume extends Construct {
       }),
     );
 
-    // Schedule the Lambda to run daily at midnight
-    const rule = new events.Rule(this, "UpdateSeedSnapshotSchedule", {
-      schedule: events.Schedule.cron({ minute: "0", hour: "0" }),
-    });
-    rule.addTarget(new targets.LambdaFunction(this.updateSnapshotLambda));
+    // // Schedule the Lambda to run daily at midnight
+    // const rule = new events.Rule(this, "UpdateSeedSnapshotSchedule", {
+    //   schedule: events.Schedule.cron({ minute: "0", hour: "0" }),
+    // });
+    // rule.addTarget(new targets.LambdaFunction(this.updateSnapshotLambda));
 
-    const snapshotCompleteRule = new events.Rule(this, "OnEc2SnapshotComplete", {
-      eventPattern: {
-        source: ["aws.ec2"],
-        detailType: ["EC2 Snapshot State-change Notification"],
-        detail: { state: ["completed"] },
+    const snapshotCompleteRule = new events.Rule(
+      this,
+      "OnEc2SnapshotComplete",
+      {
+        eventPattern: {
+          source: ["aws.ec2"],
+          detailType: ["EC2 Snapshot State-change Notification"],
+          detail: { state: ["completed"] },
+        },
       },
-    });
+    );
     snapshotCompleteRule.addTarget(
       new targets.LambdaFunction(this.updateSnapshotLambda),
     );

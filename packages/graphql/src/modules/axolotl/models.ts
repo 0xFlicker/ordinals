@@ -17,7 +17,7 @@ import {
 import handlebars from "handlebars";
 import { minify } from "html-minifier-terser";
 import { MempoolModel } from "../bitcoin/models.js";
-import { estimateFeesWithMempool } from "../bitcoin/fees.js";
+import { estimateFeesWithInputs } from "../bitcoin/fees.js";
 import {
   AxolotlProblem,
   FeeLevel,
@@ -186,7 +186,7 @@ export class AxolotlModel implements IAxolotlMeta {
     feeLevel?: InputMaybe<FeeLevel>;
     tipPerToken: number;
   }) {
-    const feeRate = await estimateFeesWithMempool({
+    const feeRate = await estimateFeesWithInputs({
       network,
       feePerByte,
       feeLevel,
@@ -317,7 +317,7 @@ export class AxolotlModel implements IAxolotlMeta {
       );
     }
 
-    const finalFee = await estimateFeesWithMempool({
+    const finalFee = await estimateFeesWithInputs({
       network,
       feePerByte,
       feeLevel,

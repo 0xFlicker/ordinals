@@ -45,6 +45,7 @@ export interface IAddressInscriptionModel<T = Record<string, any>> {
   batchId?: string;
   numberOfInscriptions: number;
   batchTransactionOffset?: number;
+  overpaymentAmountSat?: number;
   meta: T;
   type: "address-inscription";
 }
@@ -78,6 +79,7 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
   public sizeEstimate: number;
   public numberOfInscriptions: number;
   public batchTransactionOffset?: number;
+  public overpaymentAmountSat?: number;
   public meta: T;
   public type: "address-inscription" = "address-inscription";
 
@@ -110,6 +112,7 @@ export class AddressInscriptionModel<T extends Record<string, any> = {}>
     this.sizeEstimate = item.sizeEstimate;
     this.numberOfInscriptions = item.numberOfInscriptions;
     this.batchTransactionOffset = item.batchTransactionOffset;
+    this.overpaymentAmountSat = item.overpaymentAmountSat;
   }
 
   private _id?: ID_AddressInscription;

@@ -58,9 +58,9 @@ export class PipelineStack extends cdk.Stack {
         "yum install -y gcc-c++ cairo-devel pango-devel libjpeg-turbo-devel giflib-devel",
         "n 22",
         "node -v",
+        "npm install -g yarn",
       ],
       commands: [
-        "npm install -g yarn",
         "yarn install --frozen-lockfile",
         "cd deploy",
         "yarn install --frozen-lockfile",
@@ -68,11 +68,24 @@ export class PipelineStack extends cdk.Stack {
       ],
     });
 
+    synthStep.role?.addManagedPolicy(
+      cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName("AdministratorAccess"),
+    );
+
+    // const deploymentRole = new cdk.aws_iam.Role(this, "DeploymentRole", {
+    //   assumedBy: new cdk.aws_iam.ServicePrincipal("codebuild.amazonaws.com"),
+    //   managedPolicies: [
+    //     cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName(
+    //       "AdministratorAccess",
+    //     ),
+    //   ],
+    // });
+
     const pipeline = new CodePipeline(this, "Pipeline", {
       pipelineName: `${id}-pipeline`,
       synth: synthStep,
       pipelineType: cdk.aws_codepipeline.PipelineType.V2,
-      selfMutation: true, // Allow pipeline to update itself
+      selfMutation: true,
     });
 
     // Deployment stage: runs the full CDK AppStage in this account/region

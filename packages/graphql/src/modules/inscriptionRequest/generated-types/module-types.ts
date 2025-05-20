@@ -10,7 +10,10 @@ export namespace InscriptionRequestModule {
     InscriptionUploadResponse: 'data' | 'problems';
     CreateInscriptionProblem: 'message' | 'code';
     CreateInscriptionResponse: 'data' | 'problems';
-    Mutation: 'createInscriptionRequest' | 'uploadInscription';
+    RefundPaymentsData: 'txId';
+    RefundPaymentsProblem: 'fundingId' | 'message';
+    RefundPaymentsResponse: 'data' | 'problems';
+    Mutation: 'createInscriptionRequest' | 'uploadInscription' | 'refundPayments';
     Query: 'signMultipartUpload';
   };
   
@@ -25,6 +28,8 @@ export namespace InscriptionRequestModule {
     InscriptionRequestInput: 'files' | 'destinationAddress' | 'network' | 'feeLevel' | 'feePerByte' | 'parentInscriptionId';
     InscriptionUploadFileRequest: 'fileName' | 'contentType';
     InscriptionUploadRequest: 'files';
+    RefundPaymentFundingInput: 'fundingId' | 'amount' | 'txid' | 'vout';
+    RefundPaymentsInput: 'fundings' | 'network' | 'feeLevel' | 'feePerByte' | 'destinationAddress';
   };
   
   export type InscriptionData = Pick<Types.InscriptionData, DefinedFields['InscriptionData']>;
@@ -43,6 +48,11 @@ export namespace InscriptionRequestModule {
   export type CreateInscriptionProblem = Pick<Types.CreateInscriptionProblem, DefinedFields['CreateInscriptionProblem']>;
   export type CreateInscriptionResponse = Pick<Types.CreateInscriptionResponse, DefinedFields['CreateInscriptionResponse']>;
   export type InscriptionFunding = Types.InscriptionFunding;
+  export type RefundPaymentFundingInput = Pick<Types.RefundPaymentFundingInput, DefinedInputFields['RefundPaymentFundingInput']>;
+  export type RefundPaymentsInput = Pick<Types.RefundPaymentsInput, DefinedInputFields['RefundPaymentsInput']>;
+  export type RefundPaymentsData = Pick<Types.RefundPaymentsData, DefinedFields['RefundPaymentsData']>;
+  export type RefundPaymentsProblem = Pick<Types.RefundPaymentsProblem, DefinedFields['RefundPaymentsProblem']>;
+  export type RefundPaymentsResponse = Pick<Types.RefundPaymentsResponse, DefinedFields['RefundPaymentsResponse']>;
   export type Mutation = Pick<Types.Mutation, DefinedFields['Mutation']>;
   export type Query = Pick<Types.Query, DefinedFields['Query']>;
   
@@ -53,6 +63,9 @@ export namespace InscriptionRequestModule {
   export type InscriptionUploadResponseResolvers = Pick<Types.InscriptionUploadResponseResolvers, DefinedFields['InscriptionUploadResponse'] | '__isTypeOf'>;
   export type CreateInscriptionProblemResolvers = Pick<Types.CreateInscriptionProblemResolvers, DefinedFields['CreateInscriptionProblem'] | '__isTypeOf'>;
   export type CreateInscriptionResponseResolvers = Pick<Types.CreateInscriptionResponseResolvers, DefinedFields['CreateInscriptionResponse'] | '__isTypeOf'>;
+  export type RefundPaymentsDataResolvers = Pick<Types.RefundPaymentsDataResolvers, DefinedFields['RefundPaymentsData'] | '__isTypeOf'>;
+  export type RefundPaymentsProblemResolvers = Pick<Types.RefundPaymentsProblemResolvers, DefinedFields['RefundPaymentsProblem'] | '__isTypeOf'>;
+  export type RefundPaymentsResponseResolvers = Pick<Types.RefundPaymentsResponseResolvers, DefinedFields['RefundPaymentsResponse'] | '__isTypeOf'>;
   export type MutationResolvers = Pick<Types.MutationResolvers, DefinedFields['Mutation']>;
   export type QueryResolvers = Pick<Types.QueryResolvers, DefinedFields['Query']>;
   
@@ -64,6 +77,9 @@ export namespace InscriptionRequestModule {
     InscriptionUploadResponse?: InscriptionUploadResponseResolvers;
     CreateInscriptionProblem?: CreateInscriptionProblemResolvers;
     CreateInscriptionResponse?: CreateInscriptionResponseResolvers;
+    RefundPaymentsData?: RefundPaymentsDataResolvers;
+    RefundPaymentsProblem?: RefundPaymentsProblemResolvers;
+    RefundPaymentsResponse?: RefundPaymentsResponseResolvers;
     Mutation?: MutationResolvers;
     Query?: QueryResolvers;
   };
@@ -110,10 +126,25 @@ export namespace InscriptionRequestModule {
       data?: gm.Middleware[];
       problems?: gm.Middleware[];
     };
+    RefundPaymentsData?: {
+      '*'?: gm.Middleware[];
+      txId?: gm.Middleware[];
+    };
+    RefundPaymentsProblem?: {
+      '*'?: gm.Middleware[];
+      fundingId?: gm.Middleware[];
+      message?: gm.Middleware[];
+    };
+    RefundPaymentsResponse?: {
+      '*'?: gm.Middleware[];
+      data?: gm.Middleware[];
+      problems?: gm.Middleware[];
+    };
     Mutation?: {
       '*'?: gm.Middleware[];
       createInscriptionRequest?: gm.Middleware[];
       uploadInscription?: gm.Middleware[];
+      refundPayments?: gm.Middleware[];
     };
     Query?: {
       '*'?: gm.Middleware[];

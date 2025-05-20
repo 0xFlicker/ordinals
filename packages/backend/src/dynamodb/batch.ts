@@ -84,7 +84,7 @@ export class BatchDAO {
     );
     const fundingIds = fundings.Items?.map((item) => item.id);
     if (!fundingIds) {
-      throw new Error("No fundings found for batch");
+      throw new Error(`No fundings found for batch ${batchId}`);
     }
     const transactItems = fundingIds.map((id) => ({
       Update: {
@@ -139,7 +139,7 @@ export class BatchDAO {
     );
     const fundingIds = fundings.Items?.map((item) => item.id);
     if (!fundingIds) {
-      throw new Error("No fundings found for batch");
+      throw new Error(`No fundings found for batch ${batchId}`);
     }
     // Match the fundings to the fundingReveals
     const fundingMap = new Map<

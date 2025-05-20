@@ -274,6 +274,35 @@ type CreateInscriptionResponse {
   problems: [CreateInscriptionProblem!]
 }
 
+input RefundPaymentFundingInput {
+  fundingId: String!
+  amount: Int!
+  txid: String!
+  vout: Int!
+}
+
+input RefundPaymentsInput {
+  fundings: [RefundPaymentFundingInput!]!
+  network: BitcoinNetwork!
+  feeLevel: FeeLevel
+  feePerByte: Int
+  destinationAddress: String!
+}
+
+type RefundPaymentsData {
+  txId: String!
+}
+
+type RefundPaymentsProblem {
+  fundingId: String!
+  message: String!
+}
+
+type RefundPaymentsResponse {
+  data: RefundPaymentsData
+  problems: [RefundPaymentsProblem!]
+}
+
 type Mutation {
   createInscriptionRequest(
     input: InscriptionRequestInput!
@@ -281,6 +310,7 @@ type Mutation {
   uploadInscription(
     input: InscriptionUploadRequest!
   ): InscriptionUploadResponse!
+  refundPayments(input: RefundPaymentsInput!): RefundPaymentsResponse!
 }
 
 type Query {

@@ -421,6 +421,7 @@ export type Mutation = {
   nonceEthereum: Nonce;
   nonceFrame: Nonce;
   presale: PresaleResponse;
+  refundPayments: RefundPaymentsResponse;
   role: Role;
   signInBitcoin: SignInBitcoinResponse;
   signOutBitcoin: Scalars['Boolean']['output'];
@@ -488,6 +489,11 @@ export type MutationNonceFrameArgs = {
 
 export type MutationPresaleArgs = {
   request: PresaleRequest;
+};
+
+
+export type MutationRefundPaymentsArgs = {
+  input: RefundPaymentsInput;
 };
 
 
@@ -738,6 +744,38 @@ export type QueryUserArgs = {
   id: Scalars['ID']['input'];
 };
 
+export type RefundPaymentFundingInput = {
+  amount: Scalars['Int']['input'];
+  fundingId: Scalars['String']['input'];
+  txid: Scalars['String']['input'];
+  vout: Scalars['Int']['input'];
+};
+
+export type RefundPaymentsData = {
+  __typename?: 'RefundPaymentsData';
+  txId: Scalars['String']['output'];
+};
+
+export type RefundPaymentsInput = {
+  destinationAddress: Scalars['String']['input'];
+  feeLevel?: InputMaybe<FeeLevel>;
+  feePerByte?: InputMaybe<Scalars['Int']['input']>;
+  fundings: Array<RefundPaymentFundingInput>;
+  network: BitcoinNetwork;
+};
+
+export type RefundPaymentsProblem = {
+  __typename?: 'RefundPaymentsProblem';
+  fundingId: Scalars['String']['output'];
+  message: Scalars['String']['output'];
+};
+
+export type RefundPaymentsResponse = {
+  __typename?: 'RefundPaymentsResponse';
+  data?: Maybe<RefundPaymentsData>;
+  problems?: Maybe<Array<RefundPaymentsProblem>>;
+};
+
 export type Role = {
   __typename?: 'Role';
   addPermissions: Role;
@@ -981,6 +1019,11 @@ export type ResolversTypes = {
   PresaleStatus: PresaleStatus;
   PresalesResult: ResolverTypeWrapper<PresalesResult>;
   Query: ResolverTypeWrapper<{}>;
+  RefundPaymentFundingInput: RefundPaymentFundingInput;
+  RefundPaymentsData: ResolverTypeWrapper<RefundPaymentsData>;
+  RefundPaymentsInput: RefundPaymentsInput;
+  RefundPaymentsProblem: ResolverTypeWrapper<RefundPaymentsProblem>;
+  RefundPaymentsResponse: ResolverTypeWrapper<RefundPaymentsResponse>;
   Role: ResolverTypeWrapper<RoleModel>;
   SignInBitcoinResponse: ResolverTypeWrapper<Omit<SignInBitcoinResponse, 'user'> & { user?: Maybe<ResolversTypes['Web3User']> }>;
   SignUpAnonymouslyRequest: SignUpAnonymouslyRequest;
@@ -1058,6 +1101,11 @@ export type ResolversParentTypes = {
   PresaleResponseData: PresaleResponseData;
   PresalesResult: PresalesResult;
   Query: {};
+  RefundPaymentFundingInput: RefundPaymentFundingInput;
+  RefundPaymentsData: RefundPaymentsData;
+  RefundPaymentsInput: RefundPaymentsInput;
+  RefundPaymentsProblem: RefundPaymentsProblem;
+  RefundPaymentsResponse: RefundPaymentsResponse;
   Role: RoleModel;
   SignInBitcoinResponse: Omit<SignInBitcoinResponse, 'user'> & { user?: Maybe<ResolversParentTypes['Web3User']> };
   SignUpAnonymouslyRequest: SignUpAnonymouslyRequest;
@@ -1324,6 +1372,7 @@ export type MutationResolvers<ContextType = Context, ParentType extends Resolver
   nonceEthereum?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceEthereumArgs, 'address' | 'chainId'>>;
   nonceFrame?: Resolver<ResolversTypes['Nonce'], ParentType, ContextType, RequireFields<MutationNonceFrameArgs, 'trustedBytes'>>;
   presale?: Resolver<ResolversTypes['PresaleResponse'], ParentType, ContextType, RequireFields<MutationPresaleArgs, 'request'>>;
+  refundPayments?: Resolver<ResolversTypes['RefundPaymentsResponse'], ParentType, ContextType, RequireFields<MutationRefundPaymentsArgs, 'input'>>;
   role?: Resolver<ResolversTypes['Role'], ParentType, ContextType, RequireFields<MutationRoleArgs, 'id'>>;
   signInBitcoin?: Resolver<ResolversTypes['SignInBitcoinResponse'], ParentType, ContextType, RequireFields<MutationSignInBitcoinArgs, 'address' | 'jwe'>>;
   signOutBitcoin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -1407,6 +1456,23 @@ export type QueryResolvers<ContextType = Context, ParentType extends ResolversPa
   self?: Resolver<Maybe<ResolversTypes['Web3User']>, ParentType, ContextType>;
   signMultipartUpload?: Resolver<ResolversTypes['String'], ParentType, ContextType, RequireFields<QuerySignMultipartUploadArgs, 'partNumber' | 'uploadId'>>;
   user?: Resolver<ResolversTypes['Web3User'], ParentType, ContextType, RequireFields<QueryUserArgs, 'id'>>;
+};
+
+export type RefundPaymentsDataResolvers<ContextType = Context, ParentType extends ResolversParentTypes['RefundPaymentsData'] = ResolversParentTypes['RefundPaymentsData']> = {
+  txId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type RefundPaymentsProblemResolvers<ContextType = Context, ParentType extends ResolversParentTypes['RefundPaymentsProblem'] = ResolversParentTypes['RefundPaymentsProblem']> = {
+  fundingId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  message?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type RefundPaymentsResponseResolvers<ContextType = Context, ParentType extends ResolversParentTypes['RefundPaymentsResponse'] = ResolversParentTypes['RefundPaymentsResponse']> = {
+  data?: Resolver<Maybe<ResolversTypes['RefundPaymentsData']>, ParentType, ContextType>;
+  problems?: Resolver<Maybe<Array<ResolversTypes['RefundPaymentsProblem']>>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type RoleResolvers<ContextType = Context, ParentType extends ResolversParentTypes['Role'] = ResolversParentTypes['Role']> = {
@@ -1510,6 +1576,9 @@ export type Resolvers<ContextType = Context> = {
   PresaleResponseData?: PresaleResponseDataResolvers<ContextType>;
   PresalesResult?: PresalesResultResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;
+  RefundPaymentsData?: RefundPaymentsDataResolvers<ContextType>;
+  RefundPaymentsProblem?: RefundPaymentsProblemResolvers<ContextType>;
+  RefundPaymentsResponse?: RefundPaymentsResponseResolvers<ContextType>;
   Role?: RoleResolvers<ContextType>;
   SignInBitcoinResponse?: SignInBitcoinResponseResolvers<ContextType>;
   SignUpAnonymouslyResponse?: SignUpAnonymouslyResponseResolvers<ContextType>;

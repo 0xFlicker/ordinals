@@ -159,10 +159,15 @@ export function watchForFundings(
                     `Funding ${funding.id} for ${funding.address} is underfunded`,
                   );
                 } else {
+                  const overpaymentAmountSat =
+                    funding.amount - funding.fundingAmountSat > 0
+                      ? funding.amount - funding.fundingAmountSat
+                      : undefined;
                   await fundingDao.addressFunded({
                     fundingTxid: funding.txid,
                     fundingVout: funding.vout,
                     id: funding.id,
+                    overpaymentAmountSat,
                   });
                   await fundingDao.updateFundingLastChecked({
                     id: funding.id,

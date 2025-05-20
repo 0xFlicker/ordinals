@@ -5,6 +5,7 @@ import * as autoscaling from "aws-cdk-lib/aws-autoscaling";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import * as s3a from "aws-cdk-lib/aws-s3-assets";
+import * as sns from "aws-cdk-lib/aws-sns";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as log from "aws-cdk-lib/aws-logs";
 import {
@@ -15,6 +16,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { BitcoinNetwork } from "../utils/types.js";
 import { DataVolume } from "./data-volume.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
@@ -291,11 +293,26 @@ export class Electrs extends Construct {
       },
       minCapacity: 1,
       maxCapacity: 1,
+      healthChecks: autoscaling.HealthChecks.ec2({
+        gracePeriod: cdk.Duration.minutes(30),
+      }),
+      notifications: [
+        {
+          topic: new sns.Topic(this, "AsgTerminationTopic"),
+          scalingEvents: autoscaling.ScalingEvents.TERMINATION_EVENTS,
+        },
+      ],
     });
     listener.addTargets("Targets", {
       port: networkToElectrsPort(network),
       targets: [this.asg],
       protocol: elbv2.Protocol.TCP,
+      healthCheck: {
+        enabled: true,
+        protocol: elbv2.Protocol.TCP,
+        port: `${networkToElectrsPort(network)}`,
+        interval: cdk.Duration.seconds(30),
+      },
     });
 
     // Configure security group rules

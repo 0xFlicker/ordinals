@@ -1,4 +1,4 @@
-import { from, mergeMap, retry, timer, filter, map, tap } from "rxjs";
+import { from, mergeMap, retry, catchError, map, tap } from "rxjs";
 import {
   FundedEvent,
   FundingDao,
@@ -80,10 +80,15 @@ function createCheckFundingStream({
       if (funding.amount < fundingAmountSat) {
         logger.warn(`Funding ${fundingId} for ${address} is underfunded`);
       } else {
+        const overpaymentAmountSat =
+          funding.amount - fundingAmountSat > 0
+            ? funding.amount - fundingAmountSat
+            : undefined;
         await fundingDao.addressFunded({
           fundingTxid: funding.txid,
           fundingVout: funding.vout,
           id: fundingId,
+          overpaymentAmountSat,
         });
       }
       return funding;
@@ -209,6 +214,10 @@ export const handler: Handler = async () => {
     fundingStreams.subscribe({
       complete() {
         logger.info("Funding poller complete");
+      },
+      error(err) {
+        logger.error(err, "Error in funding poller");
+        throw err;
       },
     });
   } catch (error) {

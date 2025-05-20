@@ -20,6 +20,7 @@
   "dependencies": {
     "@aws-sdk/util-dynamodb": "^3.788.0",
     "@mempool/mempool.js": "^3.0.0",
-    "graphql-request": "^6.1.0"
+    "graphql-request": "^6.1.0",
+    "@cmdcode/tapscript": "^1.2.10"
   }
 }

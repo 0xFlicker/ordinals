@@ -61,6 +61,7 @@ export type TFundingDb<T extends Record<string, any>> = {
   creatorUserId?: string;
   numberOfInscriptions: number;
   batchTransactionOffset?: number;
+  overpaymentAmountSat?: number;
 } & T;
 
 export type TFundingCollectionDb<T extends Record<string, any>> = {
@@ -825,10 +826,12 @@ export class FundingDao<
     id,
     fundingTxid,
     fundingVout,
+    overpaymentAmountSat,
   }: {
     id: string;
     fundingTxid: string;
     fundingVout: number;
+    overpaymentAmountSat?: number;
   }) {
     await this.client.send(
       new UpdateCommand({
@@ -839,12 +842,13 @@ export class FundingDao<
         },
         ConditionExpression: "attribute_exists(pk)",
         UpdateExpression:
-          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, fundedAt = :fundedAt",
+          "SET fundingTxid = :fundingTxid, fundingVout = :fundingVout, fundingStatus = :fundingStatus, fundedAt = :fundedAt, overpaymentAmountSat = :overpaymentAmountSat",
         ExpressionAttributeValues: {
           ":fundingTxid": fundingTxid,
           ":fundingVout": fundingVout,
           ":fundingStatus": "funded",
           ":fundedAt": new Date().getTime(),
+          ":overpaymentAmountSat": overpaymentAmountSat,
         },
       }),
     );
@@ -1200,6 +1204,7 @@ export class FundingDao<
     genesisScriptHash,
     numberOfInscriptions,
     batchTransactionOffset,
+    overpaymentAmountSat,
   }: IPresaleModel): TPresaleDb {
     return {
       pk: id,
@@ -1217,14 +1222,25 @@ export class FundingDao<
       timesChecked,
       sizeEstimate,
       numberOfInscriptions,
-      ...(batchTransactionOffset && { batchTransactionOffset }),
-      ...(fundedAt && { fundedAt: fundedAt.getTime() }),
-      ...(lastChecked && { lastChecked: lastChecked.getTime() }),
-      ...(nextCheckAt && { nextCheckAt: nextCheckAt.getTime() }),
-      ...(tipAmountDestination && { tipAmountDestination }),
-      ...(tipAmountSat && { tipAmountSat }),
-      ...(farcasterFid && { farcasterFid }),
-      ...(createdAt && { createdAt: createdAt.getTime() }),
+      ...(typeof overpaymentAmountSat !== "undefined" && {
+        overpaymentAmountSat,
+      }),
+      ...(typeof batchTransactionOffset !== "undefined" && {
+        batchTransactionOffset,
+      }),
+      ...(typeof fundedAt !== "undefined" && { fundedAt: fundedAt.getTime() }),
+      ...(typeof lastChecked !== "undefined" && {
+        lastChecked: lastChecked.getTime(),
+      }),
+      ...(typeof nextCheckAt !== "undefined" && {
+        nextCheckAt: nextCheckAt.getTime(),
+      }),
+      ...(typeof tipAmountDestination !== "undefined" && {
+        tipAmountDestination,
+      }),
+      ...(typeof tipAmountSat !== "undefined" && { tipAmountSat }),
+      ...(typeof farcasterFid !== "undefined" && { farcasterFid }),
+      createdAt: createdAt.getTime(),
     };
   }
 
@@ -1255,6 +1271,7 @@ export class FundingDao<
     sizeEstimate,
     numberOfInscriptions,
     batchTransactionOffset,
+    overpaymentAmountSat,
   }: IAddressInscriptionModel<T>): TFundingDb<T> {
     return {
       pk: id,
@@ -1294,6 +1311,9 @@ export class FundingDao<
       ...(typeof fundingVout !== "undefined" && { fundingVout }),
       ...(typeof refundedTxid !== "undefined" && { refundedTxid }),
       ...(typeof batchId !== "undefined" && { batchId }),
+      ...(typeof overpaymentAmountSat !== "undefined" && {
+        overpaymentAmountSat,
+      }),
       ...(typeof meta !== "undefined"
         ? // remove undefined values
           (mapMetaKeys<T>(
@@ -1445,6 +1465,7 @@ export class FundingDao<
     sizeEstimate,
     numberOfInscriptions,
     batchTransactionOffset,
+    overpaymentAmountSat,
     ...meta
   }: TFundingDb<T>): IAddressInscriptionModel<T> {
     return {
@@ -1482,6 +1503,9 @@ export class FundingDao<
         tipAmountDestination,
       }),
       ...(typeof batchId !== "undefined" && { batchId }),
+      ...(typeof overpaymentAmountSat !== "undefined" && {
+        overpaymentAmountSat,
+      }),
       meta: unmapMetaKeys(excludePrimaryKeys(meta)) as T,
     };
   }

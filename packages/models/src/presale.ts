@@ -37,4 +37,5 @@ export interface IPresaleModel {
   sizeEstimate: number;
   numberOfInscriptions: number;
   batchTransactionOffset?: number;
+  overpaymentAmountSat?: number;
 }

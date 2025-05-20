@@ -126,7 +126,6 @@ export class BitcoinCore extends Construct {
       "server=1",
       `rpcallowip=${vpc.vpcCidrBlock}`,
       "rpcbind=0.0.0.0",
-      "debug=rpc",
     ];
     userData.addCommands(
       `cat << EOF > ${dataDir}/bitcoin.conf`,
@@ -199,7 +198,7 @@ export class BitcoinCore extends Construct {
     // Additional commands: install CloudWatch agent, SOPS, fetch RPC secret, start CloudWatch agent, health scripts, start bitcoind
     userData.addCommands(
       "yum update -y",
-      "yum install -y amazon-cloudwatch-agent",
+      "yum install -y amazon-cloudwatch-agent nc",
       // TODO: Replace with cosign-verified SOPS binary install
       "yum install -y https://github.com/getsops/sops/releases/download/v3.10.2/sops-3.10.2-1.aarch64.rpm",
       // Fetch encrypted dotenv with RPC auth
@@ -231,8 +230,6 @@ export class BitcoinCore extends Construct {
       "EOF",
       "chmod +x /home/ec2-user/health_server.sh",
       "nohup /home/ec2-user/health_server.sh > /home/ec2-user/health_server.log 2>&1 &",
-      // Install netcat for the health check server
-      "yum install -y nc",
       // Start bitcoind
       `runuser -l ec2-user -c 'bitcoind -datadir=/home/ec2-user/.bitcoin_${network} ${networkToBitcoinFlags(
         network,
@@ -258,7 +255,7 @@ export class BitcoinCore extends Construct {
     });
 
     btcServiceGroup.addIngressRule(
-      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Peer.securityGroupId(albSG.securityGroupId),
       ec2.Port.tcp(networkToRpcPort(network)),
       "RPC from VPC",
     );
@@ -267,6 +264,12 @@ export class BitcoinCore extends Construct {
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(networkToP2pPort(network)),
       "P2P from World",
+    );
+
+    btcServiceGroup.addIngressRule(
+      ec2.Peer.securityGroupId(albSG.securityGroupId),
+      ec2.Port.tcp(8080),
+      "to ALB health check server",
     );
 
     // 7) Bitcoin ASG

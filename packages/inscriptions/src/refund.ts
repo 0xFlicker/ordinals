@@ -89,3 +89,80 @@ export async function generateRefundTransaction({
   }
   return refundTx;
 }
+
+export type BatchRefundTransactionRequest = {
+  feeRate: number;
+  inputs: {
+    txid: string;
+    amount: number;
+    vout: number;
+    treeTapKey: string;
+    refundCBlock: string;
+    secKey: Uint8Array;
+  }[];
+  destinationAddress: string;
+};
+
+export async function generateBatchRefundTransaction({
+  feeRate,
+  inputs,
+  destinationAddress,
+}: BatchRefundTransactionRequest) {
+  const txTemplate = Tx.create({
+    vin: inputs.map((input) => ({
+      txid: input.txid,
+      vout: input.vout,
+      prevout: {
+        value: input.amount,
+        scriptPubKey: ["OP_1", input.treeTapKey],
+      },
+    })),
+    vout: [
+      {
+        value: inputs.reduce((acc, input) => acc + input.amount, 0),
+        scriptPubKey: Address.toScriptPubKey(destinationAddress),
+      },
+    ],
+  });
+
+  // sign template to get accurate witness size
+  for (let i = 0; i < txTemplate.vin.length; i++) {
+    const vin = txTemplate.vin[i];
+    const input = inputs[i];
+    const sig = await Signer.taproot.sign(input.secKey, txTemplate, i, {
+      extension: Tap.encodeScript(input.treeTapKey),
+    });
+    vin.witness = [sig.hex, input.treeTapKey, input.refundCBlock];
+  }
+
+  const { vsize } = Tx.util.getTxSize(txTemplate);
+  const fee = Math.ceil(feeRate * vsize);
+
+  const tx = Tx.create({
+    vin: inputs.map((input) => ({
+      txid: input.txid,
+      vout: input.vout,
+      prevout: {
+        value: input.amount,
+        scriptPubKey: ["OP_1", input.treeTapKey],
+      },
+    })),
+    vout: [
+      {
+        value: inputs.reduce((acc, input) => acc + input.amount, 0) - fee,
+        scriptPubKey: Address.toScriptPubKey(destinationAddress),
+      },
+    ],
+  });
+
+  for (let i = 0; i < tx.vin.length; i++) {
+    const vin = tx.vin[i];
+    const input = inputs[i];
+    const sig = await Signer.taproot.sign(input.secKey, tx, i, {
+      extension: Tap.encodeScript(input.treeTapKey),
+    });
+    vin.witness = [sig.hex, input.treeTapKey, input.refundCBlock];
+  }
+
+  return tx;
+}
