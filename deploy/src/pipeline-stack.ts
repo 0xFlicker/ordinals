@@ -44,9 +44,19 @@ export class PipelineStack extends cdk.Stack {
       },
     );
 
+    const deploymentRole = new cdk.aws_iam.Role(this, "DeploymentRole", {
+      assumedBy: new cdk.aws_iam.ServicePrincipal("codebuild.amazonaws.com"),
+      managedPolicies: [
+        cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "AdministratorAccess",
+        ),
+      ],
+    });
+
     const synthStep = new CodeBuildStep("Synth", {
       input: source,
       primaryOutputDirectory: "deploy/cdk.out",
+      role: deploymentRole,
       buildEnvironment: {
         buildImage: codebuild.LinuxArmBuildImage.AMAZON_LINUX_2023_STANDARD_3_0,
         computeType: codebuild.ComputeType.MEDIUM,
@@ -67,19 +77,6 @@ export class PipelineStack extends cdk.Stack {
         "npx cdk synth --quiet --context codePipelineConnectionArn=$CONNECTION_ARN",
       ],
     });
-
-    synthStep.role?.addManagedPolicy(
-      cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName("AdministratorAccess"),
-    );
-
-    // const deploymentRole = new cdk.aws_iam.Role(this, "DeploymentRole", {
-    //   assumedBy: new cdk.aws_iam.ServicePrincipal("codebuild.amazonaws.com"),
-    //   managedPolicies: [
-    //     cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName(
-    //       "AdministratorAccess",
-    //     ),
-    //   ],
-    // });
 
     const pipeline = new CodePipeline(this, "Pipeline", {
       pipelineName: `${id}-pipeline`,
