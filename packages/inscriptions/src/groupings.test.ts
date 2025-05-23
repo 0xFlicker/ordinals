@@ -198,14 +198,13 @@ describe("groupFundings", () => {
     );
   });
 
-  it("should prefer older, larger fundings and separate recent ones", async () => {
+  it("batches nearby transactions", async () => {
     const oldDate = new Date(Date.now() - 20 * 60 * 1000);
     const recentDate = new Date(Date.now() - 5 * 60 * 1000);
     const funding1 = await createFunding(1, oldDate);
     const funding2 = await createFunding(2, recentDate);
     const result = groupFundings([funding1, funding2], feeRateRange);
-    expect(result.laterFundings.map((f) => f.id)).toContain("2");
-    expect(result.laterFundings.map((f) => f.id)).not.toContain("1");
+    expect(Object.keys(result.feeDestinationGroups).length).toBe(2);
   });
 
   it("should reject a funding that is too large on its own", async () => {

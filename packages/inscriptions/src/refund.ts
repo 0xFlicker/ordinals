@@ -1,4 +1,4 @@
-import { Address, Signer, Tap, Tx } from "@cmdcode/tapscript";
+import { Address, Script, Signer, Tap, Tx } from "@cmdcode/tapscript";
 import { get_pubkey } from "@cmdcode/crypto-tools/keys";
 
 export interface RefundTransactionRequest {
@@ -8,7 +8,7 @@ export interface RefundTransactionRequest {
   secKey: Uint8Array;
   txid: string;
   vout: number;
-  amount: number | bigint;
+  amount: bigint;
   address: string;
 }
 
@@ -33,14 +33,14 @@ export async function generateRefundTransaction({
         txid: txid,
         vout: vout,
         prevout: {
-          value: amount,
+          value: Number(amount),
           scriptPubKey: ["OP_1", treeTapKey],
         },
       },
     ],
     vout: [
       {
-        value: amount,
+        value: Number(amount),
         scriptPubKey: Address.toScriptPubKey(address),
       },
     ],
@@ -50,7 +50,11 @@ export async function generateRefundTransaction({
   const templateSig = await Signer.taproot.sign(secKey, templateTx, 0, {
     extension: Tap.encodeScript(refundScript),
   });
-  templateTx.vin[0].witness = [templateSig.hex, refundScript, refundCBlock];
+  templateTx.vin[0].witness = [
+    templateSig.hex,
+    Script.encode(refundScript),
+    refundCBlock,
+  ];
 
   // Calculate fee based on template with witness
   const { vsize } = Tx.util.getTxSize(templateTx);

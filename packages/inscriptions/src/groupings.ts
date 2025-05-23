@@ -63,7 +63,7 @@ export interface GroupingResult {
 }
 
 const MAX_BATCH_SIZE = 100000; // 100K size threshold
-const RECENT_THRESHOLD = 15 * 60 * 1000; // 15 minutes in milliseconds
+const RECENT_THRESHOLD = 0; // disabled
 
 /**
  * Returns the size of a funding.

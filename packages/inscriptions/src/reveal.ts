@@ -24,7 +24,7 @@ export interface RevealTransactionInput {
   script: BitcoinScriptData[];
   vout: number;
   txid: string;
-  amount: number;
+  amount: bigint | number;
   secKey: Uint8Array;
   padding: number;
   inscriptions: {
@@ -34,7 +34,7 @@ export interface RevealTransactionInput {
 
 export type RevealTransactionParentTx = Omit<TxTemplate, "vin"> & {
   vin: Required<TxTemplate>["vin"]["0"];
-  value: number;
+  value: bigint | number;
   secKey: Uint8Array;
   destinationAddress: string;
 };
@@ -557,9 +557,12 @@ export function signAllVin(
 /** Sums total input from parentTxs + inputs. */
 function getTotalInputAmount(request: RevealTransactionRequest): number {
   const parentAmount =
-    request.parentTxs?.reduce((sum, p) => sum + p.value, 0) ?? 0;
-  const inputAmount = request.inputs.reduce((sum, inp) => sum + inp.amount, 0);
-  return parentAmount + inputAmount;
+    request.parentTxs?.reduce((sum, p) => sum + BigInt(p.value), 0n) ?? 0n;
+  const inputAmount = request.inputs.reduce(
+    (sum, inp) => sum + BigInt(inp.amount),
+    0n,
+  );
+  return Number(parentAmount + inputAmount);
 }
 
 /** Computes required padding from inputs. */
@@ -570,7 +573,7 @@ function getRequiredPaddingAmount(request: RevealTransactionRequest): number {
   );
   let parentPadding = 0;
   for (const pTx of request.parentTxs ?? []) {
-    parentPadding += pTx.value;
+    parentPadding += Number(pTx.value);
   }
   return totalInscriptions + parentPadding;
 }

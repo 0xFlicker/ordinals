@@ -244,6 +244,7 @@ export async function generateFundableGenesisTransaction(
     tree,
     target: refundLeaf,
   });
+
   partialTxData.vin[0].witness = [
     initSig.hex,
     Script.encode(masterScript),
