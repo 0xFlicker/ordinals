@@ -54,24 +54,6 @@ describe("Bitcoin Inscription Transactions", () => {
     compress: false,
   };
 
-  // describe("Funding Transaction", () => {
-  //   it("should generate a valid funding address and transaction details", async () => {
-  //     const result = await generateFundingAddress({
-  //       address: TEST_ADDRESS,
-  //       inscriptions: [sampleInscription],
-  //       network: TEST_NETWORK,
-  //       privKey: TEST_PRIVATE_KEY,
-  //       feeRate: TEST_FEE_RATE,
-  //       tip: 1000,
-  //       padding: 546,
-  //     });
-
-  //     expect(result.fundingAddress).toBeDefined();
-  //     expect(result.amount).toBeDefined();
-  //     expect(result.totalFee).toBeGreaterThan(0);
-  //     expect(result.inscriptionsToWrite).toHaveLength(1);
-  //   });
-  // });
 
   describe("Genesis Transaction", () => {
     it("should generate a valid genesis transaction", async () => {

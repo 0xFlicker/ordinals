@@ -2,7 +2,7 @@ export interface InscriptionContent {
   isBin?: boolean;
   content: ArrayBuffer | SharedArrayBuffer;
   mimeType: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   compress?: boolean;
 }
 
@@ -16,7 +16,7 @@ export interface InscriptionFile {
   id?: InscriptionId;
   content: ArrayBuffer | SharedArrayBuffer;
   mimetype: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   compress?: boolean;
 }
 
@@ -24,7 +24,7 @@ export interface DestinationInscriptionFile {
   id?: InscriptionId;
   content: ArrayBuffer | SharedArrayBuffer;
   mimetype: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   compress?: boolean;
   destinationAddress: string;
 }
@@ -37,7 +37,7 @@ export interface WritableInscription {
 
 export type BitcoinScriptData = { base64: string } | string;
 export type BitcoinNetworkNames =
-  | "mainnet"
-  | "testnet"
-  | "regtest"
-  | "testnet4";
+  | 'mainnet'
+  | 'testnet'
+  | 'regtest'
+  | 'testnet4';

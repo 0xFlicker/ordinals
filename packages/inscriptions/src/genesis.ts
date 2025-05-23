@@ -138,7 +138,6 @@ export async function generateFundableGenesisTransaction(
   );
 
   // 6) Build the "master" inscription script with all inscriptions
-  //    This merges your old "generateFundingAddress" approach
   const masterScript: (string | Uint8Array)[] = [pubKey, "OP_CHECKSIG"];
   const ec = new TextEncoder();
   let totalSize = 0;
@@ -272,7 +271,7 @@ export async function generateFundableGenesisTransaction(
 
   const overhead = required - feeSize;
 
-  // 12) Return everything we used to from generateFundingAddress
+  // 12) Return everything
   return {
     fundingAddress: genesisAddress,
     amount: satsToBitcoin(BigInt(required)), // e.g. "0.00012345"

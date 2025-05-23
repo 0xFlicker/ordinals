@@ -1,8 +1,8 @@
-import { InscriptionFunding } from "./index.js";
+import { InscriptionFunding } from './index.js';
 import {
   RevealTransactionFeeDestination,
   RevealTransactionParentTx,
-} from "./reveal.js";
+} from './reveal.js';
 
 export function getFinalFees(fundings: InscriptionFunding[]): {
   feeDestinations?: RevealTransactionFeeDestination[];
@@ -42,7 +42,7 @@ export function getFinalFees(fundings: InscriptionFunding[]): {
   // Calculate the total weight considering occurrence counts
   const totalWeight = Array.from(destinationCounts.values()).reduce(
     (sum, { dest, count }) => sum + dest.weight * count,
-    0,
+    0
   );
 
   // Normalize the weights if they don't sum to 100, considering occurrence counts
@@ -50,7 +50,7 @@ export function getFinalFees(fundings: InscriptionFunding[]): {
     ({ dest, count }) => ({
       ...dest,
       weight: Math.round(((dest.weight * count) / totalWeight) * 100),
-    }),
+    })
   );
 
   return {
@@ -64,7 +64,7 @@ export function getFinalFees(fundings: InscriptionFunding[]): {
  * @returns Array of unique parent inscriptions
  */
 export function getUniqueParentInscriptions(
-  fundings: InscriptionFunding[],
+  fundings: InscriptionFunding[]
 ): RevealTransactionParentTx[] {
   const uniqueParentInscriptions = new Map<string, RevealTransactionParentTx>();
   for (const funding of fundings) {

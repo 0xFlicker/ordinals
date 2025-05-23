@@ -1,10 +1,33 @@
-node_modules
-dist
-.turbo
+## Node
+node_modules/
+
+## Yarn
 yarn-error.log
-.env
+
+## Logs
+npm-debug.log*
+pnpm-debug.log*
+
+## Build outputs
+**/dist/
+
+## Tests and coverage
+**/coverage/
+jest-junit.xml
+
+## TypeScript
+**/*.tsbuildinfo
+
+## IDEs and editors
+.vscode/
+.idea/
+.DS_Store
+
+## Changesets
+.changeset/
+
+# Local dev environment file
 .envrc
-test-results.json
-junit.xml
-coverage/
+
+# Codex CLI session files
 .codex/

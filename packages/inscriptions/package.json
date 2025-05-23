@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "license": "MIT",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsc -b",
     "test": "yarn node --experimental-vm-modules $(yarn bin jest)",
     "test:coverage": "COVERAGE=true yarn node --experimental-vm-modules $(yarn bin jest)"
   },
+  "prepublishOnly": "npm run build",
   "dependencies": {
     "@cmdcode/crypto-tools": "^2.8.0",
     "@cmdcode/tapscript": "^1.5.3",

@@ -1,9 +1,9 @@
-import { Network, validate } from "bitcoin-address-validation";
-import { Address, Networks } from "@cmdcode/tapscript";
-import cbor from "cbor";
-import * as secp from "@noble/secp256k1";
-import crypto from "crypto-js";
-import { BitcoinNetworkNames, BitcoinScriptData } from "./types.js";
+import { Network, validate } from 'bitcoin-address-validation';
+import { Address, Networks } from '@cmdcode/tapscript';
+import cbor from 'cbor';
+import * as secp from '@noble/secp256k1';
+import crypto from 'crypto-js';
+import { BitcoinNetworkNames, BitcoinScriptData } from './types.js';
 export const { encode: cborEncode } = cbor;
 
 export function generatePrivKey() {
@@ -12,10 +12,10 @@ export function generatePrivKey() {
 
 export function base64ToHex(str: string) {
   const raw = atob(str);
-  let result = "";
+  let result = '';
   for (let i = 0; i < raw.length; i++) {
     const hex = raw.charCodeAt(i).toString(16);
-    result += hex.length === 2 ? hex : "0" + hex;
+    result += hex.length === 2 ? hex : '0' + hex;
   }
   return result.toLowerCase();
 }
@@ -23,28 +23,28 @@ export function base64ToHex(str: string) {
 export function buf2hex(buffer: ArrayBuffer) {
   // buffer is an ArrayBuffer
   return [...new Uint8Array(buffer)]
-    .map((x) => x.toString(16).padStart(2, "0"))
-    .join("");
+    .map((x) => x.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 export function hexToBytes(hex: string) {
   return Uint8Array.from(
-    hex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
+    hex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
   );
 }
 
 export function bytesToHex(bytes: Uint8Array) {
   return bytes.reduce(
-    (str, byte) => str + byte.toString(16).padStart(2, "0"),
-    "",
+    (str, byte) => str + byte.toString(16).padStart(2, '0'),
+    ''
   );
 }
 
 export function textToHex(text: string) {
-  var encoder = new TextEncoder().encode(text);
+  const encoder = new TextEncoder().encode(text);
   return [...new Uint8Array(encoder)]
-    .map((x) => x.toString(16).padStart(2, "0"))
-    .join("");
+    .map((x) => x.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 export function isValidAddress(address: string) {
@@ -66,42 +66,41 @@ export function isValidJson(content: string) {
 }
 
 export function satsToBitcoin(sats: bigint) {
-  if (sats >= 100000000n) sats = sats * 10n;
   let string =
-    String(sats).padStart(8, "0").slice(0, -9) +
-    "." +
-    String(sats).padStart(8, "0").slice(-9);
-  if (string.substring(0, 1) == ".") string = "0" + string;
+    String(sats).padStart(8, '0').slice(0, -9) +
+    '.' +
+    String(sats).padStart(8, '0').slice(-9);
+  if (string.substring(0, 1) == '.') string = '0' + string;
   return string;
 }
 
 export function scriptDataToSerializedScript(
-  scriptData: (string | Uint8Array)[],
+  scriptData: (string | Uint8Array)[]
 ): BitcoinScriptData[] {
   return scriptData.map((data) => {
-    if (typeof data === "string") {
+    if (typeof data === 'string') {
       return data;
     }
-    return { base64: Buffer.from(data).toString("base64") };
+    return { base64: Buffer.from(data).toString('base64') };
   });
 }
 
 export function serializedScriptToScriptData(
-  serializedScript: BitcoinScriptData[],
+  serializedScript: BitcoinScriptData[]
 ) {
   return serializedScript.map((data) => {
-    if (typeof data === "string") {
+    if (typeof data === 'string') {
       return data;
     }
-    return new Uint8Array(Buffer.from(data.base64, "base64"));
+    return new Uint8Array(Buffer.from(data.base64, 'base64'));
   });
 }
 
 export function bitcoinToSats(bitcoin: string): bigint {
-  let [whole, decimal] = bitcoin.split(".");
-  if (!decimal) decimal = "0";
+  let [whole, decimal] = bitcoin.split('.');
+  if (!decimal) decimal = '0';
   if (decimal.length > 8) decimal = decimal.slice(0, 8);
-  if (decimal.length < 8) decimal = decimal.padEnd(8, "0");
+  if (decimal.length < 8) decimal = decimal.padEnd(8, '0');
   return BigInt(whole) * 100000000n + BigInt(decimal);
 }
 export function arrayBufferToBuffer(ab: ArrayBuffer) {
@@ -111,51 +110,51 @@ export function arrayBufferToBuffer(ab: ArrayBuffer) {
 export function hexString(buffer: ArrayBuffer) {
   const byteArray = new Uint8Array(buffer);
   const hexCodes = [...byteArray].map((value) => {
-    return value.toString(16).padStart(2, "0");
+    return value.toString(16).padStart(2, '0');
   });
 
-  return "0x" + hexCodes.join("");
+  return '0x' + hexCodes.join('');
 }
 
 export async function bufferToSha256(bufferOrString: string | ArrayBuffer) {
   return crypto.SHA256(
-    typeof bufferOrString === "string"
+    typeof bufferOrString === 'string'
       ? crypto.enc.Hex.parse(bufferOrString)
       : crypto.enc.Hex.parse(
-          arrayBufferToBuffer(bufferOrString).toString("hex"),
-        ),
+          arrayBufferToBuffer(bufferOrString).toString('hex')
+        )
   );
 }
 
 export function networkNamesToNetworkEnum(
-  network: BitcoinNetworkNames,
+  network: BitcoinNetworkNames
 ): Network {
   switch (network) {
-    case "mainnet":
+    case 'mainnet':
       return Network.mainnet;
-    case "testnet":
+    case 'testnet':
       return Network.testnet;
-    case "regtest":
+    case 'regtest':
       return Network.regtest;
-    case "testnet4":
+    case 'testnet4':
       return Network.testnet;
     default:
-      throw new Error("Invalid network");
+      throw new Error('Invalid network');
   }
 }
 
 export function networkNamesToTapScriptName(
-  network: BitcoinNetworkNames,
+  network: BitcoinNetworkNames
 ): Networks {
   switch (network) {
-    case "mainnet":
-      return "main";
-    case "testnet":
-      return "testnet";
-    case "regtest":
-      return "regtest";
-    case "testnet4":
-      return "testnet";
+    case 'mainnet':
+      return 'main';
+    case 'testnet':
+      return 'testnet';
+    case 'regtest':
+      return 'regtest';
+    case 'testnet4':
+      return 'testnet';
     default:
       return network;
   }
@@ -163,17 +162,17 @@ export function networkNamesToTapScriptName(
 
 export async function validateAddress(
   address: string,
-  network: BitcoinNetworkNames,
+  network: BitcoinNetworkNames
 ) {
   return validate(address, networkNamesToNetworkEnum(network));
 }
 
 export function serializeTxidAndIndexWithStripping(
   txid: string,
-  index: number,
+  index: number
 ) {
   // Convert the txid from a hex string to a Buffer in reverse order (little-endian for the txid)
-  let txidBuffer = Buffer.from(txid, "hex").reverse();
+  let txidBuffer = Buffer.from(txid, 'hex').reverse();
 
   // Convert the index to a 4-byte little-endian buffer
   let indexBuffer = Buffer.alloc(4);
@@ -193,7 +192,7 @@ export function serializeTxidAndIndexWithStripping(
     indexBuffer.slice(0, indexBytesToInclude),
   ]);
 
-  return serializedBuffer.toString("hex");
+  return serializedBuffer.toString('hex');
 }
 
 export function numberToLittleEndian(number: number) {
@@ -218,8 +217,8 @@ export function encodeElectrumScriptHash(address: string): string {
   ]);
   // Convert scriptPubKey to buffer
   const addrScripthash = crypto.enc.Hex.stringify(
-    crypto.SHA256(crypto.enc.Hex.parse(script.toString("hex"))),
+    crypto.SHA256(crypto.enc.Hex.parse(script.toString('hex')))
   );
   // Convert to little-endian (reverse byte order)
-  return addrScripthash.match(/.{2}/g)!.reverse().join("");
+  return addrScripthash.match(/.{2}/g)!.reverse().join('');
 }

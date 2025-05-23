@@ -52,7 +52,7 @@ function generateTapscriptAddress(privateKey?: string): string {
     privateKey = generatePrivKey();
   }
   const secKey = get_seckey(privateKey);
-  const pubKey = get_pubkey(secKey);
+  const pubKey = get_pubkey(secKey, true);
   return Address.p2tr.encode(
     Tap.getPubKey(pubKey)[0],
     networkNamesToTapScriptName(TEST_NETWORK),

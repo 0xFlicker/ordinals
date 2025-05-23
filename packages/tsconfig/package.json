@@ -1,6 +1,10 @@
 {
   "name": "@bitflick/tsconfig",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "tsconfig.base.json",
+  "types": "tsconfig.base.json",
+  "files": [
+    "tsconfig.base.json"
+  ],
   "license": "MIT"
 }
