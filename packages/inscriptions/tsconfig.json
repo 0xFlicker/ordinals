@@ -1,5 +1,5 @@
 {
-  "extends": "@0xflick/tsconfig/tsconfig.base.json",
+  "extends": "@bitflick/tsconfig/tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["esnext"],
