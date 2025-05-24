@@ -4,54 +4,31 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    types: [closed]
 
 permissions:
-  id-token: write
   contents: write
-  actions: write
+  id-token: write
 
 jobs:
-  createReleasePR:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-          registry-url: 'https://registry.npmjs.org'
-      - run: yarn install --frozen-lockfile
-      - name: Create Release Pull Request or Publish
-        uses: changesets/action@v1
-        with:
-          publish: yarn workspaces run build
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
-        env:
-          GITHUB_TOKEN: ${{ secrets.WORKSPACE_TOKEN }}
+  version:
+    if: "contains(github.event.head_commit.message, 'chore: version packages')"
 
-  publish:
-    needs: createReleasePR
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.title, 'chore: version packages')
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22.x'
           registry-url: 'https://registry.npmjs.org'
+
       - run: yarn install --frozen-lockfile
-      - name: Publish packages
+
+      - name: Publish packages to npm
         uses: changesets/action@v1
         with:
-          publish: |
-            cd packages/tsconfig && npm publish --access public --provenance
-            cd ../inscriptions && npm publish --access public --provenance
+          publish: yarn changeset publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
