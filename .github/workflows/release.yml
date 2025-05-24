@@ -21,8 +21,12 @@ jobs:
       - name: Bump prerelease version
         run: npx changeset version --snapshot prerelease.${{ github.sha }} --no-git-tag-version
       - run: yarn workspaces run build
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish prerelease packages
-        run: yarn workspaces run publish --tag prerelease.${{ github.sha }} --access public --prerelease
+        run: yarn --non-interactive workspaces run publish --tag prerelease.${{ github.sha }} --access public --prerelease
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
