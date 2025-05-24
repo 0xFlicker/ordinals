@@ -1,39 +1,50 @@
-# Contributor Covenant Code of Conduct
+# Bitflick Code of Conduct
+
+**v0.1 – Dictatorship, but make it friendly**
+
+## Who We Are (So Far)
+
+At the moment, Bitflick is mostly one person yelling into the decentralized void while writing TypeScript. There’s no formal “community” yet—just some open-source code, strong opinions about Bitcoin, and a deep desire to build something enduring with like-minded humans.
+
+This document is less about policing behavior and more about setting the vibe we hope to scale into: respectful, curious, and low-drama. Think of it as a social README for future collaborators.
 
 ## Our Pledge
 
-In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to respect all people who contribute through reporting issues, posting feature requests, updating documentation, submitting pull requests, and other activities.
+We pledge to be kind, collaborative, and mostly sane when interacting in this project. Whether you’re submitting a PR, opening an issue, or just vibing in the repo—please bring your best self (or at least your reasonably caffeinated one).
 
-## Our Standards
+## What’s Encouraged
 
-Examples of behavior that contributes to a positive environment for our community include:
+Here’s what we like to see:
 
-- Using welcoming and inclusive language
-- Being respectful of differing viewpoints and experiences
-- Gracefully accepting constructive criticism
-- Focusing on what is best for the community
-- Showing empathy toward other community members
+- Clear, constructive feedback (bonus points for tact)
+- Curiosity and willingness to learn (we're all figuring this out)
+- Respect for differing opinions, tools, and keyboard layouts
+- Helping others without being a know-it-all about it
+- Remembering there's a person on the other side of the commit
 
-Examples of unacceptable behavior by participants include:
+## What’s Discouraged
 
-- The use of sexualized language or imagery and unwelcome sexual attention or advances
-- Trolling, insulting/derogatory comments, and personal or political attacks
-- Public or private harassment
-- Publishing others' private information, such as a physical or electronic address, without explicit permission
-- Other conduct which could reasonably be considered inappropriate in a professional setting
+Here’s what will get you booted or banned (and not in the fun, “we’re all banned from Twitter” way):
 
-## Enforcement Responsibilities
+- Harassment, threats, or bigoted language
+- Sexual content or jokes (this is a GitHub repo, not a dating website)
+- Doxxing or sharing private info without consent
+- General jerk behavior, including but not limited to trolling, flame wars, or "just playing devil’s advocate"
 
-Community leaders are responsible for clarifying and enforcing our standards of acceptable behavior and will take appropriate and fair corrective action in response to any behavior that they deem inappropriate, threatening, offensive, or harmful.
+If your behavior would get you kicked out of my chat group, it’s probably not okay here either.
 
-## Enforcement
+## How Enforcement Works
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at sysop@bitflick.xyz. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident.
+Currently, enforcement falls to the project lead (me, hi). If you act like a goblin, I reserve the right to banish you from the project with or without ceremony. If you’re not sure whether something’s appropriate, you can always ask—or better yet, just don’t be weird about it.
 
-Project maintainers who do not follow or enforce the Code of Conduct may be permanently removed from the project team, subject to review by the community.
+## Reporting Issues
+
+Email `sysop@bitflick.xyz` if something needs to be addressed. Reports will be taken seriously and handled with discretion. If you’re reporting yourself preemptively, that’s… new. But appreciated?
+
+## Long-Term Vision
+
+This is a benevolent dictatorship _in waiting_. The goal is to cultivate a thriving community with shared governance. Until then, consider this the onboarding doc for future co-conspirators.
 
 ## Attribution
 
-This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 2.1, available at https://www.contributor-covenant.org/version/2/1/code_of_conduct.html.
-
-[homepage]: https://www.contributor-covenant.org
+Adapted from the excellent [Contributor Covenant v2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct.html), with added sarcasm and less legalese.

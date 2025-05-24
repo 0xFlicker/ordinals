@@ -11,7 +11,7 @@
     "paths": {},
     "plugins": []
   },
-  "include": ["src/**/*.ts", "./jest.config.mjs"],
+  "include": ["src/**/*.ts"],
   "exclude": ["./node_modules"],
   "references": []
 }

@@ -14,7 +14,9 @@
     "changeset": "changeset",
     "version": "changeset version",
     "publish": "changeset publish",
+    "build": "yarn -s workspace @bitflick/inscriptions build",
     "lint": "yarn -s workspace @bitflick/inscriptions lint",
+    "test": "yarn -s workspace @bitflick/inscriptions test",
     "format": "prettier --write ."
   },
   "devDependencies": {
