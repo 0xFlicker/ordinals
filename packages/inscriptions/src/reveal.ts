@@ -100,7 +100,7 @@ export function generateRevealTransactionDataIteratively(
   const [highestFeeRate, lowestFeeRate] = request.feeRateRange;
 
   // PHASE 1: Quick check at highestFeeRate
-  let attemptHighest = buildTxAtFeeRate(
+  const attemptHighest = buildTxAtFeeRate(
     request,
     highestFeeRate,
     [100, 0],
@@ -351,7 +351,7 @@ function attachDummyWitnesses(
   });
 
   // For inscription inputs - signature + script + control block
-  let offset = request.parentTxs?.length ?? 0;
+  const offset = request.parentTxs?.length ?? 0;
   request.inputs.forEach((input, i) => {
     txData.vin[offset + i].witness = [
       "00".repeat(64),
@@ -506,7 +506,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
   }
 
   // Inputs & Inscriptions
-  let indexOffset = parentTxs?.length ?? 0;
+  const indexOffset = parentTxs?.length ?? 0;
   for (let i = indexOffset; i < inputs.length + indexOffset; i++) {
     const input = inputs[i - indexOffset];
     witnessSigners.push(() => {

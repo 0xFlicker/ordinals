@@ -15,7 +15,7 @@ export enum EMediaTypes {
 
 type TEncodeMode =
   | typeof constants.BROTLI_MODE_GENERIC
-  | typeof constants.BROTLI_MODE_TEXT;
+   ;
 
 export interface IMedia {
   encoderMode: TEncodeMode;

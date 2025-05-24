@@ -78,7 +78,7 @@ export async function addressOnceHadMoney(
   nonJson = await getData(url);
 
   if (!isValidJson(nonJson)) return false;
-  let json = JSON.parse(nonJson);
+  const json = JSON.parse(nonJson);
   if (
     json["chain_stats"]["tx_count"] > 0 ||
     (includeMempool && json["mempool_stats"]["tx_count"] > 0)
@@ -107,7 +107,7 @@ export async function loopTilAddressReceivesMoney(
               network,
             );
           } catch (e) {}
-          let msg = await isDataSetYet(itReceivedMoney);
+          const msg = await isDataSetYet(itReceivedMoney);
           resolve(msg);
         }, 2000);
       } else {
@@ -116,10 +116,10 @@ export async function loopTilAddressReceivesMoney(
     });
   }
   async function getTimeoutData() {
-    let data_i_seek = await isDataSetYet(itReceivedMoney);
+    const data_i_seek = await isDataSetYet(itReceivedMoney);
     return data_i_seek;
   }
 
-  let returnable = await getTimeoutData();
+  const returnable = await getTimeoutData();
   return returnable;
 }

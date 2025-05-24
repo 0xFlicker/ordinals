@@ -172,10 +172,10 @@ export function serializeTxidAndIndexWithStripping(
   index: number
 ) {
   // Convert the txid from a hex string to a Buffer in reverse order (little-endian for the txid)
-  let txidBuffer = Buffer.from(txid, 'hex').reverse();
+  const txidBuffer = Buffer.from(txid, 'hex').reverse();
 
   // Convert the index to a 4-byte little-endian buffer
-  let indexBuffer = Buffer.alloc(4);
+  const indexBuffer = Buffer.alloc(4);
   indexBuffer.writeUInt32LE(index);
 
   // Determine the number of index bytes to include (strip trailing zeros, but include at least one byte)
@@ -187,7 +187,7 @@ export function serializeTxidAndIndexWithStripping(
   }
 
   // Concatenate txid and the relevant index bytes
-  let serializedBuffer = Buffer.concat([
+  const serializedBuffer = Buffer.concat([
     txidBuffer,
     indexBuffer.slice(0, indexBytesToInclude),
   ]);

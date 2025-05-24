@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsc -b",
     "test": "yarn node --experimental-vm-modules $(yarn bin jest)",
-    "test:coverage": "COVERAGE=true yarn node --experimental-vm-modules $(yarn bin jest)"
+    "test:coverage": "COVERAGE=true yarn node --experimental-vm-modules $(yarn bin jest)",
+    "lint": "eslint . --ext .ts,.js"
   },
   "prepublishOnly": "npm run build",
   "dependencies": {
