@@ -1,5 +1,11 @@
 # @bitflick/inscriptions
 
+## 1.1.3
+
+### Patch Changes
+
+- ee40225: Fix package publish, which was missing a build step
+
 ## 1.1.2
 
 ### Patch Changes
