@@ -23,8 +23,6 @@ jest-junit.xml
 .idea/
 .DS_Store
 
-## Changesets
-.changeset/
 
 # Local dev environment file
 .envrc
