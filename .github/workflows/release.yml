@@ -7,6 +7,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  id-token: write
+
 jobs:
   prerelease:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
