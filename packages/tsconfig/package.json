@@ -10,5 +10,8 @@
     "build": "exit 0",
     "publish": "yarn -s publish --access public"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT"
 }
