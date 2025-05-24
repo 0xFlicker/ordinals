@@ -24,7 +24,7 @@ jobs:
       - name: Bump prerelease version
         run: |
           # Try to version, if it fails due to no changesets, create one
-          if ! npx changeset version --snapshot prerelease.${{ github.sha }} 2>&1 | grep -q "warn No unreleased changesets found, exiting."; then
+          if ! npx changeset version --snapshot prerelease.${{ github.sha }} 2>&1 | grep -q "No unreleased changesets found, exiting."; then
             echo "Changeset versioning successful"
           else
             echo "No changesets found, creating temporary changeset..."
