@@ -1,5 +1,13 @@
 # @bitflick/inscriptions
 
+## 1.1.2
+
+### Patch Changes
+
+- 22e134c: Changeset test
+- 6aa11d0: Changeset test
+- f365010: Changeset test
+
 ## 1.1.1
 
 ### Patch Changes
