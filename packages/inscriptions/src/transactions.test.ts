@@ -40,7 +40,7 @@ describe('Bitcoin Inscription Transactions', () => {
 
   // Sample inscription content
   const sampleInscription = {
-    content: new TextEncoder().encode('Hello, World!').buffer,
+    content: Buffer.from('Hello, World!', 'utf-8'),
     mimeType: 'text/plain',
     compress: false,
   };

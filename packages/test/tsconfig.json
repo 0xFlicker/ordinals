@@ -3,18 +3,14 @@
   "compilerOptions": {
     "module": "ES2022",
     "target": "ES2022",
+    "lib": ["esnext"],
     "composite": true,
     "outDir": "dist",
     "paths": {
       "@bitflick/inscriptions": ["../../packages/inscriptions/src/index"]
     },
-    "noErrorTruncation": true,
-    "noImplicitAny": false,
-    "noImplicitThis": true,
-    "alwaysStrict": true,
-    "strictBindCallApply": true,
-    "strictFunctionTypes": true,
-    "allowJs": true
+    "allowJs": true,
+    "jsx": "preserve"
   },
   "include": ["**/*.ts"],
   "exclude": ["**/node_modules", "**/.*/", "dist", "build"],
