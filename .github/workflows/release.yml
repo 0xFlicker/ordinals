@@ -7,6 +7,7 @@ on:
 
 permissions:
   id-token: write
+  contents: write
 
 jobs:
   release:
@@ -23,6 +24,9 @@ jobs:
       - name: Version and publish packages
         uses: changesets/action@v1
         with:
-          publish: npm publish --access public
+          publish: |
+            cd packages/tsconfig && npm publish --access public --provenance
+            cd ../inscriptions && npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
