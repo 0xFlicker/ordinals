@@ -22,4 +22,6 @@ jobs:
       - run: yarn lint
       - run: yarn workspace @bitflick/inscriptions build
       - run: yarn workspace @bitflick/inscriptions test
-      - run: yarn workspace @bitflick/test test
+      - run: yarn workspace @bitflick/test build
+      - run: yarn test
+        working-directory: packages/test

@@ -7,7 +7,8 @@
   "scripts": {
     "test": "node --experimental-vm-modules $(yarn bin jest)",
     "test:fix": "TEARDOWN=false node --experimental-vm-modules $(yarn bin jest)",
-    "test:coverage": "COVERAGE=true node --experimental-vm-modules $(yarn bin jest)"
+    "test:coverage": "COVERAGE=true node --experimental-vm-modules $(yarn bin jest)",
+    "build": "tsc -b"
   },
   "devDependencies": {
     "@bitflick/tsconfig": "^1.0.1",
