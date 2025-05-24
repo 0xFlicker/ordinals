@@ -1,0 +1,23 @@
+# electrs.toml (static rpcauth)
+
+# must match the 'electrs' user/password in bitcoin.conf
+auth              = "test:test"
+
+# index regtest chain
+network           = "regtest"
+
+# listen for Electrum clients
+electrum_rpc_addr = "0.0.0.0:60001"
+
+# connect to bitcoind over the Docker network
+daemon_rpc_addr   = "test-bitcoind-1:18443"
+daemon_p2p_addr   = "test-bitcoind-1:18444"
+
+# logging verbosity
+log_filters       = "DEBUG"
+
+# where to pull block notifications
+zmq_block = "tcp://test-bitcoind-1:28332"
+
+# where to pull tx notifications
+zmq_tx    = "tcp://test-bitcoind-1:28333"
