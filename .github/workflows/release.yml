@@ -23,16 +23,24 @@ jobs:
       - run: yarn install --frozen-lockfile
       - name: Version and publish
         run: |
-          if npx changeset version --snapshot prerelease.${{ github.sha }} 2>&1 | grep -q "No unreleased changesets found, exiting."; then
-            echo "No changesets found, using npm version for prerelease"
-            cd packages/tsconfig && npm version prerelease --preid=${{ github.sha }} && npm publish --provenance --access public
-            cd ../inscriptions && npm version prerelease --preid=${{ github.sha }} && npm publish --provenance --access public
-          else
-            echo "Changesets found, publishing with changeset versions"
-            yarn workspaces run build
-            cd packages/tsconfig && npm publish --provenance --access public --prerelease
-            cd ../inscriptions && npm publish --provenance --access public --prerelease
-          fi
+          # First try changeset versioning
+          npx changeset version --snapshot prerelease.${{ github.sha }}
+
+          # Build all packages
+          yarn workspaces run build
+
+          # Publish each package, using npm version if no changeset was applied
+          for pkg in tsconfig inscriptions; do
+            cd packages/$pkg
+            if grep -q "prerelease.${{ github.sha }}" package.json; then
+              echo "Publishing $pkg with changeset version"
+              npm publish --provenance --access public --prerelease
+            else
+              echo "No changeset for $pkg, using npm version"
+              npm version prerelease --preid=${{ github.sha }} && npm publish --provenance --access public
+            fi
+            cd ../..
+          done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
