@@ -21,37 +21,20 @@ jobs:
           node-version: '22.x'
           registry-url: 'https://registry.npmjs.org'
       - run: yarn install --frozen-lockfile
-      - name: Bump prerelease version
+      - name: Version and publish
         run: |
-          # Try to version, if it fails due to no changesets, create one
-          if ! npx changeset version --snapshot prerelease.${{ github.sha }} 2>&1 | grep -q "No unreleased changesets found, exiting."; then
-            echo "Changeset versioning successful"
-          else
-            echo "No changesets found, creating temporary changeset..."
-            # Get current version from package.json
-            CURRENT_VERSION=$(node -p "require('./packages/tsconfig/package.json').version")
-            echo "Using current version $CURRENT_VERSION with prerelease tag"
-            
-            # Create changeset with current version
-            echo "---" > .changeset/temp.md
-            echo "---" >> .changeset/temp.md
-            echo "packages/tsconfig: $CURRENT_VERSION" >> .changeset/temp.md
-            echo "packages/inscriptions: $CURRENT_VERSION" >> .changeset/temp.md
-            echo "---" >> .changeset/temp.md
-            echo "Temporary changeset for direct push" >> .changeset/temp.md
-            
-            npx changeset version --snapshot prerelease.${{ github.sha }}
-          fi
-          yarn install --frozen-lockfile
-      - run: yarn workspaces run build
-      - name: Publish prerelease packages packages/tsconfig
-        working-directory: packages/tsconfig
-        run: npm publish --provenance --access public --prerelease
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish prerelease packages packages/inscriptions
-        working-directory: packages/inscriptions
-        run: npm publish --provenance --access public --prerelease
+          # Try changeset first
+          npx changeset version --snapshot prerelease.${{ github.sha }} || {
+            echo "No changesets found, using npm version for prerelease"
+            cd packages/tsconfig && npm version prerelease --preid=${{ github.sha }} && npm publish --provenance --access public
+            cd ../inscriptions && npm version prerelease --preid=${{ github.sha }} && npm publish --provenance --access public
+            exit 0
+          }
+
+          # If changeset succeeded, build and publish
+          yarn workspaces run build
+          cd packages/tsconfig && npm publish --provenance --access public --prerelease
+          cd ../inscriptions && npm publish --provenance --access public --prerelease
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
