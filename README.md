@@ -1,6 +1,6 @@
 # bitflick Open Source Packages
 
-[![CI](https://github.com/flick-ing/bitflick/actions/workflows/ci.yml/badge.svg)](https://github.com/flick-ing/bitflick/actions/workflows/ci.yml)
+[![CI](https://github.com/flick-ing/inscriptions/actions/workflows/ci.yml/badge.svg)](https://github.com/flick-ing/inscriptions/actions/workflows/ci.yml)
 [![Changesets](https://img.shields.io/badge/changesets-enabled-blue.svg)](https://github.com/changesets)
 [![npm version inscriptions](https://img.shields.io/npm/v/@bitflick/inscriptions.svg)](https://www.npmjs.com/package/@bitflick/inscriptions)
 [![npm version tsconfig](https://img.shields.io/npm/v/@bitflick/tsconfig.svg)](https://www.npmjs.com/package/@bitflick/tsconfig)
@@ -9,10 +9,10 @@ This monorepo contains the open source packages published under the `@bitflick` 
 
 ## Packages
 
-| Package | Description | NPM |
-| --- | --- | --- |
+| Package                                           | Description                                                                                           | NPM                                                                                                                     |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | [`@bitflick/inscriptions`](packages/inscriptions) | A Node.js TypeScript library for creating Bitcoin inscriptions (BRC20) and interacting with ordinals. | [![npm](https://img.shields.io/npm/v/@bitflick/inscriptions.svg)](https://www.npmjs.com/package/@bitflick/inscriptions) |
-| [`@bitflick/tsconfig`](packages/tsconfig) | Shared TypeScript base configuration for all bitflick packages. | [![npm](https://img.shields.io/npm/v/@bitflick/tsconfig.svg)](https://www.npmjs.com/package/@bitflick/tsconfig) |
+| [`@bitflick/tsconfig`](packages/tsconfig)         | Shared TypeScript base configuration for all bitflick packages.                                       | [![npm](https://img.shields.io/npm/v/@bitflick/tsconfig.svg)](https://www.npmjs.com/package/@bitflick/tsconfig)         |
 
 ## Getting Started
 
