@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@bitflick/inscriptions.svg)](https://www.npmjs.com/package/@bitflick/inscriptions)
 [![License](https://img.shields.io/npm/l/@bitflick/inscriptions.svg)](https://github.com/flick-ing/bitflick/blob/main/LICENSE)
-[![Tests](https://github.com/flick-ing/bitflick/actions/workflows/ci.yml/badge.svg)](https://github.com/flick-ing/bitflick/actions/workflows/ci.yml)
+[![Tests](https://github.com/flick-ing/inscriptions/actions/workflows/ci.yml/badge.svg)](https://github.com/flick-ing/bitflick/inscriptions/workflows/ci.yml)
 
 A Node.js TypeScript library for creating and funding Bitcoin inscriptions.
 

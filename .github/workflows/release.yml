@@ -25,10 +25,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - run: yarn install --frozen-lockfile
-      - name: Set up GitHub token for pushing branches
-        run: |
-          git remote set-url origin https://x-access-token:${{ secrets.WORKSPACE_TOKEN }}@github.com/${{ github.repository }}
-
+      - run: yarn build
       - name: Publish packages to npm
         uses: changesets/action@v1
         with:
