@@ -1,6 +1,6 @@
 {
   "name": "@bitflick/inscriptions",
-  "version": "1.0.1",
+  "version": "1.0.2-0",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,8 @@
     "build": "tsc -b",
     "test": "yarn node --experimental-vm-modules $(yarn bin jest)",
     "test:coverage": "COVERAGE=true yarn node --experimental-vm-modules $(yarn bin jest)",
-    "lint": "eslint . --ext .ts,.js"
+    "lint": "eslint . --ext .ts,.js",
+    "publish": "yarn -s publish --access public"
   },
   "prepublishOnly": "npm run build",
   "dependencies": {
