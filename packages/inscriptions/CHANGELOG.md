@@ -1,5 +1,11 @@
 # @bitflick/inscriptions
 
+## 1.1.4
+
+### Patch Changes
+
+- 24e4b93: Fix final exported path
+
 ## 1.1.3
 
 ### Patch Changes
