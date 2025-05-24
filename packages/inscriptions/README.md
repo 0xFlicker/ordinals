@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/npm/l/@bitflick/inscriptions.svg)](https://github.com/flick-ing/bitflick/blob/main/LICENSE)
 [![Tests](https://github.com/flick-ing/bitflick/actions/workflows/ci.yml/badge.svg)](https://github.com/flick-ing/bitflick/actions/workflows/ci.yml)
 
-A Node.js TypeScript library for creating Bitcoin inscriptions (BRC20) and interacting with ordinals, supporting mainnet, testnet, and regtest.
+A Node.js TypeScript library for creating and funding Bitcoin inscriptions.
 
 ## Installation
 
@@ -29,7 +29,7 @@ import {
   const funding = await generateFundableGenesisTransaction({
     address: 'yourTaprootBitcoinAddress',
     inscriptions: [
-      { content: Buffer.from('Hello, world!', 'utf8'), mimeType: 'text/plain' }
+      { content: Buffer.from('Hello, world!', 'utf8'), mimeType: 'text/plain' },
     ],
     network: 'regtest',
     privKey: generatePrivKey(), // Secret key for taproot transactions
@@ -39,7 +39,9 @@ import {
   });
 
   // 2.  Out of band, pay the address ${funding.fundingAddress} exactly ${funding.fundingAmountBtc}
-  console.log(`Please pay exactly ${funding.fundingAmountBtc} to ${funding.fundingAddress}`);
+  console.log(
+    `Please pay exactly ${funding.fundingAmountBtc} to ${funding.fundingAddress}`
+  );
 
   // 3. Wait for the funding UTXO
   const [utxoTxid, utxoVout] = await waitForInscriptionFunding(
@@ -70,8 +72,7 @@ import {
     // Optional tip destination(s)
     feeDestinations: [
       {
-        address:
-          "feeDestinationAddress",
+        address: 'feeDestinationAddress',
         weight: 100,
       },
     ],
@@ -105,7 +106,6 @@ import {
   // This transaction will be funded from the genesis transaction, minus miner fees
   const revealTxId = await broadcastTx(revealTx, funding.network);
   console.log(`Reveal TX ID: ${revealTxId}`);
-
 })();
 ```
 
@@ -115,13 +115,16 @@ Below is a helper to generate a Taproot address using `generatePrivKey` for a ra
 You can use this address as a destination for your inscription funding:
 
 ```ts
-import { generatePrivKey, networkNamesToTapScriptName } from '@bitflick/inscriptions';
+import {
+  generatePrivKey,
+  networkNamesToTapScriptName,
+} from '@bitflick/inscriptions';
 import { get_seckey, get_pubkey } from '@cmdcode/crypto-tools/keys';
 import { Address, Tap } from '@cmdcode/tapscript';
 
 function generateTapscriptAddress(
   network: 'mainnet' | 'testnet' | 'testnet4' | 'regtest',
-  privateKey?: string,
+  privateKey?: string
 ): string {
   if (!privateKey) {
     privateKey = generatePrivKey();
@@ -130,7 +133,7 @@ function generateTapscriptAddress(
   const pubKey = get_pubkey(secKey, true);
   return Address.p2tr.encode(
     Tap.getPubKey(pubKey)[0],
-    networkNamesToTapScriptName(network),
+    networkNamesToTapScriptName(network)
   );
 }
 
@@ -141,13 +144,13 @@ console.log('Taproot address:', destination);
 
 ## API
 
-| Function                              | Description                                                  |
-| ------------------------------------- | ------------------------------------------------------------ |
-| `generateFundableGenesisTransaction`  | Build a genesis TX and funding UTXO prepared for inscription. |
-| `generateRevealTransaction`           | Build the reveal TX for an existing inscription UTXO.         |
-| `generateRefundTransaction`           | Build a refund TX from unspent inscription outputs.          |
-| `broadcastTx`                         | Broadcast a raw transaction hex to the network.               |
-| `waitForInscriptionFunding`           | Poll until the specified inscription UTXO is spendable.       |
+| Function                             | Description                                                   |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `generateFundableGenesisTransaction` | Build a genesis TX and funding UTXO prepared for inscription. |
+| `generateRevealTransaction`          | Build the reveal TX for an existing inscription UTXO.         |
+| `generateRefundTransaction`          | Build a refund TX from unspent inscription outputs.           |
+| `broadcastTx`                        | Broadcast a raw transaction hex to the network.               |
+| `waitForInscriptionFunding`          | Poll until the specified inscription UTXO is spendable.       |
 
 For full API details, see [types.ts](./src/types.ts) and the source.
 
