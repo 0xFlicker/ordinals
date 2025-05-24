@@ -6,5 +6,8 @@
   "files": [
     "tsconfig.base.json"
   ],
+  "scripts": {
+    "build": "exit 0"
+  },
   "license": "MIT"
 }
