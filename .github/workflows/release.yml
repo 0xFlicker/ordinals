@@ -23,9 +23,10 @@ jobs:
       - run: yarn install --frozen-lockfile
       - name: Bump prerelease version
         run: |
-          # Check if there are any changesets
-          if [ -z "$(ls -A .changeset)" ]; then
-            # Create a temporary changeset for all packages
+          # Try to version, if it fails due to no changesets, create one
+          if ! npx changeset version --snapshot prerelease.${{ github.sha }} 2>&1 | grep -q "warn No unreleased changesets found, exiting."; then
+            echo "Changeset versioning successful"
+          else
             echo "No changesets found, creating temporary changeset..."
             echo "---" > .changeset/temp.md
             echo "---" >> .changeset/temp.md
@@ -33,8 +34,8 @@ jobs:
             echo "packages/inscriptions: prerelease" >> .changeset/temp.md
             echo "---" >> .changeset/temp.md
             echo "Temporary changeset for direct push" >> .changeset/temp.md
+            npx changeset version --snapshot prerelease.${{ github.sha }}
           fi
-          npx changeset version --snapshot prerelease.${{ github.sha }}
           yarn install --frozen-lockfile
       - run: yarn workspaces run build
       - name: Publish prerelease packages packages/tsconfig
@@ -44,7 +45,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish prerelease packages packages/inscriptions
         working-directory: packages/inscriptions
-        run: npm publish  --provenance --access public --prerelease
+        run: npm publish --provenance --access public --prerelease
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
