@@ -36,7 +36,7 @@ jobs:
   publish:
     needs: createReleasePR
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.title, 'chore: version packages')
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && contains(github.event.pull_request.title, 'chore: version packages')
     steps:
       - uses: actions/checkout@v4
         with:
