@@ -28,12 +28,18 @@ jobs:
             echo "Changeset versioning successful"
           else
             echo "No changesets found, creating temporary changeset..."
+            # Get current version from package.json
+            CURRENT_VERSION=$(node -p "require('./packages/tsconfig/package.json').version")
+            echo "Using current version $CURRENT_VERSION with prerelease tag"
+            
+            # Create changeset with current version
             echo "---" > .changeset/temp.md
             echo "---" >> .changeset/temp.md
-            echo "packages/tsconfig: prerelease" >> .changeset/temp.md
-            echo "packages/inscriptions: prerelease" >> .changeset/temp.md
+            echo "packages/tsconfig: $CURRENT_VERSION" >> .changeset/temp.md
+            echo "packages/inscriptions: $CURRENT_VERSION" >> .changeset/temp.md
             echo "---" >> .changeset/temp.md
             echo "Temporary changeset for direct push" >> .changeset/temp.md
+            
             npx changeset version --snapshot prerelease.${{ github.sha }}
           fi
           yarn install --frozen-lockfile
