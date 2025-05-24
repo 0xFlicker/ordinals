@@ -34,17 +34,17 @@ jobs:
             echo "---" >> .changeset/temp.md
             echo "Temporary changeset for direct push" >> .changeset/temp.md
           fi
-          npx changeset version --snapshot prerelease.${{ github.sha }} --no-git-tag-version
+          npx changeset version --snapshot prerelease.${{ github.sha }}
           yarn install --frozen-lockfile
       - run: yarn workspaces run build
       - name: Publish prerelease packages packages/tsconfig
         working-directory: packages/tsconfig
-        run: npm publish --tag prerelease.${{ github.sha }} --provenance --access public --prerelease
+        run: npm publish --provenance --access public --prerelease
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish prerelease packages packages/inscriptions
         working-directory: packages/inscriptions
-        run: npm publish --tag prerelease.${{ github.sha }} --provenance --access public --prerelease
+        run: npm publish  --provenance --access public --prerelease
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
