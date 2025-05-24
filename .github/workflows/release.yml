@@ -31,7 +31,7 @@ jobs:
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.WORKSPACE_TOKEN }}
 
   publish:
     needs: createReleasePR
