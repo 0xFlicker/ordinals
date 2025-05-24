@@ -22,7 +22,20 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: yarn install --frozen-lockfile
       - name: Bump prerelease version
-        run: npx changeset version --snapshot prerelease.${{ github.sha }} --no-git-tag-version
+        run: |
+          # Check if there are any changesets
+          if [ -z "$(ls -A .changeset)" ]; then
+            # Create a temporary changeset for all packages
+            echo "No changesets found, creating temporary changeset..."
+            echo "---" > .changeset/temp.md
+            echo "---" >> .changeset/temp.md
+            echo "packages/tsconfig: prerelease" >> .changeset/temp.md
+            echo "packages/inscriptions: prerelease" >> .changeset/temp.md
+            echo "---" >> .changeset/temp.md
+            echo "Temporary changeset for direct push" >> .changeset/temp.md
+          fi
+          npx changeset version --snapshot prerelease.${{ github.sha }} --no-git-tag-version
+          yarn install --frozen-lockfile
       - run: yarn workspaces run build
       - name: Publish prerelease packages packages/tsconfig
         working-directory: packages/tsconfig
