@@ -6,6 +6,10 @@
   "files": [
     "tsconfig.base.json"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/flick-ing/inscriptions.git"
+  },
   "scripts": {
     "build": "exit 0"
   },
