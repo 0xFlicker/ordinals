@@ -1,8 +1,4 @@
-import {
-  get_keypair,
-  get_pubkey,
-  get_seckey,
-} from "@cmdcode/crypto-tools/keys";
+import { get_pubkey, get_seckey } from "@cmdcode/crypto-tools/keys";
 import { Address, Tap, Tx } from "@cmdcode/tapscript";
 import { groupFundings, GroupableFunding } from "./groupings.js";
 
@@ -215,8 +211,6 @@ describe("groupFundings", () => {
     try {
       const result = groupFundings([funding1], feeRateRange);
       expect(result.rejectedFundings.map((f) => f.id)).toContain("1");
-    } catch (e) {
-      throw e;
     } finally {
       console.error = oldConsoleError;
     }

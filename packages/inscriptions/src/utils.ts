@@ -28,9 +28,11 @@ export function buf2hex(buffer: ArrayBuffer) {
 }
 
 export function hexToBytes(hex: string) {
-  return Uint8Array.from(
-    hex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
-  );
+  const matches = hex.match(/.{1,2}/g);
+  if (matches === null) {
+    throw new Error(`Invalid hex string: ${hex}`);
+  }
+  return Uint8Array.from(matches.map((byte) => parseInt(byte, 16)));
 }
 
 export function bytesToHex(bytes: Uint8Array) {
@@ -56,11 +58,11 @@ export function isValidTaprootAddress(address: string) {
 }
 
 export function isValidJson(content: string) {
-  if (!content) return;
+  if (!content) return false;
   try {
     JSON.parse(content);
-  } catch (e) {
-    return;
+  } catch {
+    return false;
   }
   return true;
 }
@@ -97,8 +99,8 @@ export function serializedScriptToScriptData(
 }
 
 export function bitcoinToSats(bitcoin: string): bigint {
-  let [whole, decimal] = bitcoin.split('.');
-  if (!decimal) decimal = '0';
+  const [whole, initialDecimal] = bitcoin.split('.');
+  let decimal = initialDecimal || '0';
   if (decimal.length > 8) decimal = decimal.slice(0, 8);
   if (decimal.length < 8) decimal = decimal.padEnd(8, '0');
   return BigInt(whole) * 100000000n + BigInt(decimal);
@@ -116,7 +118,7 @@ export function hexString(buffer: ArrayBuffer) {
   return '0x' + hexCodes.join('');
 }
 
-export async function bufferToSha256(bufferOrString: string | ArrayBuffer) {
+export function bufferToSha256(bufferOrString: string | ArrayBuffer) {
   return crypto.SHA256(
     typeof bufferOrString === 'string'
       ? crypto.enc.Hex.parse(bufferOrString)
@@ -160,7 +162,7 @@ export function networkNamesToTapScriptName(
   }
 }
 
-export async function validateAddress(
+export function validateAddress(
   address: string,
   network: BitcoinNetworkNames
 ) {
@@ -220,5 +222,9 @@ export function encodeElectrumScriptHash(address: string): string {
     crypto.SHA256(crypto.enc.Hex.parse(script.toString('hex')))
   );
   // Convert to little-endian (reverse byte order)
-  return addrScripthash.match(/.{2}/g)!.reverse().join('');
+  const parts = addrScripthash.match(/.{2}/g);
+  if (parts === null) {
+    throw new Error(`Invalid scripthash hex string: ${addrScripthash}`);
+  }
+  return parts.reverse().join('');
 }

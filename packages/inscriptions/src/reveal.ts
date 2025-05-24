@@ -1,21 +1,22 @@
 import {
   Address,
+  Bytes,
   OutputData,
   Script,
+  ScriptData,
   Signer,
   Tap,
   Tx,
   TxData,
   TxTemplate,
-} from "@cmdcode/tapscript";
-import { get_pubkey, get_seckey } from "@cmdcode/crypto-tools/keys";
+} from '@cmdcode/tapscript';
+import { get_pubkey } from '@cmdcode/crypto-tools/keys';
 import {
   CannotFitInscriptionsError,
   UnableToFindFeasibleFeeRateError,
-} from "./errors.js";
-import { BitcoinScriptData } from "./types.js";
-import { serializedScriptToScriptData } from "./utils.js";
-
+} from './errors.js';
+import { BitcoinScriptData } from './types.js';
+import { serializedScriptToScriptData } from './utils.js';
 export interface RevealTransactionInput {
   leaf: string;
   tapkey: string;
@@ -32,8 +33,8 @@ export interface RevealTransactionInput {
   }[];
 }
 
-export type RevealTransactionParentTx = Omit<TxTemplate, "vin"> & {
-  vin: Required<TxTemplate>["vin"]["0"];
+export type RevealTransactionParentTx = Omit<TxTemplate, 'vin'> & {
+  vin: Required<TxTemplate>['vin']['0'];
   value: bigint | number;
   secKey: Uint8Array;
   destinationAddress: string;
@@ -74,15 +75,16 @@ export function generateRevealTransaction({
     feeDestinations,
     feeRateRange,
   });
+  const encoded = Tx.encode(result.txData) as { hex: string };
   return {
-    hex: Tx.encode(result.txData).hex,
+    hex: encoded.hex,
     platformFee: result.platformFee,
     underpriced: result.underpriced,
     minerFee: result.minerFee,
   };
 }
 export function generateRevealTransactionDataIteratively(
-  request: RevealTransactionRequest,
+  request: RevealTransactionRequest
 ): {
   txData: TxData;
   feeRate: number;
@@ -93,7 +95,7 @@ export function generateRevealTransactionDataIteratively(
   // Validate that all inputs have at least one inscription
   if (request.inputs.some((input) => !input.inscriptions?.length)) {
     throw new CannotFitInscriptionsError(
-      "All inputs must have at least one inscription",
+      'All inputs must have at least one inscription'
     );
   }
 
@@ -104,7 +106,7 @@ export function generateRevealTransactionDataIteratively(
     request,
     highestFeeRate,
     [100, 0],
-    false,
+    false
   );
   if (attemptHighest) {
     // Verify with real signatures
@@ -123,7 +125,7 @@ export function generateRevealTransactionDataIteratively(
   const bestWithHighestFees = binarySearchHighestFeasible(
     request,
     [lowestFeeRate, highestFeeRate - 1],
-    [75, 100],
+    [75, 100]
   );
   if (bestWithHighestFees) {
     const verifiedTx = verifyAndSignTx(bestWithHighestFees.txData, request);
@@ -139,7 +141,7 @@ export function generateRevealTransactionDataIteratively(
   const bestWithLowerFees = binarySearchHighestFeasible(
     request,
     [lowestFeeRate, highestFeeRate - 1],
-    [0, 75],
+    [0, 75]
   );
   if (bestWithLowerFees) {
     const verifiedTx = verifyAndSignTx(bestWithLowerFees.txData, request);
@@ -161,12 +163,12 @@ export function generateRevealTransactionDataIteratively(
     requestWithoutFees,
     highestFeeRate,
     [0, 100],
-    false,
+    false
   );
   if (attemptNoFeesHighest) {
     const verifiedTx = verifyAndSignTx(
       attemptNoFeesHighest.txData,
-      requestWithoutFees,
+      requestWithoutFees
     );
     if (verifiedTx) {
       return {
@@ -183,7 +185,7 @@ export function generateRevealTransactionDataIteratively(
   const bestNoFees = binarySearchHighestFeasible(
     requestWithoutFees,
     [lowestFeeRate, highestFeeRate - 1],
-    [0, 100],
+    [0, 100]
   );
   if (bestNoFees) {
     const verifiedTx = verifyAndSignTx(bestNoFees.txData, requestWithoutFees);
@@ -203,8 +205,8 @@ export function generateRevealTransactionDataIteratively(
 
 export class TransactionTooLargeError extends Error {
   constructor() {
-    super("Transaction size exceeds system limits");
-    this.name = "TransactionTooLargeError";
+    super('Transaction size exceeds system limits');
+    this.name = 'TransactionTooLargeError';
   }
 }
 
@@ -212,7 +214,7 @@ function buildTxAtFeeRate(
   request: RevealTransactionRequest,
   feeRate: number,
   platformFeeRange: [number, number],
-  withRealSignatures = false,
+  withRealSignatures = false
 ): { txData: TxData; platformFee: number; minerFee: number } | null {
   const { txSkeleton, witnessSigners } = buildSkeleton(request);
 
@@ -223,7 +225,7 @@ function buildTxAtFeeRate(
 
   if (txSkeleton.vout.length !== expectedOutputCount) {
     throw new CannotFitInscriptionsError(
-      "Failed to create all required inscription outputs",
+      'Failed to create all required inscription outputs'
     );
   }
 
@@ -233,11 +235,11 @@ function buildTxAtFeeRate(
   // Add dummy outputs for size estimation (one for each potential fee destination)
   const dummyOutputs = request.feeDestinations?.map(() => ({
     value: 1000,
-    scriptPubKey: ["OP_1", "0".repeat(64)], // dummy P2TR output
+    scriptPubKey: ['OP_1', '0'.repeat(64)], // dummy P2TR output
   })) || [
     {
       value: 1000,
-      scriptPubKey: ["OP_1", "0".repeat(64)], // dummy P2TR output
+      scriptPubKey: ['OP_1', '0'.repeat(64)], // dummy P2TR output
     },
   ];
   txSkeleton.vout.push(...dummyOutputs);
@@ -329,7 +331,7 @@ function buildTxAtFeeRate(
       feeRate,
       platformFeePercent,
       request.feeTarget,
-      withRealSignatures,
+      withRealSignatures
     );
     if (maybeTxData) {
       return {
@@ -344,26 +346,26 @@ function buildTxAtFeeRate(
 
 function attachDummyWitnesses(
   txData: TxData,
-  request: RevealTransactionRequest,
+  request: RevealTransactionRequest
 ) {
   request.parentTxs?.forEach((_, i) => {
-    txData.vin[i].witness = ["00".repeat(64)];
+    txData.vin[i].witness = ['00'.repeat(64)];
   });
 
   // For inscription inputs - signature + script + control block
   const offset = request.parentTxs?.length ?? 0;
   request.inputs.forEach((input, i) => {
     txData.vin[offset + i].witness = [
-      "00".repeat(64),
+      '00'.repeat(64),
       serializedScriptToScriptData(input.script),
       input.cblock,
-    ];
+    ] as ScriptData[];
   });
 }
 
 function verifyAndSignTx(
   txData: TxData,
-  request: RevealTransactionRequest,
+  request: RevealTransactionRequest
 ): TxData | null {
   const { txSkeleton, witnessSigners } = buildSkeleton(request);
   txSkeleton.vout = txData.vout; // Copy outputs from candidate
@@ -380,14 +382,14 @@ function verifyAndSignTx(
  */
 function tryPlatformFeeDistribution(
   skeleton: TxData,
-  witnessSigners: Array<() => TxData["vin"][number]["witness"]>,
+  witnessSigners: Array<() => TxData['vin'][number]['witness']>,
   leftover: number,
   minerFee: number,
   feeDestinations: { address: string; weight: number }[],
   feeRate: number,
   platformFeePercent: number,
   feeTarget?: number,
-  withRealSignatures = false,
+  withRealSignatures = false
 ): { txData: TxData; platformFee: number } | null {
   // Clone the skeleton so we don't mutate the original
   const tempTxData: TxData = {
@@ -425,7 +427,7 @@ function tryPlatformFeeDistribution(
   } catch {
     console.log(
       "Invalid or can't estimate, need to revert",
-      JSON.stringify(tempTxData),
+      JSON.stringify(tempTxData)
     );
     tempTxData.vout.splice(-platformOutputs.length);
     return null;
@@ -442,13 +444,13 @@ function tryPlatformFeeDistribution(
   // FIX: Recalculate platform outputs with actual available amount
   const actualAvailableForPlatform = leftover - totalFeeNeeded;
   const actualPlatformFee = Math.floor(
-    actualAvailableForPlatform * (platformFeePercent / 100),
+    actualAvailableForPlatform * (platformFeePercent / 100)
   );
 
   // Update platform output values
   platformOutputs.forEach((output, i) => {
     const share = Math.floor(
-      (actualPlatformFee * feeDestinations[i].weight) / totalWeight,
+      (actualPlatformFee * feeDestinations[i].weight) / totalWeight
     );
     tempTxData.vout[tempTxData.vout.length - platformOutputs.length + i].value =
       share;
@@ -468,41 +470,42 @@ function tryPlatformFeeDistribution(
 /** Build a base transaction skeleton with mandatory inputs/outputs only. */
 export function buildSkeleton(request: RevealTransactionRequest): {
   txSkeleton: TxData;
-  witnessSigners: Array<() => TxData["vin"][number]["witness"]>;
+  witnessSigners: Array<() => TxData['vin'][number]['witness']>;
 } {
   const { inputs, parentTxs } = request;
 
-  const witnessSigners: Array<() => TxData["vin"][number]["witness"]> = [];
-  const vin: TxTemplate["vin"] = [];
-  const vout: TxTemplate["vout"] = [];
+  const witnessSigners: Array<() => TxData['vin'][number]['witness']> = [];
+  const vin: TxTemplate['vin'] = [];
+  const vout: TxTemplate['vout'] = [];
 
-  for (let i = 0; i < (parentTxs?.length ?? 0); i++) {
-    const parentTx = parentTxs![i];
-    const index = i;
-    const pubKey = get_pubkey(parentTx.secKey, true);
-    const script = [pubKey, "OP_CHECKSIG"];
-    const sbytes = Script.encode(script);
-    const tapleaf = Tap.tree.getLeaf(sbytes);
-    const [tPub, cBlock] = Tap.getPubKey(pubKey, {
-      target: tapleaf,
-    });
-    witnessSigners.push(() => {
-      const sig = Signer.taproot.sign(parentTx.secKey, txSkeleton, index, {
-        extension: tapleaf,
+  if (parentTxs) {
+    for (let i = 0; i < parentTxs.length; i++) {
+      const parentTx = parentTxs[i];
+      const index = i;
+      const pubKey = get_pubkey(parentTx.secKey, true);
+      const script = [pubKey, 'OP_CHECKSIG'];
+      const sbytes = Script.encode(script) as Bytes;
+      const tapleaf = Tap.tree.getLeaf(sbytes);
+      const [tPub, cBlock] = Tap.getPubKey(pubKey, { target: tapleaf });
+      witnessSigners.push(() => {
+        const sig = Signer.taproot.sign(parentTx.secKey, txSkeleton, index, {
+          extension: tapleaf,
+        }) as { hex: string };
+        return [
+          sig.hex,
+          serializedScriptToScriptData(script),
+          cBlock,
+        ] as ScriptData[];
       });
-      return [sig.hex, script, cBlock];
-    });
-    vin.push({
-      ...parentTx.vin,
-      prevout: {
+      vin.push({
+        ...parentTx.vin,
+        prevout: { value: parentTx.value, scriptPubKey: ['OP_1', tPub] },
+      });
+      vout.push({
         value: parentTx.value,
-        scriptPubKey: ["OP_1", tPub],
-      },
-    });
-    vout.push({
-      value: parentTx.value,
-      scriptPubKey: Address.toScriptPubKey(parentTx.destinationAddress),
-    });
+        scriptPubKey: Address.toScriptPubKey(parentTx.destinationAddress),
+      });
+    }
   }
 
   // Inputs & Inscriptions
@@ -512,12 +515,12 @@ export function buildSkeleton(request: RevealTransactionRequest): {
     witnessSigners.push(() => {
       const sig = Signer.taproot.sign(input.secKey, txSkeleton, i, {
         extension: input.leaf,
-      });
+      }) as { hex: string };
       return [
         sig.hex,
         serializedScriptToScriptData(input.script),
         input.cblock,
-      ];
+      ] as ScriptData[];
     });
 
     vin.push({
@@ -525,7 +528,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
       vout: input.vout,
       prevout: {
         value: input.amount,
-        scriptPubKey: ["OP_1", input.rootTapKey],
+        scriptPubKey: ['OP_1', input.rootTapKey],
       },
     });
 
@@ -533,8 +536,12 @@ export function buildSkeleton(request: RevealTransactionRequest): {
       vout.push({
         value: input.padding,
         scriptPubKey: [
-          "OP_1",
-          Address.p2tr.decode(inscription.destinationAddress).hex,
+          'OP_1',
+          (
+            Address.p2tr.decode(inscription.destinationAddress) as {
+              hex: string;
+            }
+          ).hex,
         ],
       });
     }
@@ -547,7 +554,7 @@ export function buildSkeleton(request: RevealTransactionRequest): {
 /** Signs all vin with the stored witness signers. */
 export function signAllVin(
   txData: TxData,
-  signers: Array<() => TxData["vin"][number]["witness"]>,
+  signers: Array<() => TxData['vin'][number]['witness']>
 ) {
   for (let i = 0; i < signers.length; i++) {
     txData.vin[i].witness = signers[i]();
@@ -560,7 +567,7 @@ function getTotalInputAmount(request: RevealTransactionRequest): number {
     request.parentTxs?.reduce((sum, p) => sum + BigInt(p.value), 0n) ?? 0n;
   const inputAmount = request.inputs.reduce(
     (sum, inp) => sum + BigInt(inp.amount),
-    0n,
+    0n
   );
   return Number(parentAmount + inputAmount);
 }
@@ -569,7 +576,7 @@ function getTotalInputAmount(request: RevealTransactionRequest): number {
 function getRequiredPaddingAmount(request: RevealTransactionRequest): number {
   const totalInscriptions = request.inputs.reduce(
     (acc, i) => acc + i.inscriptions.length * i.padding,
-    0,
+    0
   );
   let parentPadding = 0;
   for (const pTx of request.parentTxs ?? []) {
@@ -585,7 +592,7 @@ function getRequiredPaddingAmount(request: RevealTransactionRequest): number {
 function binarySearchHighestFeasible(
   request: RevealTransactionRequest,
   minerFeeRateRange: [number, number],
-  platformFeeRange: [number, number],
+  platformFeeRange: [number, number]
 ): {
   txData: TxData;
   feeRate: number;

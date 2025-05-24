@@ -5,7 +5,6 @@
     "lib": ["esnext"],
     "module": "ES2022",
     "outDir": "./dist",
-    "rootDir": "./src",
     "composite": true,
     "jsx": "preserve",
     "allowJs": true,

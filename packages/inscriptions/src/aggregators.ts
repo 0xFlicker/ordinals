@@ -23,12 +23,10 @@ export function getFinalFees(fundings: InscriptionFunding[]): {
 
     for (const dest of funding.feeDestinations || []) {
       const key = JSON.stringify(dest);
-      if (destinationCounts.has(key)) {
-        // Increment count for existing destination
-        const existing = destinationCounts.get(key)!;
+      const existing = destinationCounts.get(key);
+      if (existing) {
         existing.count += 1;
       } else {
-        // Add new destination with count 1
         destinationCounts.set(key, { dest, count: 1 });
       }
     }

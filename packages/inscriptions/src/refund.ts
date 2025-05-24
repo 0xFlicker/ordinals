@@ -1,5 +1,12 @@
-import { Address, Script, Signer, Tap, Tx } from "@cmdcode/tapscript";
-import { get_pubkey } from "@cmdcode/crypto-tools/keys";
+import {
+  Address,
+  Script,
+  ScriptData,
+  Signer,
+  Tap,
+  Tx,
+} from '@cmdcode/tapscript';
+import { get_pubkey } from '@cmdcode/crypto-tools/keys';
 
 export interface RefundTransactionRequest {
   feeRate: number;
@@ -24,7 +31,7 @@ export async function generateRefundTransaction({
 }: RefundTransactionRequest) {
   const pubKey = get_pubkey(secKey, true);
 
-  const refundScript = [pubKey, "OP_CHECKSIG"];
+  const refundScript = [pubKey, 'OP_CHECKSIG'];
 
   // Create template tx with full amount to calculate size with witness
   const templateTx = Tx.create({
@@ -34,7 +41,7 @@ export async function generateRefundTransaction({
         vout: vout,
         prevout: {
           value: Number(amount),
-          scriptPubKey: ["OP_1", treeTapKey],
+          scriptPubKey: ['OP_1', treeTapKey],
         },
       },
     ],
@@ -47,14 +54,14 @@ export async function generateRefundTransaction({
   });
 
   // Sign template to get accurate witness size
-  const templateSig = await Signer.taproot.sign(secKey, templateTx, 0, {
+  const templateSig = (await Signer.taproot.sign(secKey, templateTx, 0, {
     extension: Tap.encodeScript(refundScript),
-  });
+  })) as { hex: string };
   templateTx.vin[0].witness = [
     templateSig.hex,
     Script.encode(refundScript),
     refundCBlock,
-  ];
+  ] as ScriptData[];
 
   // Calculate fee based on template with witness
   const { vsize } = Tx.util.getTxSize(templateTx);
@@ -68,7 +75,7 @@ export async function generateRefundTransaction({
         vout: vout,
         prevout: {
           value: amount,
-          scriptPubKey: ["OP_1", treeTapKey],
+          scriptPubKey: ['OP_1', treeTapKey],
         },
       },
     ],
@@ -80,16 +87,20 @@ export async function generateRefundTransaction({
     ],
   });
 
-  const sig = await Signer.taproot.sign(secKey, refundTx, 0, {
+  const sig = (await Signer.taproot.sign(secKey, refundTx, 0, {
     extension: Tap.encodeScript(refundScript),
-  });
-  refundTx.vin[0].witness = [sig.hex, refundScript, refundCBlock];
+  })) as { hex: string };
+  refundTx.vin[0].witness = [
+    sig.hex,
+    refundScript,
+    refundCBlock,
+  ] as ScriptData[];
 
   const isValid = Signer.taproot.verify(refundTx, 0, {
     pubkey: pubKey,
   });
   if (!isValid) {
-    throw new Error("Invalid signature");
+    throw new Error('Invalid signature');
   }
   return refundTx;
 }
@@ -118,7 +129,7 @@ export async function generateBatchRefundTransaction({
       vout: input.vout,
       prevout: {
         value: input.amount,
-        scriptPubKey: ["OP_1", input.treeTapKey],
+        scriptPubKey: ['OP_1', input.treeTapKey],
       },
     })),
     vout: [
@@ -133,10 +144,14 @@ export async function generateBatchRefundTransaction({
   for (let i = 0; i < txTemplate.vin.length; i++) {
     const vin = txTemplate.vin[i];
     const input = inputs[i];
-    const sig = await Signer.taproot.sign(input.secKey, txTemplate, i, {
+    const sig = (await Signer.taproot.sign(input.secKey, txTemplate, i, {
       extension: Tap.encodeScript(input.treeTapKey),
-    });
-    vin.witness = [sig.hex, input.treeTapKey, input.refundCBlock];
+    })) as { hex: string };
+    vin.witness = [
+      sig.hex,
+      input.treeTapKey,
+      input.refundCBlock,
+    ] as ScriptData[];
   }
 
   const { vsize } = Tx.util.getTxSize(txTemplate);
@@ -148,7 +163,7 @@ export async function generateBatchRefundTransaction({
       vout: input.vout,
       prevout: {
         value: input.amount,
-        scriptPubKey: ["OP_1", input.treeTapKey],
+        scriptPubKey: ['OP_1', input.treeTapKey],
       },
     })),
     vout: [
@@ -162,10 +177,14 @@ export async function generateBatchRefundTransaction({
   for (let i = 0; i < tx.vin.length; i++) {
     const vin = tx.vin[i];
     const input = inputs[i];
-    const sig = await Signer.taproot.sign(input.secKey, tx, i, {
+    const sig = (await Signer.taproot.sign(input.secKey, tx, i, {
       extension: Tap.encodeScript(input.treeTapKey),
-    });
-    vin.witness = [sig.hex, input.treeTapKey, input.refundCBlock];
+    })) as { hex: string };
+    vin.witness = [
+      sig.hex,
+      input.treeTapKey,
+      input.refundCBlock,
+    ] as ScriptData[];
   }
 
   return tx;

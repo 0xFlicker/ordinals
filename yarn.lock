@@ -316,7 +316,7 @@
   dependencies:
     "@changesets/types" "^6.1.0"
 
-"@changesets/cli@^2.28.0":
+"@changesets/cli@^2.29.4":
   version "2.29.4"
   resolved "https://registry.yarnpkg.com/@changesets/cli/-/cli-2.29.4.tgz#ac6fe0ec1b14117884f8e5e1bbb6b4acbccc4056"
   integrity sha512-VW30x9oiFp/un/80+5jLeWgEU6Btj8IqOgI+X/zAYu4usVOWXjPIK5jSSlt5jsCU7/6Z7AxEkarxBxGUqkAmNg==

@@ -1,47 +1,41 @@
-import { getData, postData } from "./network.js";
-import { BitcoinNetworkNames, WritableInscription } from "./types.js";
-import { isValidJson } from "./utils.js";
+import { getData, postData } from './network.js';
+import { BitcoinNetworkNames, WritableInscription } from './types.js';
 
 export function urlForNetworkName(network: BitcoinNetworkNames) {
   switch (network) {
-    case "mainnet":
-      return "https://mempool.space";
-    case "testnet":
-      return "https://mempool.space/testnet";
-    case "regtest":
-      return "http://localhost:4080";
-    case "testnet4":
-      return "https://mempool.space/testnet4";
+    case 'mainnet':
+      return 'https://mempool.space';
+    case 'testnet':
+      return 'https://mempool.space/testnet';
+    case 'regtest':
+      return 'http://localhost:4080';
+    case 'testnet4':
+      return 'https://mempool.space/testnet4';
   }
 }
 
 export async function broadcastTx(rawTx: string, network: BitcoinNetworkNames) {
   const url = urlForNetworkName(network);
   // try {
-  const txId = await postData(url + "/api/tx", rawTx);
+  const txId = await postData(url + '/api/tx', rawTx);
   return txId;
 }
 
 export async function addressReceivedMoneyInThisTx(
   address: string,
-  network: BitcoinNetworkNames,
+  network: BitcoinNetworkNames
 ) {
   const url = urlForNetworkName(network);
-  let txid: string;
-  let vout: number;
-  let amt: number;
-  let nonJson: any;
-
-  nonJson = await getData(url + "/api/address/" + address + "/txs");
-
-  const json = JSON.parse(nonJson);
-  for (const tx of json) {
-    for (let i = 0; i < tx["vout"].length; i++) {
-      const output = tx["vout"][i];
-      if (output["scriptpubkey_address"] == address) {
-        txid = tx["txid"];
-        vout = i;
-        amt = output["value"];
+  const responseText = await getData(`${url}/api/address/${address}/txs`);
+  const parsed = JSON.parse(responseText) as Array<Record<string, unknown>>;
+  for (const tx of parsed) {
+    const vouts = tx['vout'] as Array<Record<string, unknown>>;
+    for (let i = 0; i < vouts.length; i++) {
+      const output = vouts[i];
+      if (output['scriptpubkey_address'] === address) {
+        const txid = tx['txid'] as string;
+        const vout = i;
+        const amt = output['value'] as number;
         return [txid, vout, amt] as const;
       }
     }
@@ -51,75 +45,17 @@ export async function addressReceivedMoneyInThisTx(
 
 export async function waitForInscriptionFunding(
   inscription: WritableInscription,
-  network: BitcoinNetworkNames,
+  network: BitcoinNetworkNames
 ) {
   let funded: readonly [string, number, number] | readonly [null, null, null] =
     [null, null, null];
   do {
     funded = await addressReceivedMoneyInThisTx(
       inscription.destinationAddress,
-      network,
+      network
     );
     await new Promise((resolve) => setTimeout(resolve, 1000));
   } while (funded[0] == null);
   const [txid, vout, amount] = funded;
   return [txid, vout, amount] as const;
-}
-
-export async function addressOnceHadMoney(
-  address: string,
-  includeMempool: boolean,
-  network: BitcoinNetworkNames,
-) {
-  let url = urlForNetworkName(network);
-  let nonJson;
-
-  url += "/api/address/" + address;
-  nonJson = await getData(url);
-
-  if (!isValidJson(nonJson)) return false;
-  const json = JSON.parse(nonJson);
-  if (
-    json["chain_stats"]["tx_count"] > 0 ||
-    (includeMempool && json["mempool_stats"]["tx_count"] > 0)
-  ) {
-    return true;
-  }
-  return false;
-}
-
-export async function loopTilAddressReceivesMoney(
-  address: string,
-  includeMempool: boolean,
-  network: BitcoinNetworkNames,
-) {
-  let itReceivedMoney = false;
-
-  async function isDataSetYet(data_i_seek: unknown) {
-    return new Promise(function (resolve) {
-      if (!data_i_seek) {
-        setTimeout(async function () {
-          console.log("waiting for address to receive money...");
-          try {
-            itReceivedMoney = await addressOnceHadMoney(
-              address,
-              includeMempool,
-              network,
-            );
-          } catch (e) {}
-          const msg = await isDataSetYet(itReceivedMoney);
-          resolve(msg);
-        }, 2000);
-      } else {
-        resolve(data_i_seek);
-      }
-    });
-  }
-  async function getTimeoutData() {
-    const data_i_seek = await isDataSetYet(itReceivedMoney);
-    return data_i_seek;
-  }
-
-  const returnable = await getTimeoutData();
-  return returnable;
 }

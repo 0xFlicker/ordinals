@@ -1,18 +1,14 @@
-import { BrotliOptions, brotliCompress, constants } from "zlib";
-import {
-  get_keypair,
-  get_pubkey,
-  get_seckey,
-} from "@cmdcode/crypto-tools/keys";
+import { brotliCompress, constants } from 'zlib';
+import { get_pubkey, get_seckey } from '@cmdcode/crypto-tools/keys';
 import {
   BitcoinNetworkNames,
   BitcoinScriptData,
   InscriptionContent,
   InscriptionFile,
   WritableInscription,
-} from "./types.js";
-import { Script, Signer, Tx } from "@cmdcode/tapscript";
-import { Tap } from "@cmdcode/tapscript";
+} from './types.js';
+import { Script, ScriptData, Signer, Tx } from '@cmdcode/tapscript';
+import { Tap } from '@cmdcode/tapscript';
 import {
   cborEncode,
   isValidAddress,
@@ -20,12 +16,12 @@ import {
   satsToBitcoin,
   scriptDataToSerializedScript,
   serializeTxidAndIndexWithStripping,
-} from "./utils.js";
-import { Address } from "@cmdcode/tapscript";
-import { createQR } from "./qrcode.js";
-import { promisify } from "util";
-import { InvalidAddressError, PaddingTooLowError } from "./errors.js";
-import { mimetypeInfo } from "./mimetype.js";
+} from './utils.js';
+import { Address } from '@cmdcode/tapscript';
+import { createQR } from './qrcode.js';
+import { promisify } from 'util';
+import { InvalidAddressError, PaddingTooLowError } from './errors.js';
+import { mimetypeInfo } from './mimetype.js';
 
 const brotliCompressAsync = promisify(brotliCompress);
 
@@ -72,7 +68,7 @@ export interface GenesisFundingResponse {
 }
 
 export async function generateFundableGenesisTransaction(
-  request: GenesisFundingRequest,
+  request: GenesisFundingRequest
 ): Promise<GenesisFundingResponse> {
   const {
     address,
@@ -128,20 +124,19 @@ export async function generateFundableGenesisTransaction(
       }
       const compressedData = await brotliCompressAsync(
         new Uint8Array(content),
-        brotliCompressOptions,
+        brotliCompressOptions
       );
       if (compressedData.byteLength < content.byteLength) {
         return [true, new Uint8Array(compressedData)] as const;
       }
       return [false, new Uint8Array(content)] as const;
-    }),
+    })
   );
 
   // 6) Build the "master" inscription script with all inscriptions
-  const masterScript: (string | Uint8Array)[] = [pubKey, "OP_CHECKSIG"];
+  const masterScript: (string | Uint8Array)[] = [pubKey, 'OP_CHECKSIG'];
   const ec = new TextEncoder();
-  let totalSize = 0;
-  const inscriptionsToWrite: Omit<WritableInscription, "destinationAddress">[] =
+  const inscriptionsToWrite: Omit<WritableInscription, 'destinationAddress'>[] =
     [];
 
   for (let i = 0; i < files.length; i++) {
@@ -149,18 +144,18 @@ export async function generateFundableGenesisTransaction(
     const { metadata, mimetype } = files[i];
     const mimeEncoded = ec.encode(mimetype);
 
-    masterScript.push("OP_0", "OP_IF");
-    masterScript.push(ec.encode("ord"), "01", mimeEncoded);
+    masterScript.push('OP_0', 'OP_IF');
+    masterScript.push(ec.encode('ord'), '01', mimeEncoded);
 
     // Add pointer if needed, or parent inscriptions
     if (i > 0) {
-      masterScript.push("02", new Uint8Array([i * padding]));
+      masterScript.push('02', new Uint8Array([i * padding]));
     }
     if (parentInscriptions && parentInscriptions.length > 0) {
       parentInscriptions.forEach(({ txid, index }) => {
         masterScript.push(
-          "03",
-          serializeTxidAndIndexWithStripping(txid, index),
+          '03',
+          serializeTxidAndIndexWithStripping(txid, index)
         );
       });
     }
@@ -169,21 +164,20 @@ export async function generateFundableGenesisTransaction(
       const metadataCbor = cborEncode(metadata);
       for (let j = 0; j < metadataCbor.byteLength; j += 520) {
         const chunk = metadataCbor.subarray(j, j + 520);
-        masterScript.push("05", new Uint8Array(chunk));
+        masterScript.push('05', new Uint8Array(chunk));
       }
     }
     if (didCompress) {
-      masterScript.push("09", ec.encode("br"));
+      masterScript.push('09', ec.encode('br'));
     }
 
     // Add actual content
-    masterScript.push("OP_0", data, "OP_ENDIF");
+    masterScript.push('OP_0', data, 'OP_ENDIF');
 
     inscriptionsToWrite.push({
       pointerIndex: i,
       file: files[i],
     });
-    totalSize += data.byteLength;
   }
 
   // 7) Create the final leaf & tap key
@@ -203,7 +197,7 @@ export async function generateFundableGenesisTransaction(
   // This is the actual address to which the user will send the EXACT funds
   const genesisAddress = Address.p2tr.encode(
     tapKey,
-    networkNamesToTapScriptName(network),
+    networkNamesToTapScriptName(network)
   );
 
   // 8) Build a partial "genesis transaction" that we can measure.
@@ -213,12 +207,12 @@ export async function generateFundableGenesisTransaction(
   const partialTxData = Tx.create({
     vin: [
       {
-        txid: "a99d1112bcb35845fd44e703ef2c611f0360dd2bb28927625dbc13eab58cd968",
+        txid: 'a99d1112bcb35845fd44e703ef2c611f0360dd2bb28927625dbc13eab58cd968',
         vout: 0,
         prevout: {
           // We'll set a dummy large value—this is just for size estimation
           value: 100_000_000,
-          scriptPubKey: ["OP_1", tapKey],
+          scriptPubKey: ['OP_1', tapKey],
         },
       },
     ],
@@ -226,15 +220,15 @@ export async function generateFundableGenesisTransaction(
       {
         // We lock everything back to the same script
         value: 100_000_000, // dummy
-        scriptPubKey: ["OP_1", tapKey],
+        scriptPubKey: ['OP_1', tapKey],
       },
     ],
   });
 
   // 9) Sign the partial input with the new leaf, so the witness is included in the size
-  const initSig = await Signer.taproot.sign(secKey, partialTxData, 0, {
+  const initSig = (await Signer.taproot.sign(secKey, partialTxData, 0, {
     extension: genesisLeaf,
-  });
+  })) as { hex: string };
   const [genesisTapKey, genesisCBlock] = Tap.getPubKey(pubKey, {
     tree,
     target: genesisLeaf,
@@ -248,7 +242,7 @@ export async function generateFundableGenesisTransaction(
     initSig.hex,
     Script.encode(masterScript),
     genesisCBlock,
-  ];
+  ] as ScriptData[];
 
   // 10) Measure its size so we know how many sats we need to cover (dust + any overhead)
   const { size } = Tx.util.getTxSize(partialTxData);
@@ -276,10 +270,10 @@ export async function generateFundableGenesisTransaction(
     fundingAddress: genesisAddress,
     amount: satsToBitcoin(BigInt(required)), // e.g. "0.00012345"
     qrValue: `bitcoin:${genesisAddress}?amount=${satsToBitcoin(
-      BigInt(required),
+      BigInt(required)
     )}`,
     qrSrc: await createQR(
-      `bitcoin:${genesisAddress}?amount=${satsToBitcoin(BigInt(required))}`,
+      `bitcoin:${genesisAddress}?amount=${satsToBitcoin(BigInt(required))}`
     ),
     files,
     totalFee: feeSize,
@@ -299,6 +293,6 @@ export async function generateFundableGenesisTransaction(
     rootTapKey: tapKey,
     refundScript: scriptDataToSerializedScript(masterScript),
     secKey,
-    partialHex: Tx.encode(partialTxData).hex, // so you can debug or show the user
+    partialHex: (Tx.encode(partialTxData) as { hex: string }).hex, // so you can debug or show the user
   };
 }
