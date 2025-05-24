@@ -12,8 +12,7 @@
     "build": "tsc -b",
     "test": "yarn node --experimental-vm-modules $(yarn bin jest)",
     "test:coverage": "COVERAGE=true yarn node --experimental-vm-modules $(yarn bin jest)",
-    "lint": "eslint . --ext .ts,.js",
-    "publish": "yarn -s publish --access public"
+    "lint": "eslint . --ext .ts,.js"
   },
   "publishConfig": {
     "access": "public"
