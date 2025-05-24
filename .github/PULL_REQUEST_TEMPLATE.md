@@ -1,11 +1,3 @@
----
-name: Pull request
-about: Describe the changes in this PR
-title: ''
-labels: ''
-assignees: ''
----
-
 ## Description
 
 Please include a summary of the changes and the related issue. Please also include relevant motivation and context.
