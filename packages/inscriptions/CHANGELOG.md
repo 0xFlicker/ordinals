@@ -1,5 +1,11 @@
 # @bitflick/inscriptions
 
+## 1.1.1
+
+### Patch Changes
+
+- 0d42176: Fix the links to the readme badges
+
 ## 1.1.0
 
 ### Minor Changes
